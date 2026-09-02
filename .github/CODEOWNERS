@@ -1,0 +1,14 @@
+# Dueños por área. Todo PR pide revisión automática al dueño del área tocada.
+# El objetivo no es burocracia: es que nadie mergee a ciegas en el área del otro.
+
+*                                   @EdgarTolentino
+
+# Visión, backend y datos — Edgar
+/Fase 2/sistema/vision/             @EdgarTolentino
+/Fase 2/sistema/api/                @EdgarTolentino
+/Fase 2/sistema/worker/             @EdgarTolentino
+/docs/arquitectura/                 @EdgarTolentino
+/.github/                           @EdgarTolentino
+
+# Frontend — el equipo web
+/Fase 2/sistema/web/                @miguelOrtega33 @laincs

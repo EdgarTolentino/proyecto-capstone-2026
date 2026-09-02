@@ -1,0 +1,26 @@
+name: Entregable académico
+description: Documento, informe o presentación exigido por la asignatura
+labels: ["tipo: docs", "area: academico"]
+body:
+  - type: dropdown
+    id: fase
+    attributes:
+      label: Fase
+      options: ["Fase 1 (S1-S4)", "Fase 2 (S5-S15)", "Fase 3 (S16-S18)"]
+    validations: {required: true}
+  - type: input
+    id: fecha
+    attributes:
+      label: Fecha de entrega
+      placeholder: Semana N — dd/mm/2026
+    validations: {required: true}
+  - type: textarea
+    id: contenido
+    attributes:
+      label: Qué debe contener
+      description: Copia aquí lo que exige la pauta del profesor, textual.
+    validations: {required: true}
+  - type: input
+    id: responsable
+    attributes:
+      label: Responsable

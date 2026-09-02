@@ -1,0 +1,105 @@
+# ─────────────────────────────────────────────────────────────
+# Datos pesados: NUNCA entran al repositorio
+# ─────────────────────────────────────────────────────────────
+# Video crudo (un turno de 8 h ≈ 7-14 GB)
+*.mp4
+*.avi
+*.mkv
+*.mov
+*.mpg
+*.mpeg
+*.ts
+*.webm
+!**/fixtures/**/*.mp4          # excepción: videos cortos de prueba (< 2 MB)
+
+# Pesos de modelos y checkpoints — van a GitHub Releases, no a git
+*.pt
+*.pth
+*.onnx
+*.engine
+*.trt
+*.tflite
+*.safetensors
+*.bin
+!**/fixtures/**/*.onnx
+
+# Datasets e imágenes de trabajo
+data/
+datasets/
+runs/
+evidencia/
+recortes/
+*.zip
+*.tar.gz
+
+# ─────────────────────────────────────────────────────────────
+# Datos personales — repositorio público
+# ─────────────────────────────────────────────────────────────
+**/*CONFIDENCIAL*
+**/*confidencial*
+**/*.privado.*
+secretos/
+
+# ─────────────────────────────────────────────────────────────
+# Python
+# ─────────────────────────────────────────────────────────────
+__pycache__/
+*.py[cod]
+*$py.class
+.Python
+build/
+dist/
+*.egg-info/
+.eggs/
+.venv/
+venv/
+env/
+.python-version
+.pytest_cache/
+.ruff_cache/
+.mypy_cache/
+.coverage
+.coverage.*
+coverage.xml
+htmlcov/
+.hypothesis/
+.tox/
+
+# ─────────────────────────────────────────────────────────────
+# Node / frontend
+# ─────────────────────────────────────────────────────────────
+node_modules/
+.next/
+.nuxt/
+.svelte-kit/
+.vite/
+*.tsbuildinfo
+.turbo/
+
+# ─────────────────────────────────────────────────────────────
+# Entorno y secretos
+# ─────────────────────────────────────────────────────────────
+.env
+.env.*
+!.env.example
+*.pem
+*.key
+!**/fixtures/**/*.key
+
+# ─────────────────────────────────────────────────────────────
+# Editores y sistema operativo
+# ─────────────────────────────────────────────────────────────
+.vscode/*
+!.vscode/extensions.json
+!.vscode/settings.shared.json
+.idea/
+*.swp
+.DS_Store
+Thumbs.db
+desktop.ini
+*:Zone.Identifier
+
+# ─────────────────────────────────────────────────────────────
+# Ofimática: archivos temporales de Word/Excel abiertos
+# ─────────────────────────────────────────────────────────────
+~$*

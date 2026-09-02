@@ -1,0 +1,29 @@
+name: Defecto
+description: Algo se comporta distinto de lo esperado
+labels: ["tipo: bug"]
+body:
+  - type: textarea
+    id: esperado
+    attributes:
+      label: Qué esperabas y qué pasó
+    validations: {required: true}
+  - type: textarea
+    id: repro
+    attributes:
+      label: Cómo reproducirlo
+      value: |
+        1.
+        2.
+        3.
+    validations: {required: true}
+  - type: input
+    id: entorno
+    attributes:
+      label: Entorno
+      placeholder: WSL2 Ubuntu 24.04 · Python 3.12 · con GPU / sin GPU · commit abc1234
+    validations: {required: true}
+  - type: textarea
+    id: evidencia
+    attributes:
+      label: Evidencia
+      description: Traza del error, captura, o el video y el segundo exacto donde ocurre.

@@ -1,0 +1,31 @@
+name: Funcionalidad
+description: Algo nuevo que el sistema debe hacer
+labels: ["tipo: feature"]
+body:
+  - type: textarea
+    id: valor
+    attributes:
+      label: Qué problema resuelve
+      description: Para quién y por qué importa. Si no se puede responder, no es una funcionalidad.
+      placeholder: Como prevencionista, necesito ... para poder ...
+    validations: {required: true}
+  - type: textarea
+    id: aceptacion
+    attributes:
+      label: Criterios de aceptación
+      description: Lista verificable. Cada línea debe poder responderse con sí o no.
+      value: |
+        - [ ]
+        - [ ]
+    validations: {required: true}
+  - type: dropdown
+    id: area
+    attributes:
+      label: Área
+      options: [vision, backend, frontend, datos, infra, alertas, academico]
+    validations: {required: true}
+  - type: textarea
+    id: notas
+    attributes:
+      label: Notas técnicas / dependencias
+      description: Qué otra tarea la bloquea, qué contrato de API toca, qué riesgo tiene.
