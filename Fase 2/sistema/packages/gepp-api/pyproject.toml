@@ -1,0 +1,17 @@
+[project]
+name = "gepp-api"
+version = "0.1.0"
+description = "API HTTP y persistencia. NO importa gepp-vision (ver ADR-007)"
+requires-python = ">=3.12,<3.14"
+dependencies = ["gepp-core"]
+
+[build-system]
+requires = ["uv_build>=0.9,<0.13"]
+build-backend = "uv_build"
+
+[tool.uv.build-backend]
+module-name = "gepp_api"
+module-root = "src"
+
+[tool.uv.sources]
+gepp-core = { workspace = true }
