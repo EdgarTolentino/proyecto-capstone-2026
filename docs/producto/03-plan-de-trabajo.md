@@ -26,13 +26,36 @@ destrabar la integración, no impresionar a nadie.
 Lo que lo evita: el contrato de API se congela en la S5 y el frontend trabaja desde el primer
 día contra un servidor simulado. Nadie espera a nadie.
 
+## Antes que nada: dos verificaciones bloqueantes
+
+Una revisión adversarial del diseño encontró que **el proyecto se apoya en dos supuestos que
+nadie ha verificado**, y ambos se comprueban en horas:
+
+| # | Verificación | Costo | Límite |
+|---|---|---|---|
+| **V1** | ¿Existe el video de faena, con permiso y fecha? Por escrito. | 1 correo | **S3** |
+| **V2** | ¿Cuántos píxeles mide un casco a la distancia real de cada cámara? | 20 min | **S3** |
+
+Si el video no llega y los cascos no tienen píxeles suficientes, **la decisión racional es
+cambiar de propuesta** — y descubrirlo en la S3 cuesta infinitamente menos que en la S12.
+Ver [`06-verificaciones-criticas.md`](06-verificaciones-criticas.md).
+
+> **Plazo que nadie había metido al cronograma:** el sistema debe estar declarado en el
+> Reglamento Interno de Orden, Higiene y Seguridad **antes** de la primera ingesta de video real,
+> con 30 días de aviso más 5 de remisión a la autoridad. Son **cinco semanas de trámite dentro de
+> las once de desarrollo**. Si se necesita video real, el trámite arranca en la **S4**.
+
 ## Fase 1 · Definición (S1–S4)
 
 | Sem | Actividad | Responsable | Entregable |
 |---|---|---|---|
 | S1 | Descarte de propuestas de la Escuela; tres propuestas propias | Equipo | Documento de propuestas |
 | S2 | Elección: Guardián EPP. Investigación del estado del arte | Equipo | Investigación técnica |
+| S3 | **V1: confirmar acceso al video, por escrito** | Edgar | Correo del cliente |
+| S3 | **V2: tabla de píxeles sobre objetivo por cámara** | Edgar | Tabla `zona × EPP × evaluable` |
 | S3 | Arquitectura, riesgos, repositorio, gobernanza | Edgar | `docs/` + repositorio configurado |
+| S4 | V9: sumar las horas de Edgar contra el calendario | Edgar | Alcance ajustado |
+| S4 | Iniciar el trámite del RIOHS si se usa video real | Equipo | Solicitud enviada |
 | S3 | Diseño de interfaz: bocetos de las pantallas | Frontend | Maqueta navegable |
 | S4 | **Exposición grupal** + Guía 1.5 completa | Equipo | `Presentación Proyecto.pptx` |
 
@@ -111,3 +134,8 @@ Reglas cortas, porque las largas no se cumplen.
 | El frontend queda esperando al backend | Media | Alto | Contrato de API congelado en S5 + servidor simulado | S5 |
 | Un integrante se descuelga | Media | Alto | Reunión semanal + issues asignados; el trabajo se reasigna en la semana, no en la S14 | Continuo |
 | Sobreajuste al alcance: querer las 8 clases de EPP | Alta | Medio | v1 cierra con casco y chaleco. Lo demás es extensión demostrada, no requisito. | S8 |
+| **Los cascos no tienen píxeles suficientes en las cámaras reales** | Media | **Crítico** | V2: medir antes de comprometer. El motor de reglas no exige en una zona un EPP que la cámara no resuelve | **S3** |
+| **El trámite del RIOHS (5 semanas) bloquea la ingesta real** | Alta | Alto | Arrancar en S4; mientras tanto, trabajar con el corpus sustituto | **S4** |
+| **Las tres cargas no caben en 8 GB de VRAM** | Media | Alto | V4: medir. Alternativas: modelo de 2B, carga bajo demanda, o API externa | S6 |
+| **Falsos negativos + complacencia**: la faena reduce rondas confiando en el sistema | Media | **Crítico** | Posicionamiento escrito de complemento, piso de recall por regla, y cobertura efectiva visible en la interfaz | Continuo |
+| La cámara se mueve y las zonas quedan mal atribuidas | Media | Alto | Comparación contra el cuadro de referencia; suspender reglas en vez de emitir eventos dudosos | S11 |

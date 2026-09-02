@@ -33,3 +33,20 @@ El VLM es un consumidor más de la cola de eventos, con su propio presupuesto de
 alerta sale con la Etapa 1 en cientos de milisegundos; la descripción llega segundos después como
 un `update` del hallazgo. Hay que medir la latencia real del VLM en la máquina del equipo antes
 de comprometerlo en el alcance.
+
+## Nota de conciliación (2026-09-02)
+
+La investigación arrojó dos posturas opuestas sobre el papel del modelo de lenguaje visual. Una
+sostiene que solo debe **describir** (evidencia: F1 en torno a 0,51 clasificando peligros incluso
+con el detector como anclaje, frente a BERTScore 0,82 describiéndolos; y mediciones de recall
+68-89 % con precisión de apenas 2,7-20,4 % en inspección de seguridad en obra). La otra propone
+usarlo como **verificador adversarial** sobre hallazgos dudosos, para reducir falsos positivos.
+
+**Resolución:** el rol por defecto es **describir**, y esta decisión no cambia. La verificación
+sobre hallazgos dudosos —confianza entre 0,35 y 0,65— entra como **experimento medido en la
+S13**, no como parte del camino crítico. Si en el conjunto de validación mejora la precisión sin
+bajar el recall, se activa como **señal sugerente** ("revisar con prioridad"), nunca como
+supresor automático de hallazgos.
+
+Así se aprovecha la idea sin romper la auditabilidad: **ningún hallazgo desaparece porque un
+modelo generativo lo haya decidido.**
