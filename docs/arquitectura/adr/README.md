@@ -13,3 +13,5 @@ un Pull Request. El formato es corto a propósito — un ADR que nadie lee no si
 | [006](006-sin-identificacion.md) | El sistema no identifica personas ni infiere atributos | Aceptada |
 | [007](007-monorepo-uv.md) | Monorepo con espacio de trabajo `uv` y cuatro paquetes | Aceptada |
 | [008](008-alertas-dos-velocidades.md) | Alertas a dos velocidades | Aceptada |
+| [009](009-pipeline-propio.md) | Pipeline propio, con las ideas de Frigate copiadas sin pudor | Aceptada |
+| [010](010-computo-partido.md) | El cómputo se parte: nube para lo público, local para la faena | Aceptada |

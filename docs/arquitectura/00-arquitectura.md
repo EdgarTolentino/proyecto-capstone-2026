@@ -257,6 +257,45 @@ Con eso la ruta de v2 se prueba **en la semana 6**, con los mismos videos del da
 cámaras, sin faena y sin permisos. Y da una frase verificable para el informe: *"la arquitectura
 en vivo fue validada con fuentes RTSP antes del cierre de la v1"*.
 
+## 6.bis El dataset: cascada de preentrenamiento
+
+No hay ningún dataset público de EPP en minería a rajo abierto. Todo lo abierto es construcción
+occidental o china, diurno y recolectado de la web. La estrategia es una **cascada**, de lo
+genérico a lo propio:
+
+```
+pesos genéricos  →  CCTV industrial real  →  densidad de casco/chaleco  →  faena propia
+   (COCO)            enseña la física          más instancias              lo que importa
+                     correcta: cámara fija,
+                     escala pequeña, poca luz
+```
+
+**Advertencia contra un error que dos fuentes recomiendan y una desmiente con datos:** el dataset
+de 17 clases más citado tiene *menos de mil* instancias de casco y *menos de seiscientas* de
+chaleco entre casi 76.000 anotaciones. Sirve para **partes del cuerpo** (manos, cabezas,
+personas), no para EPP. El dataset que sí importa es el de CCTV industrial real, y es el que
+ninguna de esas dos fuentes menciona.
+
+**La cifra que calibra expectativas:** el mismo detector obtiene ~91 % de mAP50 sobre fotos web y
+~79 % sobre CCTV industrial real. Un mAP alto en un dataset público **no predice nada** sobre el
+rendimiento en la faena.
+
+**Presupuesto realista:** 2.000-3.000 imágenes propias —contadas en **instancias**, no en
+imágenes: ≥800 por clase crítica— en tres rondas de esfuerzo decreciente:
+
+| Ronda | Imágenes | Método |
+|---|---|---|
+| 0 | 300-500 | Manuales, con la guía de etiquetado ya escrita |
+| 1 | 800-1.000 | Preetiquetadas con el modelo de la ronda 0, solo corregidas |
+| 2 | 800-1.500 | Seleccionadas por criterio activo |
+
+El criterio de selección activa sale gratis de la arquitectura: **donde el seguidor pierde o
+cambia la identidad, hay un cuadro difícil**. El tracker de la Etapa 1 es, sin costo, el detector
+de casos que vale la pena etiquetar.
+
+**Herramienta: CVAT autoalojado.** Los planes gratuitos de las plataformas comerciales publican
+el dataset en su catálogo público — inaceptable con CCTV de trabajadores.
+
 ## 7. Riesgos técnicos y su mitigación
 
 | Riesgo | Señal temprana | Mitigación |
