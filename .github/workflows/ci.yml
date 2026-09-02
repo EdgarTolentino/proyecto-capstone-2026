@@ -40,6 +40,7 @@ jobs:
               - '.github/workflows/ci.yml'
             web:
               - 'Fase 2/sistema/apps/web/**'
+              - '!Fase 2/sistema/apps/web/**/*.md'
 
   calidad:
     name: Lint y tipos
@@ -51,7 +52,7 @@ jobs:
         working-directory: Fase 2/sistema
     steps:
       - uses: actions/checkout@v7
-      - uses: astral-sh/setup-uv@v10
+      - uses: astral-sh/setup-uv@v10.0.1
         with:
           enable-cache: true
           cache-dependency-glob: Fase 2/sistema/uv.lock
@@ -77,7 +78,7 @@ jobs:
         working-directory: Fase 2/sistema
     steps:
       - uses: actions/checkout@v7
-      - uses: astral-sh/setup-uv@v10
+      - uses: astral-sh/setup-uv@v10.0.1
         with:
           enable-cache: true
           cache-dependency-glob: Fase 2/sistema/uv.lock
@@ -123,13 +124,26 @@ jobs:
         working-directory: Fase 2/sistema/apps/web
     steps:
       - uses: actions/checkout@v7
+      # El proyecto Vite se crea en la S5. Hasta entonces el trabajo pasa sin hacer nada,
+      # en vez de fallar en rojo y acostumbrar al equipo a ignorar el CI.
+      - name: ¿Ya existe el proyecto?
+        id: existe
+        run: |
+          if [ -f package.json ]; then echo "si=true" >> "$GITHUB_OUTPUT"
+          else echo "si=false" >> "$GITHUB_OUTPUT"; echo "::notice::apps/web aún no tiene package.json — se omite"; fi
       - uses: actions/setup-node@v7
+        if: steps.existe.outputs.si == 'true'
         with:
           node-version: "22"
           cache: npm
           cache-dependency-path: Fase 2/sistema/apps/web/package-lock.json
-      - run: npm ci
-      - run: npm run lint --if-present
-      - run: npm run typecheck --if-present
-      - run: npm run test --if-present
-      - run: npm run build --if-present
+      - if: steps.existe.outputs.si == 'true'
+        run: npm ci
+      - if: steps.existe.outputs.si == 'true'
+        run: npm run lint --if-present
+      - if: steps.existe.outputs.si == 'true'
+        run: npm run typecheck --if-present
+      - if: steps.existe.outputs.si == 'true'
+        run: npm run test --if-present
+      - if: steps.existe.outputs.si == 'true'
+        run: npm run build --if-present
