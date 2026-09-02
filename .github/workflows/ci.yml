@@ -147,3 +147,24 @@ jobs:
         run: npm run test --if-present
       - if: steps.existe.outputs.si == 'true'
         run: npm run build --if-present
+
+  # Trabajo agregador. Es el ÚNICO check exigido por la protección de rama.
+  # Sin él, un PR que solo toque documentación dejaría a los trabajos filtrados
+  # en "pendiente" para siempre y quedaría bloqueado sin que nada esté mal.
+  gate:
+    name: Todo en verde
+    if: always()
+    needs: [cambios, calidad, pruebas, licencias, web]
+    runs-on: ubuntu-latest
+    steps:
+      - name: Verificar que nada falló ni se canceló
+        run: |
+          resultados="${{ join(needs.*.result, ' ') }}"
+          echo "Resultados: $resultados"
+          for r in $resultados; do
+            if [ "$r" = "failure" ] || [ "$r" = "cancelled" ]; then
+              echo "::error::Un trabajo obligatorio no pasó ($r)"
+              exit 1
+            fi
+          done
+          echo "Todo en verde (los trabajos omitidos por filtro de rutas cuentan como correctos)."
