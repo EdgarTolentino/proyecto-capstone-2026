@@ -1,0 +1,29 @@
+name: guardian-epp
+
+services:
+  postgres:
+    image: postgres:17-alpine
+    environment:
+      POSTGRES_USER: gepp
+      POSTGRES_PASSWORD: gepp_dev
+      POSTGRES_DB: gepp
+    ports: ["5432:5432"]
+    volumes: [pgdata:/var/lib/postgresql/data]
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U gepp"]
+      interval: 5s
+      retries: 10
+
+  redis:
+    image: redis:7-alpine
+    ports: ["6379:6379"]
+
+  # Publica los videos grabados como cámaras RTSP falsas.
+  # Permite probar la ruta de la v2 desde la semana 6, sin cámaras ni faena (ADR-005).
+  mediamtx:
+    image: bluenviron/mediamtx:latest
+    ports: ["8554:8554"]
+    profiles: [rtsp]
+
+volumes:
+  pgdata:

@@ -1,0 +1,135 @@
+name: CI
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+
+concurrency:
+  group: ${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: true
+
+permissions:
+  contents: read
+
+env:
+  # El código vive en "Fase 2/sistema" porque la asignatura exige esa estructura.
+  # Se declara una sola vez aquí para que el espacio en la ruta no se repita en cada paso.
+  SISTEMA: Fase 2/sistema
+
+jobs:
+  cambios:
+    name: Qué cambió
+    runs-on: ubuntu-latest
+    permissions:
+      pull-requests: read
+    outputs:
+      python: ${{ steps.filtro.outputs.python }}
+      web: ${{ steps.filtro.outputs.web }}
+    steps:
+      - uses: actions/checkout@v7
+      - uses: dorny/paths-filter@v4
+        id: filtro
+        with:
+          filters: |
+            python:
+              - 'Fase 2/sistema/packages/**'
+              - 'Fase 2/sistema/tests/**'
+              - 'Fase 2/sistema/pyproject.toml'
+              - 'Fase 2/sistema/uv.lock'
+              - '.github/workflows/ci.yml'
+            web:
+              - 'Fase 2/sistema/apps/web/**'
+
+  calidad:
+    name: Lint y tipos
+    needs: cambios
+    if: needs.cambios.outputs.python == 'true'
+    runs-on: ubuntu-latest
+    defaults:
+      run:
+        working-directory: Fase 2/sistema
+    steps:
+      - uses: actions/checkout@v7
+      - uses: astral-sh/setup-uv@v10
+        with:
+          enable-cache: true
+          cache-dependency-glob: Fase 2/sistema/uv.lock
+      - run: uv sync --all-packages --frozen
+      - name: ruff (lint)
+        run: uv run ruff check --output-format=github .
+      - name: ruff (formato)
+        run: uv run ruff format --check .
+      - name: mypy
+        run: uv run mypy packages/gepp-core/src packages/gepp-api/src packages/gepp-vision/src packages/gepp-worker/src
+
+  pruebas:
+    name: Pruebas (Python ${{ matrix.python }})
+    needs: cambios
+    if: needs.cambios.outputs.python == 'true'
+    runs-on: ubuntu-latest
+    strategy:
+      fail-fast: false
+      matrix:
+        python: ["3.12", "3.13"]
+    defaults:
+      run:
+        working-directory: Fase 2/sistema
+    steps:
+      - uses: actions/checkout@v7
+      - uses: astral-sh/setup-uv@v10
+        with:
+          enable-cache: true
+          cache-dependency-glob: Fase 2/sistema/uv.lock
+          python-version: ${{ matrix.python }}
+      - run: uv sync --all-packages --frozen
+      # Sin GPU en los ejecutores de GitHub: los tests marcados 'gpu' se omiten.
+      # El dominio es Python puro justo para que esto sea posible (ADR-007).
+      - name: pytest
+        run: uv run pytest -m "not gpu and not slow" --cov --cov-report=term-missing
+
+  licencias:
+    name: Higiene de licencias
+    needs: cambios
+    if: needs.cambios.outputs.python == 'true'
+    runs-on: ubuntu-latest
+    defaults:
+      run:
+        working-directory: Fase 2/sistema
+    steps:
+      - uses: actions/checkout@v7
+      # Ultralytics es AGPL-3.0 y su licenciante sostiene que alcanza a los pesos
+      # que uno mismo entrena; boxmot es AGPL-3.0; DEIMv2 es propietaria no comercial.
+      # Cualquiera de las tres contaminaría el proyecto. Ver ADR-002.
+      - name: Dependencias prohibidas
+        run: |
+          prohibidas="ultralytics boxmot deimv2 super-gradients"
+          fallo=0
+          for p in $prohibidas; do
+            if grep -qi "name = \"$p\"" uv.lock 2>/dev/null; then
+              echo "::error file=uv.lock::Dependencia prohibida por licencia: $p (ver docs/arquitectura/adr/002-detector-y-licencias.md)"
+              fallo=1
+            fi
+          done
+          exit $fallo
+
+  web:
+    name: Frontend
+    needs: cambios
+    if: needs.cambios.outputs.web == 'true'
+    runs-on: ubuntu-latest
+    defaults:
+      run:
+        working-directory: Fase 2/sistema/apps/web
+    steps:
+      - uses: actions/checkout@v7
+      - uses: actions/setup-node@v7
+        with:
+          node-version: "22"
+          cache: npm
+          cache-dependency-path: Fase 2/sistema/apps/web/package-lock.json
+      - run: npm ci
+      - run: npm run lint --if-present
+      - run: npm run typecheck --if-present
+      - run: npm run test --if-present
+      - run: npm run build --if-present
