@@ -1,10 +1,15 @@
 # Fase 3 — Cierre y defensa (S16–S18)
 
-## Qué se entrega en esta fase
+## Evidencias exigidas
 
-| Entregable | Dónde | Responsable |
-|---|---|---|
-| Documentos de cierre del proyecto | `Evidencias Grupales/` | Equipo |
-| Manual de usuario y manual técnico | `Evidencias Grupales/` | Equipo |
-| Presentación de defensa final | `Evidencias Grupales/` | Equipo |
-| Autoevaluación y bitácora final | `Evidencias Individuales/` | Cada uno |
+### Individuales
+| Archivo | Qué es |
+|---|---|
+| `Apellido_Nombre_3.1_APT122_DiarioReflexionFase3.docx` | Diario de reflexión final |
+
+### Grupales
+| Archivo | Qué es |
+|---|---|
+| `Presentación Final del proyecto (Español).pptx` | Defensa final |
+| `Presentación Final del proyecto (Inglés).pptx` | Optativo |
+| `PLANILLA DE EVALUACIÓN FASE 3.xlsx` | La envía el docente |
