@@ -1,0 +1,31 @@
+name: Experimento de modelo
+description: Entrenamiento, evaluación o cambio de dataset
+labels: ["tipo: modelo", "area: datos"]
+body:
+  - type: textarea
+    id: hipotesis
+    attributes:
+      label: Hipótesis
+      description: Qué crees que va a mejorar y por qué. Una sola hipótesis por experimento.
+      placeholder: Añadir 300 imágenes nocturnas subirá el recall de casco con poca luz de 0,61 a >0,75.
+    validations: {required: true}
+  - type: textarea
+    id: setup
+    attributes:
+      label: Configuración
+      value: |
+        - Modelo base:
+        - Dataset / versión:
+        - Hiperparámetros relevantes:
+        - Conjunto de validación:
+    validations: {required: true}
+  - type: textarea
+    id: metrica
+    attributes:
+      label: Métrica de decisión
+      description: Qué número decide si el experimento se acepta o se descarta, y su umbral.
+    validations: {required: true}
+  - type: textarea
+    id: resultado
+    attributes:
+      label: Resultado (se completa al cerrar)

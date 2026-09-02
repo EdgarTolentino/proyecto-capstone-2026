@@ -1,0 +1,21 @@
+# Normalización de fin de línea: el equipo trabaja en Windows + WSL2
+* text=auto eol=lf
+*.bat  text eol=crlf
+*.ps1  text eol=crlf
+
+# Binarios: sin diff ni normalización
+*.png   binary
+*.jpg   binary
+*.jpeg  binary
+*.gif   binary
+*.pdf   binary
+*.docx  binary
+*.xlsx  binary
+*.pptx  binary
+*.mp4   binary
+*.onnx  binary
+*.pt    binary
+
+# Estadísticas de lenguaje: que GitHub no cuente los documentos como código
+Fase*/**  linguist-documentation
+docs/**   linguist-documentation
