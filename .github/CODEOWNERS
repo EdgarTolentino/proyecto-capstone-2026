@@ -1,14 +1,26 @@
 # Dueños por área. Todo PR pide revisión automática al dueño del área tocada.
 # El objetivo no es burocracia: es que nadie mergee a ciegas en el área del otro.
+#
+# POR QUÉ NO HAY NINGUNA RUTA "/Fase 2/...":
+# GitHub separa el patrón de los dueños por espacios, así que "/Fase 2/sistema/api/" se lee
+# como patrón "/Fase" con dueño "2/sistema/api/". Las reglas anteriores estaban todas escritas
+# así y ninguna asignaba revisor: CODEOWNERS parecía configurado y no hacía nada.
+# Un patrón SIN barra inicial coincide a cualquier profundidad, y eso esquiva el espacio.
 
-*                                   @EdgarTolentino
+*                               @EdgarTolentino
 
-# Visión, backend y datos — Edgar
-/Fase 2/sistema/vision/             @EdgarTolentino
-/Fase 2/sistema/api/                @EdgarTolentino
-/Fase 2/sistema/worker/             @EdgarTolentino
-/docs/arquitectura/                 @EdgarTolentino
-/.github/                           @EdgarTolentino
+# Visión, backend, datos y dominio — Edgar
+packages/gepp-core/             @EdgarTolentino
+packages/gepp-vision/           @EdgarTolentino
+packages/gepp-api/              @EdgarTolentino
+packages/gepp-worker/           @EdgarTolentino
+scripts/                        @EdgarTolentino
+docs/arquitectura/              @EdgarTolentino
+.github/                        @EdgarTolentino
 
 # Frontend — el equipo web
-/Fase 2/sistema/web/                @miguelOrtega33 @laincs
+apps/web/                       @miguelOrtega33 @laincs
+
+# El contrato es la frontera entre los dos lados: lo revisan ambos.
+# Un cambio aquí rompe trabajo ajeno sin que el CI se entere.
+contracts/                      @EdgarTolentino @miguelOrtega33 @laincs
