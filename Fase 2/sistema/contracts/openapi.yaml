@@ -490,6 +490,36 @@ paths:
               schema: { $ref: '#/components/schemas/Catalogos' }
 
         '4XX': { $ref: '#/components/responses/Error' }
+  /estado:
+    get:
+      tags: [Catálogos]
+      summary: Estado de ingesta y cobertura, para la cabecera global
+      description: |
+        Llamada barata y frecuente: la cabecera vive en todas las pantallas, así que no puede
+        depender de `/panel`. Pensada para consultarse cada pocos segundos.
+      operationId: obtenerEstado
+      responses:
+        '200':
+          description: Estado
+          content:
+            application/json:
+              schema:
+                type: object
+                required: [ingesta, cobertura, pendientes_por_revisar]
+                properties:
+                  ingesta:
+                    type: object
+                    properties:
+                      activa: { type: boolean, example: true }
+                      en_proceso: { type: integer, example: 1 }
+                      en_cola: { type: integer, example: 3 }
+                  cobertura: { $ref: '#/components/schemas/Cobertura' }
+                  pendientes_por_revisar:
+                    type: integer
+                    description: El contador que va junto a "Hallazgos" en la barra lateral.
+                    example: 23
+        '4XX': { $ref: '#/components/responses/Error' }
+
   /yo:
     get:
       tags: [Catálogos]
@@ -670,7 +700,13 @@ components:
           description: Nulo mientras el evento sigue vivo (solo v2, en vivo).
           example: '2026-09-03T10:17:19-03:00'
         duracion_s: { type: number, format: float, example: 192.0 }
-        cuadros_confirmados: { type: integer, example: 47 }
+        cuadros_confirmados:
+          type: integer
+          description: |
+            Total de cuadros en que se confirmó el incumplimiento. **Es un entero, no una razón:**
+            la razón del umbral ("4 de 5 en 2,0 s") pertenece al visor, en `por_que_se_disparo`.
+            Mostrarla en la bandeja reintroduce el pensamiento en cuadros que el ADR-005 prohíbe.
+          example: 47
         confianza_media:
           type: number
           format: float
@@ -940,24 +976,26 @@ components:
           type: array
           maxItems: 8
           items: { $ref: '#/components/schemas/Hallazgo' }
-        cobertura:
-          type: object
-          description: |
-            **El hueco tiene que verse.** Si el sistema no está mirando una zona, el prevencionista
-            debe saberlo: es la mitigación del riesgo de falso negativo con complacencia.
-          properties:
-            fuentes_activas: { type: integer, example: 3 }
-            fuentes_totales: { type: integer, example: 4 }
-            sin_cobertura:
-              type: array
-              items:
-                type: object
-                properties:
-                  fuente: { $ref: '#/components/schemas/Referencia' }
-                  motivo:
-                    type: string
-                    enum: [sin_ingesta, requiere_recalibracion, error, regla_degradada]
-                  desde: { type: string, format: date-time }
+        cobertura: { $ref: '#/components/schemas/Cobertura' }
+
+    Cobertura:
+      type: object
+      description: |
+        **El hueco tiene que verse.** Si el sistema no está mirando una zona, el prevencionista
+        debe saberlo: es la mitigación del riesgo de falso negativo con complacencia.
+      properties:
+        fuentes_activas: { type: integer, example: 3 }
+        fuentes_totales: { type: integer, example: 4 }
+        sin_cobertura:
+          type: array
+          items:
+            type: object
+            properties:
+              fuente: { $ref: '#/components/schemas/Referencia' }
+              motivo:
+                type: string
+                enum: [sin_ingesta, requiere_recalibracion, error, regla_degradada]
+              desde: { type: string, format: date-time }
 
     ReglaEntrada:
       type: object
