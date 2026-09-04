@@ -11,8 +11,8 @@ lleva el contexto, las pantallas, el estilo y datos de ejemplo realistas.
 
 ```
 Diseña la interfaz de "Guardián EPP", una plataforma web que detecta automáticamente el
-incumplimiento en el uso de Elementos de Protección Personal sobre video de CCTV de una faena
-minera chilena, y convierte cada incumplimiento en un hallazgo gestionable.
+incumplimiento en el uso de Elementos de Protección Personal sobre video de CCTV de una obra de
+construcción chilena, y convierte cada incumplimiento en un hallazgo gestionable.
 
 CONCEPTO CLAVE — léelo antes de decidir nada:
 Esto NO es un dashboard de analítica. Es una BANDEJA DE TRIAGE. El usuario principal es un
@@ -23,7 +23,7 @@ indicadores es la segunda pantalla en importancia, nunca la primera.
 
 USUARIOS
 - Prevencionista de riesgos: tría hallazgos todo el día. Es quien manda en el diseño.
-- Supervisor de área: recibe alertas de su zona y las cierra. Entra poco y con prisa.
+- Supervisor de obra: recibe alertas de su área y las cierra. Entra poco y con prisa.
 - Jefatura de seguridad: mira tendencias una vez por semana.
 - Administrador: configura zonas, reglas y destinatarios.
 
@@ -75,7 +75,7 @@ PANTALLAS (genera un artboard por cada una)
    - Dos gráficos, solo dos: tendencia semanal por severidad (líneas, máximo 4 series) y ranking
      de EPP incumplido (barras horizontales, top 5 más "Otros").
    - Los 8 hallazgos críticos más recientes, como lista compacta.
-   Cabecera global con selector de faena, rango de fechas y turno que filtra toda la aplicación.
+   Cabecera global con selector de obra, rango de fechas y turno que filtra toda la aplicación.
    Todo elemento del panel es clicable y lleva a la bandeja con el filtro aplicado.
 
 5. EDITOR DE REGLAS — /reglas
@@ -119,15 +119,17 @@ ESTILO VISUAL — minimalista pero denso en información
   dona, 3D, apilados y arcoíris. Máximo 5 series.
 
 DATOS DE EJEMPLO — úsalos, hacen que el diseño se vea real
-Áreas: Chancado Primario · Correa Transportadora 3 · Taller de Mantención · Patio de Camiones ·
-Bodega de Insumos.
-Cámaras: CAM-01 Acceso Chancado · CAM-04 Correa 3 Norte · CAM-07 Taller · CAM-09 Patio.
+Áreas: Excavación y Fundaciones · Andamio Fachada Norte · Losa Nivel 3 · Patio de Maniobras ·
+Bodega de Materiales.
+Cámaras: CAM-01 Acceso Obra · CAM-04 Fachada Norte · CAM-07 Losa N3 · CAM-09 Patio.
 Hallazgos de ejemplo:
-  ◆ Crítica · sin casco · Chancado Primario · CAM-01 · 02:14:07 · 3 m 12 s · 0,91 · Por revisar
-  ▲ Alta · sin chaleco · Patio de Camiones · CAM-09 · 07:41:55 · 48 s · 0,76 · Por revisar
-  ▲ Alta · sin casco, sin chaleco · Correa 3 · CAM-04 · 14:02:31 · 1 m 05 s · 0,83 · Confirmado
-  ● Media · sin lentes · Taller · CAM-07 · 09:18:44 · 2 m 30 s · 0,64 · Falso positivo
-Turnos: A (08:00-20:00) y B (20:00-08:00). Los nombres van en español de Chile.
+  ◆ Crítica · sin arnés · Andamio Fachada Norte · CAM-04 · 10:14:07 · 3 m 12 s · 0,91 · Por revisar
+  ◆ Crítica · sin casco · Excavación y Fundaciones · CAM-01 · 08:22:40 · 1 m 47 s · 0,88 · Por revisar
+  ▲ Alta · sin chaleco · Patio de Maniobras · CAM-09 · 07:41:55 · 48 s · 0,76 · Por revisar
+  ▲ Alta · sin casco, sin chaleco · Losa Nivel 3 · CAM-07 · 14:02:31 · 1 m 05 s · 0,83 · Confirmado
+  ● Media · sin lentes · Bodega de Materiales · CAM-09 · 09:18:44 · 2 m 30 s · 0,64 · Falso positivo
+Turnos: A (08:00-17:30) y B (nocturno, hormigonado). Los nombres van en español de Chile.
+El EPP crítico de obra es CASCO, CHALECO y ARNÉS en altura — el arnés es el de mayor severidad.
 
 REGLAS QUE NO SE PUEDEN ROMPER
 - Nada de reconocimiento facial ni de identificar trabajadores. El sistema reporta por área y
@@ -138,6 +140,96 @@ REGLAS QUE NO SE PUEDEN ROMPER
 ```
 
 ---
+
+## Iteración 2 — correcciones tras la primera generación (2026-09-04)
+
+La primera pasada devolvió la bandeja completa y **pasó la prueba de daltonismo**: desaturada la
+captura, los cuatro niveles se distinguen por forma —rombo, triángulo, círculo, anillo— más la
+palabra, sin depender del color.
+
+Contrastada contra [`contracts/openapi.yaml`](../../contracts/openapi.yaml) aparecieron cinco
+correcciones y **un hueco del contrato**: la cabecera pinta "Ingesta activa · 1 en proceso" y el
+contador de pendientes, y no había de dónde sacarlos —`cobertura` vivía dentro de `/panel`, que
+solo existe en la portada—. Se añadió `GET /estado` para eso.
+
+El error de fondo del diseño fue la columna CUADROS mostrando `5/5`: esa razón es el umbral de
+confirmación, pertenece al visor, y ponerla en la bandeja reintroduce el pensamiento en cuadros
+que el [ADR-005](../../../../docs/arquitectura/adr/005-fuente-y-reloj.md) prohíbe. Además no
+cuadraba: un hallazgo de 3 m 12 s a 5 fps son unos 900 cuadros, no 5.
+
+Mensaje enviado a continuación, en la misma conversación:
+
+```
+La bandeja quedó bien. Cinco correcciones y después una pantalla nueva.
+
+CORRECCIONES A LA BANDEJA
+
+1. La columna CUADROS muestra "5/5" y "4/5". Está mal: esa razón es el umbral de
+   confirmación de la regla y pertenece al visor, no a la bandeja. Aquí va el TOTAL de
+   cuadros en que se confirmó el incumplimiento, como número entero: 47, 31, 14, 19.
+   Y tiene que ser coherente con la duración: a 5 cuadros por segundo, un hallazgo de
+   3 m 12 s tiene del orden de 900 cuadros analizados, no 5. Un hallazgo de 48 s no
+   puede tener más cuadros confirmados que uno de 3 minutos.
+
+2. El filtro dice "Severidad: Crítica, Alta" pero la tabla muestra filas Media y Baja.
+   El filtro y los datos tienen que coincidir. Deja el filtro de severidad en "todas".
+
+3. La barra lateral dice "Hallazgos 23" y la pestaña "Todos" dice 16. O son la misma
+   cifra, o hay que distinguirlas visualmente. Usa 16 en los dos sitios.
+
+4. La columna DURACIÓN parte el valor en dos líneas ("3 m 12" arriba y "s" abajo).
+   Tiene que caber en UNA línea. Ensánchala y usa el formato compacto: 3m 12s · 1m 47s ·
+   48s. Mantén la tipografía monoespaciada con cifras tabulares para que los valores
+   queden alineados por la derecha.
+
+5. Quita la columna ESTADO. Dentro de la pestaña "Por revisar" todas las filas dicen lo
+   mismo, así que solo ocupa ancho. Ese espacio se lo das a DURACIÓN y a ÁREA / ZONA.
+
+No cambies nada más: la escala de grises, el acento azul, la codificación de severidad
+por color + forma + palabra, el filete de 3 px, los atajos de teclado y el aviso de
+indicio automatizado están bien y se quedan como están.
+
+AHORA GENERA LA PANTALLA 2 — VISOR DE EVIDENCIA
+
+Es un panel deslizante que entra desde la derecha y ocupa el 60 % del ancho, POR ENCIMA
+de la bandeja, que sigue visible detrás y atenuada. No es una página nueva: el
+prevencionista tría 30 hallazgos seguidos y no puede perder su lugar.
+
+Muéstralo abierto sobre el primer hallazgo de la bandeja:
+  ◆ Crítica · sin arnés · Andamio Fachada Norte / Plataforma N4 · CAM-04 Fachada Norte
+  10:14:07 · 3m 12s · 47 cuadros · confianza 0,91 · Por revisar
+
+De arriba a abajo:
+
+- Recorte de video de 8 segundos en bucle, con dos interruptores: "mostrar cajas" y
+  "difuminar rostro". El de difuminar aparece ACTIVADO, y así se tiene que ver.
+- Tira horizontal de 6 miniaturas de los cuadros confirmados.
+- Mini línea de tiempo del evento con tres marcas: primera detección (10:14:07), umbral
+  alcanzado (10:14:09) y fin (10:17:19).
+- Descripción automática: título grande "Trabajador sin arnés en plataforma de andamio" y
+  dos líneas de descripción. La confianza de esta descripción va como dato secundario
+  pequeño (0,72) y separada de la confianza del hallazgo: son cosas distintas.
+- Bloque "POR QUÉ SE DISPARÓ". Es el bloque más importante de la pantalla, el que hace
+  auditable el sistema. Contiene:
+      Regla:     Arnés obligatorio — Trabajo en altura (versión 3)
+      Zona:      Plataforma N4
+      EPP exigido: arnés
+      Umbral configurado: 4 de 5 cuadros en 2,0 s
+      Valores observados: 47 de 51 cuadros en 192,0 s
+      Confianza mínima: 0,45
+      Base de licitud: obligación legal · DS 594 art. 53
+- Metadatos técnicos, plegados por defecto: archivo CAM-04_2026-09-03_10-00.mp4 ·
+  hash 9f2c1a7e…b304 · segundo 854,4 del video · cadencia 5,0 fps ·
+  modelo rfdetr-b-epp-v3 · track 17 (efímero).
+- Barra de acciones fija abajo, siempre visible:
+  Confirmar · Falso positivo · Duplicado · Posponer · Asignar.
+
+REGLAS QUE SIGUEN VIGENTES
+- Ningún nombre, RUT ni foto de trabajador en ninguna parte.
+- El difuminado de rostro siempre activado.
+- La leyenda "Indicio automatizado. Requiere validación humana." visible también aquí.
+- Severidad y confianza en elementos separados, nunca fundidos en un solo indicador.
+```
 
 ## Después de generar
 

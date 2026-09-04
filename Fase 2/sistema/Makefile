@@ -1,7 +1,7 @@
 # Seis verbos. Ni uno más: lo primero que mira alguien nuevo en el repositorio.
 # Encapsula la ruta con espacio para que nadie tenga que escribirla.
 
-.PHONY: ayuda setup lint fmt tipos test test-gpu cobertura contrato up down limpiar
+.PHONY: ayuda setup lint fmt tipos test test-gpu cobertura contrato contrato-lint mock up down limpiar
 
 ayuda:  ## Muestra esta ayuda
 	@grep -E '^[a-z-]+:.*?## .*$$' $(MAKEFILE_LIST) | awk 'BEGIN{FS=":.*?## "};{printf "  \033[36m%-12s\033[0m %s\n", $$1, $$2}'
@@ -35,6 +35,13 @@ cobertura:  ## Pruebas con informe de cobertura
 contrato:  ## Exporta el OpenAPI y falla si cambió sin actualizar el contrato
 	uv run python scripts/exportar_openapi.py
 	git diff --exit-code contracts/openapi.json
+
+contrato-lint:  ## Valida el contrato OpenAPI
+	npx --yes @redocly/cli@latest lint contracts/openapi.yaml
+
+mock:  ## Levanta el servidor simulado del contrato en el puerto 4010
+	@echo "Recuerda la cabecera:  Authorization: Bearer demo"
+	npx --yes @stoplight/prism-cli@latest mock contracts/openapi.yaml -p 4010
 
 up:  ## Levanta PostgreSQL y Redis
 	docker compose -f docker/compose.yml up -d

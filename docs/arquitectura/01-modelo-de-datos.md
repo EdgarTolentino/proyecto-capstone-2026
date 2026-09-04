@@ -150,7 +150,7 @@ CREATE TABLE regla (
     -- Gobernanza: la trazabilidad jurídica se audita con un SELECT, no con un PDF
     base_licitud           TEXT NOT NULL
                            CHECK (base_licitud IN ('obligacion_legal','interes_legitimo','contrato')),
-    norma_fundante         TEXT,                      -- 'DS 132 art. 32'
+    norma_fundante         TEXT,                      -- 'DS 594 art. 53'
     finalidad_declarada    TEXT NOT NULL,
     retencion_dias         INT NOT NULL DEFAULT 30,
     creada_por             BIGINT REFERENCES usuario(id),

@@ -103,7 +103,7 @@ El detalle está en [`docs/producto/02-privacidad-y-cumplimiento.md`](../product
 
 **La regla que ordena el dibujo:** la Etapa 1 decide, la Etapa 2 describe. El modelo de lenguaje
 visual nunca crea, suprime ni cambia la severidad de un hallazgo. Si lo hiciera, el sistema
-dejaría de ser auditable — y un cliente minero exige poder explicar por qué se disparó cada
+dejaría de ser auditable — y cualquier cliente exige poder explicar por qué se disparó cada
 alerta.
 
 ## 4. Componentes
@@ -259,16 +259,23 @@ en vivo fue validada con fuentes RTSP antes del cierre de la v1"*.
 
 ## 6.bis El dataset: cascada de preentrenamiento
 
-No hay ningún dataset público de EPP en minería a rajo abierto. Todo lo abierto es construcción
-occidental o china, diurno y recolectado de la web. La estrategia es una **cascada**, de lo
-genérico a lo propio:
+Todo lo público de EPP es construcción occidental o china, diurno y recolectado de la web. Cuando
+el dominio declarado era la minería eso obligaba a una cascada larga, para salvar la brecha entre
+el material disponible y el material objetivo. Con
+[ADR-011](adr/011-dominio-configurable.md) el dominio evaluado **es** la construcción: la brecha
+se cierra sola y la cascada pierde un peldaño.
 
 ```
-pesos genéricos  →  CCTV industrial real  →  densidad de casco/chaleco  →  faena propia
-   (COCO)            enseña la física          más instancias              lo que importa
-                     correcta: cámara fija,
-                     escala pequeña, poca luz
+pesos genéricos  →  EPP público en construcción  →  video propio de obra
+   (COCO)            volumen y variedad             lo que importa, y lo único
+                     de casco/chaleco               que puede evaluar eventos
 ```
+
+**La división que manda, y no es negociable:** los datasets públicos son **imágenes sueltas** y
+sirven para **entrenar**. El conjunto de prueba tiene que ser **video**, porque lo que se evalúa
+son tracks, reglas en segundos y eventos con duración — nada de eso existe en una imagen suelta.
+La procedencia y licencia de cada fuente va en
+[`docs/producto/07-datasets.md`](../producto/07-datasets.md).
 
 **Advertencia contra un error que dos fuentes recomiendan y una desmiente con datos:** el dataset
 de 17 clases más citado tiene *menos de mil* instancias de casco y *menos de seiscientas* de
@@ -278,7 +285,7 @@ ninguna de esas dos fuentes menciona.
 
 **La cifra que calibra expectativas:** el mismo detector obtiene ~91 % de mAP50 sobre fotos web y
 ~79 % sobre CCTV industrial real. Un mAP alto en un dataset público **no predice nada** sobre el
-rendimiento en la faena.
+rendimiento en la obra: las fotos web son de cerca, bien iluminadas y encuadradas; el CCTV no.
 
 **Presupuesto realista:** 2.000-3.000 imágenes propias —contadas en **instancias**, no en
 imágenes: ≥800 por clase crítica— en tres rondas de esfuerzo decreciente:
