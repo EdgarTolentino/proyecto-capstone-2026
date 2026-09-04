@@ -1,0 +1,526 @@
+<!DOCTYPE html>
+<html>
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<script src="./support.js"></script>
+</head>
+<body>
+<x-dc>
+<helmet>
+<link rel="preconnect" href="https://fonts.googleapis.com" />
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600&family=JetBrains+Mono:wght@400;500&display=swap" />
+<style>
+  html, body { margin: 0; padding: 0; background: #0B0D10; }
+  * { box-sizing: border-box; }
+  a { color: #4C8DF6; text-decoration: none; }
+  a:hover { color: #7FB0FA; }
+  ::-webkit-scrollbar { width: 10px; height: 10px; }
+  ::-webkit-scrollbar-thumb { background: #2E3238; border-radius: 6px; }
+  ::-webkit-scrollbar-track { background: #0B0D10; }
+  @keyframes gepp-pulse { 0%,100% { opacity: .35 } 50% { opacity: .9 } }
+</style>
+</helmet>
+
+<div style="display: flex; height: 100vh; min-height: 700px; background: #0B0D10; color: #E6E8EB; font-family: Inter, system-ui, sans-serif; font-size: 13px; overflow: hidden;">
+
+  <div style="width: 232px; flex: 0 0 232px; border-right: 1px solid #26292E; background: #0B0D10; display: flex; flex-direction: column;">
+    <div style="height: 56px; display: flex; align-items: center; gap: 10px; padding: 0 16px; border-bottom: 1px solid #26292E;">
+      <div style="width: 22px; height: 22px; border-radius: 6px; border: 1px solid #3A3F46; display: flex; align-items: center; justify-content: center; color: #D55E00; font-size: 11px;">◆</div>
+      <div style="font-size: 14px; font-weight: 600; letter-spacing: -0.01em;">Guardián EPP</div>
+    </div>
+
+    <div style="padding: 12px 8px; display: flex; flex-direction: column; gap: 2px;">
+      <div style="padding: 0 8px 6px; font-size: 11px; text-transform: uppercase; letter-spacing: .08em; color: #6B7280;">Operación</div>
+      <div style="display: flex; align-items: center; gap: 10px; height: 32px; padding: 0 8px; border-radius: 6px; color: #A6ADB5;">
+        <span style="width: 14px; text-align: center; font-size: 12px;">▦</span><span>Panel general</span>
+      </div>
+      <div style="display: flex; align-items: center; gap: 10px; height: 32px; padding: 0 8px; border-radius: 6px; background: #1B2735; color: #E6E8EB; font-weight: 500; box-shadow: inset 2px 0 0 #2F81F7;">
+        <span style="width: 14px; text-align: center; font-size: 12px;">☰</span><span>Hallazgos</span>
+        <span style="margin-left: auto; font-family: 'JetBrains Mono', monospace; font-size: 11px; background: #D55E00; color: #0B0D10; font-weight: 500; padding: 1px 6px; border-radius: 10px;">{{ pendientes }}</span>
+      </div>
+      <div style="display: flex; align-items: center; gap: 10px; height: 32px; padding: 0 8px; border-radius: 6px; color: #A6ADB5;">
+        <span style="width: 14px; text-align: center; font-size: 12px;">▷</span><span>Videos</span>
+        <span style="margin-left: auto; font-family: 'JetBrains Mono', monospace; font-size: 11px; color: #6B7280;">4</span>
+      </div>
+      <div style="padding: 14px 8px 6px; font-size: 11px; text-transform: uppercase; letter-spacing: .08em; color: #6B7280;">Configuración</div>
+      <div style="display: flex; align-items: center; gap: 10px; height: 32px; padding: 0 8px; border-radius: 6px; color: #A6ADB5;">
+        <span style="width: 14px; text-align: center; font-size: 12px;">⚙</span><span>Reglas</span>
+      </div>
+      <div style="display: flex; align-items: center; gap: 10px; height: 32px; padding: 0 8px; border-radius: 6px; color: #A6ADB5;">
+        <span style="width: 14px; text-align: center; font-size: 12px;">◫</span><span>Reportes</span>
+      </div>
+      <div style="display: flex; align-items: center; gap: 10px; height: 32px; padding: 0 8px; border-radius: 6px; color: #A6ADB5;">
+        <span style="width: 14px; text-align: center; font-size: 12px;">◉</span><span>Zonas y cámaras</span>
+      </div>
+    </div>
+
+    <div style="margin-top: auto; padding: 12px; border-top: 1px solid #26292E;">
+      <div style="font-size: 11px; text-transform: uppercase; letter-spacing: .08em; color: #6B7280; margin-bottom: 8px;">Severidad</div>
+      <div style="display: flex; flex-direction: column; gap: 6px; font-size: 12px; color: #A6ADB5;">
+        <div style="display: flex; align-items: center; gap: 8px;"><span style="color: #D55E00; width: 12px;">◆</span>Crítica</div>
+        <div style="display: flex; align-items: center; gap: 8px;"><span style="color: #E69F00; width: 12px;">▲</span>Alta</div>
+        <div style="display: flex; align-items: center; gap: 8px;"><span style="color: #0072B2; width: 12px;">●</span>Media</div>
+        <div style="display: flex; align-items: center; gap: 8px;"><span style="color: #8A9199; width: 12px;">○</span>Baja</div>
+        <div style="display: flex; align-items: center; gap: 8px;"><span style="color: #009E73; width: 12px;">✓</span>Conforme</div>
+      </div>
+    </div>
+  </div>
+
+  <div style="flex: 1 1 auto; min-width: 0; display: flex; flex-direction: column;">
+
+    <div style="height: 56px; flex: 0 0 56px; border-bottom: 1px solid #26292E; display: flex; align-items: center; gap: 8px; padding: 0 16px; background: #0B0D10; overflow-x: auto; white-space: nowrap;">
+      <div style="display: flex; align-items: center; gap: 8px; height: 30px; padding: 0 10px; border: 1px solid #26292E; border-radius: 6px; background: #14171A; flex: 0 0 auto; white-space: nowrap;">
+        <span style="font-size: 11px; text-transform: uppercase; letter-spacing: .08em; color: #6B7280;">Obra</span>
+        <span style="font-weight: 500;">Edificio Costanera Sur</span>
+        <span style="color: #6B7280;">▾</span>
+      </div>
+      <div style="display: flex; align-items: center; gap: 8px; height: 30px; padding: 0 10px; border: 1px solid #26292E; border-radius: 6px; background: #14171A; flex: 0 0 auto; white-space: nowrap; font-family: 'JetBrains Mono', monospace; font-size: 12px; font-variant-numeric: tabular-nums;">
+        <span style="font-family: Inter, sans-serif; font-size: 11px; text-transform: uppercase; letter-spacing: .08em; color: #6B7280;">Rango</span>
+        01-09-2026 → 04-09-2026 <span style="color: #6B7280;">▾</span>
+      </div>
+      <div style="display: flex; align-items: center; gap: 8px; height: 30px; padding: 0 10px; border: 1px solid #26292E; border-radius: 6px; background: #14171A; flex: 0 0 auto; white-space: nowrap;">
+        <span style="font-size: 11px; text-transform: uppercase; letter-spacing: .08em; color: #6B7280;">Turno</span>
+        <span style="font-weight: 500;">A · 08:00–17:30</span>
+        <span style="color: #6B7280;">▾</span>
+      </div>
+      <div style="margin-left: auto; display: flex; align-items: center; gap: 12px; color: #A6ADB5; font-size: 12px; flex: 0 0 auto; white-space: nowrap; padding-left: 20px;">
+        <span style="display: flex; align-items: center; gap: 6px;"><span style="width: 6px; height: 6px; border-radius: 50%; background: #009E73; animation: gepp-pulse 2.4s infinite;"></span>Ingesta activa · 1 en proceso</span>
+        <span style="width: 1px; height: 18px; background: #26292E;"></span>
+        <span>M. Contreras · Prevención</span>
+      </div>
+    </div>
+
+    <div style="display: flex; align-items: flex-end; gap: 2px; padding: 0 16px; border-bottom: 1px solid #26292E; background: #0B0D10; overflow-x: auto; white-space: nowrap;">
+      <sc-for list="{{ tabs }}" as="tab" hint-placeholder-count="5">
+        <div onClick="{{ tab.onClick }}" style="{{ tab.style }}">
+          <span>{{ tab.label }}</span>
+          <span style="{{ tab.countStyle }}">{{ tab.count }}</span>
+        </div>
+      </sc-for>
+      <div style="margin-left: auto; display: flex; align-items: center; gap: 10px; height: 38px; font-size: 11px; color: #6B7280; flex: 0 0 auto; white-space: nowrap; padding-left: 20px;">
+        <span style="display: flex; align-items: center; gap: 4px;"><kbd style="font-family: 'JetBrains Mono', monospace; border: 1px solid #2E3238; border-radius: 4px; padding: 1px 5px; color: #A6ADB5;">j</kbd><kbd style="font-family: 'JetBrains Mono', monospace; border: 1px solid #2E3238; border-radius: 4px; padding: 1px 5px; color: #A6ADB5;">k</kbd> navegar</span>
+        <span style="display: flex; align-items: center; gap: 4px;"><kbd style="font-family: 'JetBrains Mono', monospace; border: 1px solid #2E3238; border-radius: 4px; padding: 1px 5px; color: #A6ADB5;">c</kbd> confirmar</span>
+        <span style="display: flex; align-items: center; gap: 4px;"><kbd style="font-family: 'JetBrains Mono', monospace; border: 1px solid #2E3238; border-radius: 4px; padding: 1px 5px; color: #A6ADB5;">x</kbd> falso positivo</span>
+        <span style="display: flex; align-items: center; gap: 4px;"><kbd style="font-family: 'JetBrains Mono', monospace; border: 1px solid #2E3238; border-radius: 4px; padding: 1px 5px; color: #A6ADB5;">↵</kbd> abrir</span>
+      </div>
+    </div>
+
+    <div style="height: 44px; flex: 0 0 44px; display: flex; align-items: center; gap: 6px; padding: 0 16px; border-bottom: 1px solid #26292E; background: #14171A; overflow-x: auto; white-space: nowrap;">
+      <div style="display: flex; align-items: center; gap: 6px; height: 28px; padding: 0 10px; border: 1px solid #2E3238; border-radius: 6px; flex: 0 0 auto; white-space: nowrap; font-family: 'JetBrains Mono', monospace; font-size: 12px; font-variant-numeric: tabular-nums; color: #E6E8EB;">01-09 → 04-09 <span style="color: #6B7280; font-family: Inter, sans-serif;">▾</span></div>
+      <div style="display: flex; align-items: center; gap: 6px; height: 28px; padding: 0 10px; border: 1px solid #2E3238; border-radius: 6px; color: #A6ADB5; flex: 0 0 auto; white-space: nowrap;">Área: <span style="color: #E6E8EB;">todas</span> <span style="color: #6B7280;">▾</span></div>
+      <div style="display: flex; align-items: center; gap: 6px; height: 28px; padding: 0 10px; border: 1px solid #2E3238; border-radius: 6px; color: #A6ADB5; flex: 0 0 auto; white-space: nowrap;">Severidad: <span style="color: #E6E8EB;">todas</span> <span style="color: #6B7280;">▾</span></div>
+      <div style="display: flex; align-items: center; gap: 6px; height: 28px; padding: 0 10px; border: 1px solid #2E3238; border-radius: 6px; color: #A6ADB5; flex: 0 0 auto; white-space: nowrap;">Tipo de EPP: <span style="color: #E6E8EB;">todos</span> <span style="color: #6B7280;">▾</span></div>
+      <div style="display: flex; align-items: center; gap: 6px; height: 28px; padding: 0 10px; border: 1px solid #2E3238; border-radius: 6px; color: #A6ADB5; flex: 0 0 auto; white-space: nowrap;">Estado <span style="color: #6B7280;">▾</span></div>
+      <div style="display: flex; align-items: center; gap: 6px; height: 28px; padding: 0 10px; border: 1px solid #2E3238; border-radius: 6px; color: #A6ADB5; flex: 0 0 auto; white-space: nowrap;">Cámara <span style="color: #6B7280;">▾</span></div>
+      <div style="margin-left: auto; display: flex; align-items: center; gap: 12px; flex: 0 0 auto; white-space: nowrap; padding-left: 20px;">
+        <span style="font-size: 12px; color: #6B7280; font-family: 'JetBrains Mono', monospace; font-variant-numeric: tabular-nums;">{{ visibleCount }} hallazgos</span>
+        <div style="height: 28px; display: flex; align-items: center; padding: 0 10px; border: 1px solid #2E3238; border-radius: 6px; color: #A6ADB5; flex: 0 0 auto; white-space: nowrap;">Exportar CSV</div>
+      </div>
+    </div>
+
+    <div style="flex: 0 0 auto; display: flex; align-items: center; gap: 8px; padding: 7px 16px; background: #12161B; border-bottom: 1px solid #26292E; font-size: 12px; color: #8A9199;">
+      <span style="color: #E69F00;">⚠</span> Indicio automatizado. Requiere validación humana. El sistema reporta por área y turno, nunca por persona.
+    </div>
+
+    <div style="flex: 1 1 auto; overflow: auto; position: relative;">
+      <div style="min-width: 1380px;">
+        <div style="position: sticky; top: 0; z-index: 5; display: grid; grid-template-columns: 34px 128px 196px 208px 132px 90px 108px 104px 128px 84px 132px; align-items: center; height: 34px; background: #14171A; border-bottom: 1px solid #26292E; font-size: 11px; text-transform: uppercase; letter-spacing: .07em; color: #7C838B;">
+          <div style="padding: 0 0 0 14px;"><div style="width: 13px; height: 13px; border: 1px solid #3A3F46; border-radius: 3px;"></div></div>
+          <div style="padding: 0 12px;">Severidad</div>
+          <div style="padding: 0 12px;">Incumplimiento</div>
+          <div style="padding: 0 12px;">Área / zona</div>
+          <div style="padding: 0 12px;">Cámara</div>
+          <div style="padding: 0 12px; text-align: right;">Inicio</div>
+          <div style="padding: 0 12px; text-align: right; white-space: nowrap;">Duración</div>
+          <div style="padding: 0 12px; text-align: right; white-space: nowrap;">Cuadros</div>
+          <div style="padding: 0 12px; white-space: nowrap;">Confianza</div>
+          <div style="padding: 0 12px; white-space: nowrap;">Recorte</div>
+          <div style="padding: 0 12px; white-space: nowrap;">Asignado a</div>
+        </div>
+
+        <sc-for list="{{ rows }}" as="r" hint-placeholder-count="12">
+          <div onClick="{{ r.onOpen }}" style="{{ r.rowStyle }}">
+            <div onClick="{{ r.onToggle }}" style="padding: 0 0 0 11px;">
+              <div style="{{ r.boxStyle }}">{{ r.check }}</div>
+            </div>
+            <div style="padding: 0 12px; display: flex; align-items: center; gap: 7px;">
+              <span style="{{ r.glyphStyle }}">{{ r.glyph }}</span>
+              <span style="font-weight: 500;">{{ r.sevWord }}</span>
+            </div>
+            <div style="padding: 0 12px; display: flex; align-items: center; gap: 4px; flex-wrap: nowrap;">
+              <sc-for list="{{ r.tipos }}" as="t" hint-placeholder-count="1">
+                <span style="border: 1px solid #34383E; background: #1A1E23; border-radius: 4px; padding: 2px 6px; font-size: 12px; color: #D5D9DE; white-space: nowrap;">{{ t }}</span>
+              </sc-for>
+            </div>
+            <div style="padding: 0 12px; overflow: hidden;">
+              <div style="white-space: nowrap; overflow: hidden; text-overflow: ellipsis;">{{ r.area }}</div>
+              <div style="font-size: 11px; color: #7C838B; white-space: nowrap; overflow: hidden; text-overflow: ellipsis;">{{ r.zona }}</div>
+            </div>
+            <div style="padding: 0 12px; font-family: 'JetBrains Mono', monospace; font-size: 12px; color: #C3C9CF; white-space: nowrap; overflow: hidden; text-overflow: ellipsis;">{{ r.cam }}</div>
+            <div style="padding: 0 12px; text-align: right; font-family: 'JetBrains Mono', monospace; font-size: 12px; font-variant-numeric: tabular-nums;">{{ r.hora }}</div>
+            <div style="padding: 0 12px; text-align: right; white-space: nowrap; font-family: 'JetBrains Mono', monospace; font-size: 12px; font-variant-numeric: tabular-nums; color: #C3C9CF;">{{ r.dur }}</div>
+            <div style="padding: 0 12px; text-align: right; white-space: nowrap; font-family: 'JetBrains Mono', monospace; font-size: 12px; font-variant-numeric: tabular-nums; color: #C3C9CF;">{{ r.cuadros }}</div>
+            <div style="padding: 0 12px; display: flex; align-items: center; gap: 8px;">
+              <div style="flex: 1 1 auto; height: 3px; background: #26292E; border-radius: 2px; overflow: hidden;">
+                <div style="{{ r.confBarStyle }}"></div>
+              </div>
+              <span style="font-family: 'JetBrains Mono', monospace; font-size: 12px; font-variant-numeric: tabular-nums; color: #C3C9CF;">{{ r.conf }}</span>
+            </div>
+            <div style="padding: 0 12px;">
+              <div style="width: 64px; height: 36px; border: 1px solid #2E3238; border-radius: 4px; background-image: repeating-linear-gradient(135deg, #1C2025 0 4px, #23272D 4px 8px); position: relative;">
+                <div style="{{ r.thumbBoxStyle }}"></div>
+              </div>
+            </div>
+            <div style="padding: 0 12px; color: #A6ADB5; white-space: nowrap; overflow: hidden; text-overflow: ellipsis;">{{ r.asignado }}</div>
+          </div>
+        </sc-for>
+      </div>
+    </div>
+
+    <sc-if value="{{ hasSelection }}" hint-placeholder-val="{{ false }}">
+      <div style="position: absolute; left: 50%; bottom: 24px; transform: translateX(-50%); z-index: 40; display: flex; align-items: center; gap: 8px; padding: 10px 12px; background: #1A1E23; border: 1px solid #3A3F46; border-radius: 8px; box-shadow: 0 12px 32px rgba(0,0,0,.55);">
+        <span style="font-family: 'JetBrains Mono', monospace; font-size: 12px; font-variant-numeric: tabular-nums; color: #E6E8EB; padding-right: 4px;">{{ selectedCount }} seleccionados</span>
+        <span style="width: 1px; height: 20px; background: #34383E;"></span>
+        <div onClick="{{ bulkConfirm }}" style="height: 28px; display: flex; align-items: center; gap: 6px; padding: 0 10px; border-radius: 6px; background: #2F81F7; color: #08111F; font-weight: 500;">Confirmar</div>
+        <div onClick="{{ bulkDiscard }}" style="height: 28px; display: flex; align-items: center; padding: 0 10px; border-radius: 6px; border: 1px solid #3A3F46; color: #E6E8EB;">Falso positivo</div>
+        <div style="height: 28px; display: flex; align-items: center; padding: 0 10px; border-radius: 6px; border: 1px solid #3A3F46; color: #E6E8EB;">Asignar…</div>
+        <div style="height: 28px; display: flex; align-items: center; padding: 0 10px; border-radius: 6px; border: 1px solid #3A3F46; color: #E6E8EB;">Posponer</div>
+        <div onClick="{{ clearSelection }}" style="height: 28px; display: flex; align-items: center; padding: 0 8px; border-radius: 6px; color: #8A9199;">Limpiar</div>
+      </div>
+    </sc-if>
+  </div>
+
+  <sc-if value="{{ viewerOpen }}" hint-placeholder-val="{{ false }}">
+    <div onClick="{{ closeViewer }}" style="position: fixed; inset: 0; background: rgba(6,8,10,.62); z-index: 50;"></div>
+  </sc-if>
+
+  <sc-if value="{{ viewerOpen }}" hint-placeholder-val="{{ false }}">
+    <div style="position: fixed; top: 0; right: 0; bottom: 0; width: 60%; min-width: 520px; max-width: 1040px; z-index: 60; background: #14171A; border-left: 1px solid #34383E; box-shadow: -24px 0 60px rgba(0,0,0,.6); display: flex; flex-direction: column;">
+
+      <div style="flex: 0 0 auto; height: 52px; display: flex; align-items: center; gap: 10px; padding: 0 16px; border-bottom: 1px solid #26292E;">
+        <span style="color: #D55E00; font-size: 14px; line-height: 1;">◆</span>
+        <span style="font-weight: 500;">Crítica</span>
+        <span style="font-family: 'JetBrains Mono', monospace; font-size: 12px; color: #7C838B;">H-2418</span>
+        <span style="width: 1px; height: 18px; background: #26292E;"></span>
+        <span style="font-size: 12px; color: #A6ADB5; white-space: nowrap;">sin arnés · Andamio Fachada Norte / Plataforma N4 · CAM-04 Fachada Norte · 10:14:07 · 3 m 12 s · Por revisar</span>
+        <div style="margin-left: auto; display: flex; align-items: center; gap: 6px; padding-left: 12px;">
+          <div style="width: 28px; height: 28px; display: flex; align-items: center; justify-content: center; border: 1px solid #2E3238; border-radius: 6px; color: #A6ADB5; flex: 0 0 auto; white-space: nowrap;">↑</div>
+          <div style="width: 28px; height: 28px; display: flex; align-items: center; justify-content: center; border: 1px solid #2E3238; border-radius: 6px; color: #A6ADB5; flex: 0 0 auto; white-space: nowrap;">↓</div>
+          <div onClick="{{ closeViewer }}" style="width: 28px; height: 28px; display: flex; align-items: center; justify-content: center; border: 1px solid #2E3238; border-radius: 6px; color: #A6ADB5; flex: 0 0 auto; white-space: nowrap;">✕</div>
+        </div>
+      </div>
+
+      <div style="flex: 1 1 auto; overflow-y: auto; padding: 16px;">
+
+        <div style="position: relative; width: 100%; aspect-ratio: 16 / 9; border: 1px solid #2E3238; border-radius: 6px; background-image: repeating-linear-gradient(135deg, #1A1E23 0 6px, #21252B 6px 12px); overflow: hidden;">
+          <div style="{{ boxesStyle }}">
+            <div style="position: absolute; left: 34%; top: 22%; width: 17%; height: 52%; border: 2px solid #D55E00; border-radius: 2px;">
+              <div style="position: absolute; top: -19px; left: -2px; background: #D55E00; color: #0B0D10; font-family: 'JetBrains Mono', monospace; font-size: 10px; padding: 1px 4px; border-radius: 3px; white-space: nowrap;">sin arnés 0,91</div>
+            </div>
+            <div style="position: absolute; left: 58%; top: 30%; width: 14%; height: 44%; border: 2px solid #009E73; border-radius: 2px;">
+              <div style="position: absolute; top: -19px; left: -2px; background: #009E73; color: #0B0D10; font-family: 'JetBrains Mono', monospace; font-size: 10px; padding: 1px 4px; border-radius: 3px; white-space: nowrap;">epp ok 0,95</div>
+            </div>
+          </div>
+          <div style="{{ blurStyle }}"></div>
+          <div style="position: absolute; left: 12px; top: 12px; display: flex; gap: 6px; align-items: center; font-family: 'JetBrains Mono', monospace; font-size: 11px; color: #C3C9CF;">
+            <span style="background: rgba(11,13,16,.78); border: 1px solid #34383E; border-radius: 4px; padding: 2px 6px;">CAM-04 · 10:14:07</span>
+            <span style="background: rgba(11,13,16,.78); border: 1px solid #34383E; border-radius: 4px; padding: 2px 6px; animation: gepp-pulse 2s infinite;">recorte 8 s · en bucle</span>
+          </div>
+          <div style="position: absolute; left: 0; right: 0; bottom: 0; height: 40px; background: linear-gradient(to top, rgba(11,13,16,.9), rgba(11,13,16,0)); display: flex; align-items: center; gap: 10px; padding: 0 12px;">
+            <span style="color: #E6E8EB;">❙❙</span>
+            <div style="flex: 1 1 auto; height: 3px; background: #34383E; border-radius: 2px;"><div style="width: 46%; height: 100%; background: #2F81F7; border-radius: 2px;"></div></div>
+            <span style="font-family: 'JetBrains Mono', monospace; font-size: 11px; font-variant-numeric: tabular-nums; color: #C3C9CF;">03,7 / 08,0 s</span>
+          </div>
+        </div>
+
+        <div style="display: flex; align-items: center; gap: 16px; margin-top: 10px;">
+          <div onClick="{{ toggleBoxes }}" style="display: flex; align-items: center; gap: 8px; font-size: 12px; color: #C3C9CF;">
+            <div style="{{ boxesSwitch }}"><div style="{{ boxesKnob }}"></div></div>
+            Mostrar cajas
+          </div>
+          <div onClick="{{ toggleBlur }}" style="display: flex; align-items: center; gap: 8px; font-size: 12px; color: #C3C9CF;">
+            <div style="{{ blurSwitch }}"><div style="{{ blurKnob }}"></div></div>
+            Difuminar rostro
+            <span style="font-size: 11px; color: #7C838B;">(obligatorio por privacidad)</span>
+          </div>
+          <div style="margin-left: auto; display: flex; align-items: center; gap: 6px; font-size: 11px; color: #E69F00;">⚠ Indicio automatizado. Requiere validación humana.</div>
+        </div>
+
+        <div style="display: flex; gap: 6px; margin-top: 14px;">
+          <sc-for list="{{ frames }}" as="f" hint-placeholder-count="6">
+            <div style="{{ f.style }}">
+              <div style="position: absolute; left: 4px; bottom: 3px; font-family: 'JetBrains Mono', monospace; font-size: 10px; color: #C3C9CF; background: rgba(11,13,16,.75); padding: 0 3px; border-radius: 3px;">{{ f.t }}</div>
+              <div style="{{ f.tagStyle }}">{{ f.tag }}</div>
+            </div>
+          </sc-for>
+        </div>
+
+        <div style="margin-top: 18px; padding: 12px; border: 1px solid #26292E; border-radius: 6px;">
+          <div style="font-size: 11px; text-transform: uppercase; letter-spacing: .08em; color: #7C838B; margin-bottom: 12px;">Línea de tiempo del evento</div>
+          <div style="position: relative; height: 34px;">
+            <div style="position: absolute; left: 0; right: 0; top: 8px; height: 2px; background: #26292E;"></div>
+            <div style="position: absolute; left: 0; right: 0; top: 8px; height: 2px; width: 62%; background: #D55E00;"></div>
+            <div style="position: absolute; left: 0; top: 3px; width: 12px; height: 12px; margin-left: -1px; border-radius: 50%; border: 2px solid #E69F00; background: #14171A;"></div>
+            <div style="position: absolute; left: 34%; top: 2px; width: 13px; height: 13px; background: #D55E00; transform: rotate(45deg);"></div>
+            <div style="position: absolute; left: 62%; top: 3px; width: 12px; height: 12px; border-radius: 50%; background: #34383E;"></div>
+            <div style="position: absolute; left: 0; top: 20px; font-family: 'JetBrains Mono', monospace; font-size: 11px; color: #A6ADB5;">10:14:07 · 1.ª detección</div>
+            <div style="position: absolute; left: 34%; top: 20px; font-family: 'JetBrains Mono', monospace; font-size: 11px; color: #D55E00;">10:14:09 · umbral alcanzado</div>
+            <div style="position: absolute; right: 0; top: 20px; font-family: 'JetBrains Mono', monospace; font-size: 11px; color: #A6ADB5;">10:17:19 · fin</div>
+          </div>
+        </div>
+
+        <div style="margin-top: 18px;">
+          <div style="font-size: 11px; text-transform: uppercase; letter-spacing: .08em; color: #7C838B;">Descripción automática</div>
+          <div style="margin-top: 6px; font-size: 20px; font-weight: 600; letter-spacing: -0.015em;">Trabajador sin arnés en plataforma de andamio</div>
+          <div style="margin-top: 6px; font-size: 14px; color: #A6ADB5; max-width: 70ch; text-wrap: pretty;">Se detecta trabajo en altura sobre la plataforma N4 del andamio de fachada norte sin arnés de seguridad, de forma continua durante 3 m 12 s. Se mantienen casco y chaleco reflectante; el incumplimiento corresponde únicamente a la protección contra caídas.</div>
+          <div style="margin-top: 8px; font-family: 'JetBrains Mono', monospace; font-size: 12px; font-variant-numeric: tabular-nums; color: #7C838B;">confianza de la descripción 0,72</div>
+          <div style="margin-top: 10px; display: flex; gap: 14px; padding-top: 10px; border-top: 1px solid #1F2328; font-family: 'JetBrains Mono', monospace; font-size: 12px; font-variant-numeric: tabular-nums; color: #A6ADB5;">
+            <span>confianza del hallazgo 0,91</span><span>cuadros confirmados 912</span><span>turno A</span>
+          </div>
+        </div>
+
+        <div style="margin-top: 18px; border: 1px solid #34383E; border-radius: 6px; overflow: hidden;">
+          <div style="padding: 10px 12px; background: #191D22; border-bottom: 1px solid #26292E; font-size: 11px; text-transform: uppercase; letter-spacing: .08em; color: #C3C9CF;">Por qué se disparó</div>
+          <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 0;">
+            <div style="padding: 10px 12px; border-bottom: 1px solid #1F2328; border-right: 1px solid #1F2328;"><div style="font-size: 11px; color: #7C838B; text-transform: uppercase; letter-spacing: .07em;">Regla</div><div style="margin-top: 3px;">Arnés obligatorio — Trabajo en altura <span style="font-family: 'JetBrains Mono', monospace; font-size: 12px; color: #7C838B;">versión 3</span></div></div>
+            <div style="padding: 10px 12px; border-bottom: 1px solid #1F2328;"><div style="font-size: 11px; color: #7C838B; text-transform: uppercase; letter-spacing: .07em;">Zona</div><div style="margin-top: 3px;">Plataforma N4</div></div>
+            <div style="padding: 10px 12px; border-bottom: 1px solid #1F2328; border-right: 1px solid #1F2328;"><div style="font-size: 11px; color: #7C838B; text-transform: uppercase; letter-spacing: .07em;">EPP exigido</div><div style="margin-top: 5px; display: flex; gap: 4px; flex-wrap: wrap;"><span style="border: 1px solid #34383E; background: #1A1E23; border-radius: 4px; padding: 2px 6px; font-size: 12px;">casco</span><span style="border: 1px solid #34383E; background: #1A1E23; border-radius: 4px; padding: 2px 6px; font-size: 12px;">chaleco</span><span style="border: 1px solid #D55E00; background: #2A1508; color: #F0A272; border-radius: 4px; padding: 2px 6px; font-size: 12px;">arnés</span></div></div>
+            <div style="padding: 10px 12px; border-bottom: 1px solid #1F2328;"><div style="font-size: 11px; color: #7C838B; text-transform: uppercase; letter-spacing: .07em;">Severidad resultante</div><div style="margin-top: 3px; display: flex; align-items: center; gap: 6px;"><span style="color: #D55E00;">◆</span> Crítica</div></div>
+            <div style="padding: 10px 12px; border-bottom: 1px solid #1F2328; border-right: 1px solid #1F2328;"><div style="font-size: 11px; color: #7C838B; text-transform: uppercase; letter-spacing: .07em;">Umbral configurado</div><div style="margin-top: 3px; font-family: 'JetBrains Mono', monospace; font-size: 13px; font-variant-numeric: tabular-nums;">4 de 5 cuadros en 2,0 s</div></div>
+            <div style="padding: 10px 12px; border-bottom: 1px solid #1F2328;"><div style="font-size: 11px; color: #7C838B; text-transform: uppercase; letter-spacing: .07em;">Valores observados</div><div style="margin-top: 3px; font-family: 'JetBrains Mono', monospace; font-size: 13px; font-variant-numeric: tabular-nums;">912 de 960 cuadros en 192,0 s</div></div>
+            <div style="padding: 10px 12px; border-right: 1px solid #1F2328;"><div style="font-size: 11px; color: #7C838B; text-transform: uppercase; letter-spacing: .07em;">Confianza mínima</div><div style="margin-top: 3px; font-family: 'JetBrains Mono', monospace; font-size: 13px; font-variant-numeric: tabular-nums;">0,45</div></div>
+            <div style="padding: 10px 12px;"><div style="font-size: 11px; color: #7C838B; text-transform: uppercase; letter-spacing: .07em;">Base legal</div><div style="margin-top: 3px;">DS 594, art. 53</div></div>
+          </div>
+        </div>
+
+        <div onClick="{{ toggleMeta }}" style="margin-top: 12px; display: flex; align-items: center; gap: 8px; padding: 9px 12px; border: 1px solid #26292E; border-radius: 6px; font-size: 12px; color: #A6ADB5;">
+          <span style="color: #7C838B;">{{ metaCaret }}</span> Metadatos técnicos
+        </div>
+        <sc-if value="{{ metaOpen }}" hint-placeholder-val="{{ false }}">
+          <div style="margin-top: -1px; border: 1px solid #26292E; border-top: none; border-radius: 0 0 6px 6px; padding: 10px 12px; display: grid; grid-template-columns: 1fr 1fr; gap: 8px 16px; font-family: 'JetBrains Mono', monospace; font-size: 12px; color: #A6ADB5;">
+            <div>archivo: CAM-04_2026-09-03.mp4</div>
+            <div>hash: 9f2c1a7e…b304</div>
+            <div>segundo del video: 854,4</div>
+            <div>cadencia de muestreo: 5,0 fps</div>
+            <div>modelo: rfdetr-b-epp-v3</div>
+            <div>track: 17 (efímero)</div>
+          </div>
+        </sc-if>
+
+        <div style="height: 8px;"></div>
+      </div>
+
+      <div style="flex: 0 0 auto; height: 60px; border-top: 1px solid #26292E; background: #191D22; display: flex; align-items: center; gap: 8px; padding: 0 16px;">
+        <div onClick="{{ confirmSel }}" style="height: 34px; display: flex; align-items: center; gap: 8px; padding: 0 14px; border-radius: 6px; background: #2F81F7; color: #08111F; font-weight: 500;">Confirmar <kbd style="font-family: 'JetBrains Mono', monospace; font-size: 11px; opacity: .7;">c</kbd></div>
+        <div onClick="{{ discardSel }}" style="height: 34px; display: flex; align-items: center; gap: 8px; padding: 0 14px; border-radius: 6px; border: 1px solid #3A3F46; color: #E6E8EB;">Falso positivo <kbd style="font-family: 'JetBrains Mono', monospace; font-size: 11px; color: #7C838B;">x</kbd></div>
+        <div style="height: 34px; display: flex; align-items: center; padding: 0 14px; border-radius: 6px; border: 1px solid #3A3F46; color: #E6E8EB;">Duplicado</div>
+        <div style="height: 34px; display: flex; align-items: center; padding: 0 14px; border-radius: 6px; border: 1px solid #3A3F46; color: #E6E8EB;">Posponer</div>
+        <div style="height: 34px; display: flex; align-items: center; padding: 0 14px; border-radius: 6px; border: 1px solid #3A3F46; color: #E6E8EB;">Asignar…</div>
+        <div style="margin-left: auto; font-size: 12px; color: #7C838B; font-family: 'JetBrains Mono', monospace; font-variant-numeric: tabular-nums;">1 de 10 en la cola</div>
+      </div>
+    </div>
+  </sc-if>
+</div>
+</x-dc>
+<script type="text/x-dc" data-dc-script data-props="{}">
+const SEV = {
+  critica: { w: "Crítica", g: "◆", c: "#D55E00", r: 4 },
+  alta: { w: "Alta", g: "▲", c: "#E69F00", r: 3 },
+  media: { w: "Media", g: "●", c: "#0072B2", r: 2 },
+  baja: { w: "Baja", g: "○", c: "#8A9199", r: 1 }
+};
+
+const DATA = [
+  { id: "H-2418", sev: "critica", tipos: ["sin arnés"], area: "Andamio Fachada Norte", zona: "Plataforma N4", cam: "CAM-04 Fachada Norte", hora: "10:14:07", dur: "3 m 12 s", cuadros: "5/5", conf: 0.91, estado: "Por revisar", asignado: "—", rein: true },
+  { id: "H-2417", sev: "critica", tipos: ["sin casco"], area: "Excavación y Fundaciones", zona: "Talud sur", cam: "CAM-01 Acceso Obra", hora: "08:22:40", dur: "1 m 47 s", cuadros: "4/5", conf: 0.88, estado: "Por revisar", asignado: "—", rein: false },
+  { id: "H-2416", sev: "alta", tipos: ["sin chaleco"], area: "Patio de Maniobras", zona: "Zona de grúa", cam: "CAM-09 Patio", hora: "07:41:55", dur: "48 s", cuadros: "4/5", conf: 0.76, estado: "Por revisar", asignado: "—", rein: false },
+  { id: "H-2415", sev: "alta", tipos: ["sin casco", "sin chaleco"], area: "Losa Nivel 3", zona: "Borde oriente", cam: "CAM-07 Losa N3", hora: "14:02:31", dur: "1 m 05 s", cuadros: "5/5", conf: 0.83, estado: "Confirmado", asignado: "R. Fuentes", rein: true },
+  { id: "H-2414", sev: "media", tipos: ["sin lentes"], area: "Bodega de Materiales", zona: "Corte y esmerilado", cam: "CAM-09 Patio", hora: "09:18:44", dur: "2 m 30 s", cuadros: "4/5", conf: 0.64, estado: "Falso positivo", asignado: "M. Contreras", rein: false },
+  { id: "H-2413", sev: "critica", tipos: ["sin arnés"], area: "Andamio Fachada Norte", zona: "Plataforma N3", cam: "CAM-04 Fachada Norte", hora: "11:36:02", dur: "1 m 22 s", cuadros: "5/5", conf: 0.87, estado: "Por revisar", asignado: "—", rein: true },
+  { id: "H-2412", sev: "alta", tipos: ["sin casco"], area: "Losa Nivel 3", zona: "Enfierradura", cam: "CAM-07 Losa N3", hora: "12:05:18", dur: "56 s", cuadros: "4/5", conf: 0.79, estado: "Por revisar", asignado: "—", rein: false },
+  { id: "H-2411", sev: "baja", tipos: ["sin guantes"], area: "Bodega de Materiales", zona: "Acopio", cam: "CAM-09 Patio", hora: "13:44:09", dur: "1 m 10 s", cuadros: "4/5", conf: 0.58, estado: "Por revisar", asignado: "—", rein: false },
+  { id: "H-2410", sev: "alta", tipos: ["sin chaleco"], area: "Excavación y Fundaciones", zona: "Acceso maquinaria", cam: "CAM-01 Acceso Obra", hora: "08:57:33", dur: "2 m 04 s", cuadros: "5/5", conf: 0.81, estado: "Confirmado", asignado: "J. Muñoz", rein: false },
+  { id: "H-2409", sev: "critica", tipos: ["sin casco", "sin arnés"], area: "Andamio Fachada Norte", zona: "Plataforma N4", cam: "CAM-04 Fachada Norte", hora: "16:12:47", dur: "4 m 38 s", cuadros: "5/5", conf: 0.93, estado: "Confirmado", asignado: "R. Fuentes", rein: true },
+  { id: "H-2408", sev: "media", tipos: ["sin lentes"], area: "Losa Nivel 3", zona: "Corte de moldaje", cam: "CAM-07 Losa N3", hora: "15:29:56", dur: "38 s", cuadros: "4/5", conf: 0.67, estado: "Por revisar", asignado: "—", rein: false },
+  { id: "H-2407", sev: "baja", tipos: ["sin calzado"], area: "Patio de Maniobras", zona: "Pasillo peatonal", cam: "CAM-09 Patio", hora: "17:02:14", dur: "27 s", cuadros: "4/5", conf: 0.55, estado: "Falso positivo", asignado: "M. Contreras", rein: false },
+  { id: "H-2406", sev: "alta", tipos: ["sin chaleco"], area: "Patio de Maniobras", zona: "Zona de grúa", cam: "CAM-09 Patio", hora: "07:12:03", dur: "1 m 33 s", cuadros: "5/5", conf: 0.74, estado: "Por revisar", asignado: "—", rein: true },
+  { id: "H-2405", sev: "media", tipos: ["sin guantes"], area: "Excavación y Fundaciones", zona: "Hormigonado", cam: "CAM-01 Acceso Obra", hora: "10:48:21", dur: "1 m 58 s", cuadros: "4/5", conf: 0.62, estado: "Por revisar", asignado: "—", rein: false },
+  { id: "H-2404", sev: "critica", tipos: ["sin arnés"], area: "Losa Nivel 3", zona: "Borde poniente", cam: "CAM-07 Losa N3", hora: "09:03:39", dur: "2 m 47 s", cuadros: "5/5", conf: 0.9, estado: "Por revisar", asignado: "—", rein: false },
+  { id: "H-2403", sev: "baja", tipos: ["sin lentes"], area: "Bodega de Materiales", zona: "Mesón de corte", cam: "CAM-09 Patio", hora: "11:51:07", dur: "44 s", cuadros: "4/5", conf: 0.53, estado: "Descartado", asignado: "M. Contreras", rein: false }
+];
+
+const TABS = [
+  { key: "revisar", label: "Por revisar" },
+  { key: "confirmados", label: "Confirmados" },
+  { key: "descartados", label: "Descartados" },
+  { key: "reincidentes", label: "Reincidentes" },
+  { key: "todos", label: "Todos" }
+];
+
+class Component extends DCLogic {
+  state = {
+    tab: "revisar",
+    cursor: 0,
+    sel: {},
+    open: true,
+    boxes: true,
+    blur: true,
+    meta: false,
+    data: DATA
+  };
+
+  componentDidMount() {
+    this._key = (e) => {
+      const list = this.list();
+      if (!list.length) return;
+      const k = e.key;
+      if (k === "j" || k === "ArrowDown") { e.preventDefault(); this.move(1); }
+      else if (k === "k" || k === "ArrowUp") { e.preventDefault(); this.move(-1); }
+      else if (k === "Enter") { e.preventDefault(); this.setState({ open: true }); }
+      else if (k === "Escape") this.setState({ open: false });
+      else if (k === "c") this.mark("Confirmado");
+      else if (k === "x") this.mark("Falso positivo");
+    };
+    document.addEventListener("keydown", this._key);
+  }
+
+  componentWillUnmount() { document.removeEventListener("keydown", this._key); }
+
+  match(f, tab) {
+    if (tab === "revisar") return f.estado === "Por revisar";
+    if (tab === "confirmados") return f.estado === "Confirmado";
+    if (tab === "descartados") return f.estado === "Falso positivo" || f.estado === "Descartado";
+    if (tab === "reincidentes") return f.rein;
+    return true;
+  }
+
+  list() { return this.state.data.filter((f) => this.match(f, this.state.tab)); }
+
+  move(d) {
+    const n = this.list().length;
+    this.setState((s) => ({ cursor: Math.max(0, Math.min(n - 1, s.cursor + d)) }));
+  }
+
+  mark(estado) {
+    const cur = this.list()[this.state.cursor];
+    if (!cur) return;
+    this.setState((s) => ({
+      data: s.data.map((f) => (f.id === cur.id ? Object.assign({}, f, { estado: estado, asignado: f.asignado === "—" ? "M. Contreras" : f.asignado }) : f)),
+      cursor: Math.max(0, s.cursor - 0)
+    }));
+  }
+
+  cuadrosInt(dur) {
+    const m = /(?:(\d+)\s*m\s*)?(\d+)\s*s/.exec(dur);
+    const secs = m ? (parseInt(m[1] || "0", 10) * 60 + parseInt(m[2], 10)) : 0;
+    return String(Math.floor(secs * 4.75));
+  }
+
+  estadoChip(estado) {
+    const base = "display:inline-flex;align-items:center;height:20px;padding:0 8px;border-radius:10px;font-size:12px;border:1px solid ";
+    if (estado === "Por revisar") return base + "#3A3F46;color:#E6E8EB;background:#1A1E23";
+    if (estado === "Confirmado") return base + "#12604A;color:#4BD3A7;background:#0D2620";
+    if (estado === "Falso positivo") return base + "#2E3238;color:#8A9199;background:#15181C";
+    return base + "#2E3238;color:#8A9199;background:#15181C";
+  }
+
+  renderVals() {
+    const rows = this.list();
+    const cursor = Math.max(0, Math.min(rows.length - 1, this.state.cursor));
+    const sel = this.state.sel;
+    const selIds = Object.keys(sel).filter((k) => sel[k]);
+    const cur = rows[cursor] || rows[0] || DATA[0];
+    const s = SEV[cur.sev];
+
+    const tabs = TABS.map((t) => {
+      const active = t.key === this.state.tab;
+      return {
+        label: t.label,
+        count: this.state.data.filter((f) => this.match(f, t.key)).length,
+        onClick: () => this.setState({ tab: t.key, cursor: 0 }),
+        style: "display:flex;align-items:center;gap:7px;height:38px;padding:0 12px;cursor:pointer;flex:0 0 auto;white-space:nowrap;font-weight:" + (active ? "500" : "400") + ";color:" + (active ? "#E6E8EB" : "#8A9199") + ";box-shadow:" + (active ? "inset 0 -2px 0 #2F81F7" : "none"),
+        countStyle: "font-family:'JetBrains Mono',monospace;font-size:11px;font-variant-numeric:tabular-nums;padding:1px 6px;border-radius:10px;background:" + (active ? "#1B2735" : "#1A1E23") + ";color:" + (active ? "#7FB0FA" : "#7C838B")
+      };
+    });
+
+    const mapped = rows.map((f, i) => {
+      const sv = SEV[f.sev];
+      const isCur = i === cursor;
+      const isSel = !!sel[f.id];
+      return {
+        id: f.id,
+        tipos: f.tipos,
+        area: f.area,
+        zona: f.zona,
+        cam: f.cam,
+        hora: f.hora,
+        dur: f.dur,
+        cuadros: this.cuadrosInt(f.dur),
+        conf: f.conf.toFixed(2).replace(".", ","),
+        estado: f.estado,
+        asignado: f.asignado,
+        glyph: sv.g,
+        sevWord: sv.w,
+        glyphStyle: "color:" + sv.c + ";font-size:13px;line-height:1",
+        rowStyle: "display:grid;grid-template-columns:34px 128px 196px 208px 132px 90px 108px 104px 128px 84px 132px;align-items:center;height:40px;cursor:pointer;border-bottom:1px solid #1D2024;border-left:3px solid " + sv.c + ";background:" + (isSel ? "#182231" : isCur ? "#171B20" : "transparent") + ";box-shadow:" + (isCur ? "inset 0 0 0 1px #2F81F7" : "none"),
+        boxStyle: "width:13px;height:13px;border-radius:3px;display:flex;align-items:center;justify-content:center;font-size:10px;border:1px solid " + (isSel ? "#2F81F7" : "#3A3F46") + ";background:" + (isSel ? "#2F81F7" : "transparent") + ";color:#08111F",
+        check: isSel ? "✓" : "",
+        confBarStyle: "height:100%;border-radius:2px;background:" + (f.conf >= 0.8 ? "#C3C9CF" : f.conf >= 0.65 ? "#8A9199" : "#5A6169") + ";width:" + Math.round(f.conf * 100) + "%",
+        thumbBoxStyle: "position:absolute;left:38%;top:20%;width:22%;height:56%;border:1px solid " + sv.c,
+        estadoStyle: this.estadoChip(f.estado),
+        onOpen: () => this.setState({ cursor: i, open: true }),
+        onToggle: (e) => {
+          e.stopPropagation();
+          this.setState((st) => {
+            const ns = Object.assign({}, st.sel);
+            ns[f.id] = !ns[f.id];
+            return { sel: ns };
+          });
+        }
+      };
+    });
+
+    const frames = ["0,0 s", "0,4 s", "0,8 s", "1,2 s", "1,6 s", "2,0 s"].map((t, i) => ({
+      t: t,
+      tag: i >= 1 && i <= 5 ? "✓" : "",
+      style: "position:relative;flex:1 1 0;aspect-ratio:16/9;border-radius:4px;background-image:repeating-linear-gradient(135deg,#1A1E23 0 5px,#22262C 5px 10px);border:1px solid " + (i === 4 ? "#D55E00" : "#2E3238"),
+      tagStyle: "position:absolute;right:4px;top:3px;font-size:10px;color:" + (i >= 1 ? "#D55E00" : "transparent")
+    }));
+
+    return {
+      tabs: tabs,
+      rows: mapped,
+      visibleCount: rows.length,
+      pendientes: this.state.data.filter((f) => f.estado === "Por revisar").length,
+      hasSelection: selIds.length > 0,
+      selectedCount: selIds.length,
+      clearSelection: () => this.setState({ sel: {} }),
+      bulkConfirm: () => this.setState((st) => ({ data: st.data.map((f) => (st.sel[f.id] ? Object.assign({}, f, { estado: "Confirmado", asignado: "M. Contreras" }) : f)), sel: {} })),
+      bulkDiscard: () => this.setState((st) => ({ data: st.data.map((f) => (st.sel[f.id] ? Object.assign({}, f, { estado: "Falso positivo", asignado: "M. Contreras" }) : f)), sel: {} })),
+      viewerOpen: this.state.open,
+      closeViewer: () => this.setState({ open: false }),
+      prevFinding: () => this.move(-1),
+      nextFinding: () => this.move(1),
+      confirmSel: () => this.mark("Confirmado"),
+      discardSel: () => this.mark("Falso positivo"),
+      posLabel: (cursor + 1) + " de " + rows.length + " en la cola",
+      sel: { id: cur.id, area: cur.area, cam: cur.cam, glyph: s.g, sevWord: s.w, glyphStyle: "color:" + s.c + ";font-size:14px;line-height:1" },
+      frames: frames,
+      boxesStyle: "position:absolute;inset:0;opacity:" + (this.state.boxes ? "1" : "0"),
+      blurStyle: "position:absolute;left:37.5%;top:24%;width:5.5%;aspect-ratio:1;border-radius:50%;background:#6E757D;filter:blur(6px);opacity:" + (this.state.blur ? "1" : "0"),
+      toggleBoxes: () => this.setState((st) => ({ boxes: !st.boxes })),
+      toggleBlur: () => this.setState((st) => ({ blur: !st.blur })),
+      boxesSwitch: "width:30px;height:17px;border-radius:9px;padding:2px;display:flex;cursor:pointer;background:" + (this.state.boxes ? "#2F81F7" : "#2E3238") + ";justify-content:" + (this.state.boxes ? "flex-end" : "flex-start"),
+      boxesKnob: "width:13px;height:13px;border-radius:50%;background:" + (this.state.boxes ? "#08111F" : "#8A9199"),
+      blurSwitch: "width:30px;height:17px;border-radius:9px;padding:2px;display:flex;cursor:pointer;background:" + (this.state.blur ? "#2F81F7" : "#2E3238") + ";justify-content:" + (this.state.blur ? "flex-end" : "flex-start"),
+      blurKnob: "width:13px;height:13px;border-radius:50%;background:" + (this.state.blur ? "#08111F" : "#8A9199"),
+      metaOpen: this.state.meta,
+      metaCaret: this.state.meta ? "▾" : "▸",
+      toggleMeta: () => this.setState((st) => ({ meta: !st.meta }))
+    };
+  }
+}
+</script>
+</body>
+</html>

@@ -1,0 +1,87 @@
+/* Tokens de diseño de Guardián EPP.
+ *
+ * Extraídos del diseño aprobado (diseno/bandeja-y-visor.dc.html) el 2026-09-04.
+ * Son los valores exactos del maquetado, no aproximaciones sacadas de mirar una captura.
+ *
+ * REGLA: en los componentes se usa la variable, nunca el hexadecimal. Si hace falta un
+ * color que no está aquí, se añade aquí primero. Un `#26292E` suelto en un componente
+ * es un color que nadie podrá cambiar después sin buscarlo a mano por todo el proyecto.
+ */
+
+:root {
+  /* ---- Superficies. La aplicación es oscura, pero nunca negro puro ---- */
+  --gepp-fondo:            #0B0D10;  /* lienzo de la aplicación */
+  --gepp-superficie:       #14171A;  /* tarjetas, campos, filtros */
+  --gepp-superficie-alta:  #1A1E23;  /* cabecera de tabla, elementos elevados */
+  --gepp-superficie-hover: #1F2328;  /* fila bajo el cursor */
+  --gepp-seleccion:        #1B2735;  /* fila seleccionada, azulada */
+  --gepp-panel:            #12161B;  /* fondo del panel deslizante */
+
+  /* ---- Bordes: 1px, nunca sombras. Sombra solo en el panel y los diálogos ---- */
+  --gepp-borde:        #26292E;
+  --gepp-borde-suave:  #2E3238;
+  --gepp-borde-fuerte: #3A3F46;
+
+  /* ---- Texto, cinco niveles ---- */
+  --gepp-texto:       #E6E8EB;  /* cuerpo */
+  --gepp-texto-2:     #C3C9CF;  /* secundario */
+  --gepp-texto-3:     #A6ADB5;  /* metadatos, navegación en reposo */
+  --gepp-texto-4:     #7C838B;  /* zona/subtítulo dentro de una celda */
+  --gepp-texto-tenue: #6B7280;  /* etiquetas en mayúscula, unidades */
+
+  /* ---- Acento. UNO solo, y solo para lo interactivo ---- */
+  --gepp-acento:       #2F81F7;
+  --gepp-acento-claro: #4C8DF6;
+  --gepp-acento-hover: #7FB0FA;
+  --gepp-acento-fondo: #08111F;
+
+  /* ---- Severidad — paleta Okabe-Ito, segura para daltonismo ----
+   * El color NUNCA va solo: siempre con forma y palabra. Prohibido rojo/verde como
+   * única distinción. Si cambias un valor, desatura una captura y comprueba que los
+   * niveles se siguen separando. Y jamás colorees la fila entera: el color va en su
+   * celda y en un filete de 3 px en el borde izquierdo.
+   */
+  --gepp-critica:  #D55E00;   /* ◆ rombo relleno */
+  --gepp-alta:     #E69F00;   /* ▲ triángulo */
+  --gepp-media:    #0072B2;   /* ● círculo relleno */
+  --gepp-baja:     #8A9199;   /* ○ anillo hueco */
+  --gepp-conforme: #009E73;   /* ✓ visto */
+
+  /* ---- Tipografía ----
+   * Monoespaciada con cifras tabulares en horas, duraciones, hashes, identificadores
+   * y toda columna numérica: sin `font-variant-numeric: tabular-nums` las cifras bailan
+   * de fila en fila y la tabla deja de poder leerse en vertical.
+   */
+  --gepp-fuente:      Inter, system-ui, -apple-system, "Segoe UI", sans-serif;
+  --gepp-fuente-mono: "JetBrains Mono", ui-monospace, "SF Mono", Menlo, monospace;
+
+  --gepp-texto-xs:  10px;  /* marcas de tiempo diminutas */
+  --gepp-texto-sm:  11px;  /* ETIQUETAS EN MAYÚSCULA */
+  --gepp-texto-md:  12px;  /* metadatos */
+  --gepp-texto-lg:  13px;  /* cuerpo de tabla — el tamaño de trabajo */
+  --gepp-texto-xl:  14px;  /* cuerpo */
+  --gepp-texto-2xl: 20px;  /* título */
+
+  /* ---- Espaciado: múltiplos de 4, sin excepciones ---- */
+  --gepp-e1:  4px;
+  --gepp-e2:  8px;
+  --gepp-e3: 12px;
+  --gepp-e4: 16px;
+  --gepp-e6: 24px;
+
+  /* ---- Medidas fijas de la interfaz ---- */
+  --gepp-lateral:     232px;  /* barra lateral */
+  --gepp-lateral-min:  56px;  /* colapsada */
+  --gepp-cabecera:     56px;
+  --gepp-fila:         40px;  /* alto de fila de la tabla */
+  --gepp-filtros:      44px;
+  --gepp-control:      30px;  /* alto de un filtro o botón pequeño */
+  --gepp-filete:        3px;  /* filete de severidad, borde izquierdo de la fila */
+  --gepp-panel-ancho:   60%;  /* visor deslizante */
+
+  /* ---- Radios ---- */
+  --gepp-radio-sm:  4px;
+  --gepp-radio:     6px;
+  --gepp-radio-lg:  8px;
+  --gepp-radio-px: 10px;  /* píldoras y contadores */
+}
