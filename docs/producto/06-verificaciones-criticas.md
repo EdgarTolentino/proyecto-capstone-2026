@@ -66,6 +66,28 @@ es la distancia, es la tabla.
 motor de reglas la respeta: **nunca exige en una zona un EPP que la cámara no alcanza a
 resolver**. Eso mata de raíz el modo de fallo número uno de estos sistemas.
 
+### Primera medición real — 2026-09-04
+
+Sobre un cuadro nativo del material descargado (1280×720, clip de Hong Kong), con rejilla de
+10 px:
+
+| Posición en el cuadro | Ancho del casco | Tras reescalar a 560 | ¿Sobrevive? |
+|---|---|---|---|
+| Primer plano | ~60 px | ~26 px | ✅ |
+| Media distancia | ~63 px | ~28 px | ✅ |
+| Fondo del encuadre | ~40 px | **~17 px** | ❌ |
+
+**El umbral es de 46 px en el cuadro.** Los cascos cercanos y medios pasan; los del fondo no.
+Es decir: en un mismo encuadre conviven zonas evaluables y zonas que no lo son — que es
+exactamente lo que la tabla `zona × EPP × evaluable` existe para registrar.
+
+**Y la resolución de origen no salva nada:** un casco que en 1280 mide 60 px mide 90 px en 1920,
+pero el factor de reescalado baja de 0,44 a 0,29 y llega igual a ~26 px. Lo que mueve la aguja es
+el ángulo de visión y el ***tiling***.
+
+Queda pendiente repetir la medición sobre el video propio, con la cámara y las distancias reales
+de la obra (#10).
+
 Esa tabla es además un entregable que ningún competidor comercial publica.
 
 ## V3 · ¿Con qué métrica se mide un evento? 🔴 BLOQUEANTE

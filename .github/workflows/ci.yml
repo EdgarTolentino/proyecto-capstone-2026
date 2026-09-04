@@ -35,6 +35,7 @@ jobs:
             python:
               - 'Fase 2/sistema/packages/**'
               - 'Fase 2/sistema/tests/**'
+              - 'Fase 2/sistema/scripts/**'
               - 'Fase 2/sistema/pyproject.toml'
               - 'Fase 2/sistema/uv.lock'
               - '.github/workflows/ci.yml'
