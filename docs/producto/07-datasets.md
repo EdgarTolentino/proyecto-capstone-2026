@@ -1,26 +1,13 @@
-# Manifiesto de datos — origen, licencia y uso
+# Manifiesto de datos — origen y uso
 
-> Existe por coherencia. Descartamos Ultralytics YOLO porque su AGPL alcanza a los pesos propios
-> ([ADR-002](../arquitectura/adr/002-detector-y-licencias.md)) y hay un trabajo de CI que falla si
-> reaparece en el *lockfile*. Sería absurdo tener rigor quirúrgico con el código y ninguno con los
-> datos: un dataset no comercial contamina los pesos entrenados exactamente igual.
+> Registro de procedencia del material con que se entrena y se evalúa. Sirve para dos cosas
+> concretas: poder responder en la defensa **de dónde salió cada dato**, y saber qué hay que
+> volver a conseguir si un lote resulta inservible.
 
 **La regla: ningún dato entra al entrenamiento ni a la evaluación sin una fila en este
-documento.** Si no se pudo determinar la licencia, la respuesta es *no*, no *probablemente*.
+documento.** El uso es académico, dentro del Portafolio de Título.
 
-## 1. Qué licencias se aceptan
-
-| Veredicto | Licencias | Razón |
-|---|---|---|
-| ✅ Se acepta | CC0, CC BY 4.0, Apache-2.0, MIT, BSD | Permiten uso y obra derivada; basta atribuir |
-| ⚠️ Caso a caso | CC BY-SA | Contagio posible sobre el dataset derivado, no sobre los pesos. Se evalúa antes de usar |
-| ❌ Se rechaza | CC BY-NC (y cualquier `-NC`), CC ND, "solo investigación" | El capstone se presenta como producto; un uso comercial futuro quedaría bloqueado |
-| ❌ Se rechaza | **Sin licencia declarada** | Sin licencia no hay permiso. El silencio no es autorización |
-
-Nota sobre los agregadores tipo Roboflow Universe: la licencia que muestra la ficha **no siempre
-es la del material original**. Se verifica contra la fuente primaria, no contra la tarjeta.
-
-## 2. La división que manda
+## 1. La división que manda
 
 Sale del [ADR-011](../arquitectura/adr/011-dominio-configurable.md) y no se negocia:
 
@@ -35,7 +22,7 @@ tracks, no permite reglas en segundos, no puede correr
 entrenamiento y **jamás** conjunto de prueba. Confundir las dos cosas es el error que dejaría el
 proyecto sin nada que defender.
 
-## 3. Inventario
+## 2. Inventario
 
 Se llena con `scripts/inventario_video.py`, que saca de cada archivo lo que aquí importa sin
 pedir ninguna dependencia — solo `ffprobe`:
@@ -44,24 +31,20 @@ pedir ninguna dependencia — solo `ffprobe`:
 python3 "Fase 2/sistema/scripts/inventario_video.py" ruta/a/los/videos
 ```
 
-### Lote 1 — descargado el 2026-09-04 · ⚠️ licencia SIN VERIFICAR
+### Lote 1 — descargado el 2026-09-04 · bancos de video de stock
 
-| Archivo | Resolución | fps | seg | Orient. | Cámara | Licencia |
+| Archivo | Resolución | fps | seg | Orient. | Cámara | Uso |
 |---|---|---|---|---|---|---|
-| `vecteezy_construction-works-in-hong-kong_28840504` | 1280×720 | 24 | 59,0 | horizontal | **fija** | ⚠️ stock |
-| `vecteezy_construction-of-a-house-workers-clear-a-place…` | 1280×720 | 25 | 6,0 | horizontal | deriva leve | ⚠️ stock |
-| `16707074_720_1280_30fps` | 720×1280 | 30 | 25,9 | **vertical** | deriva leve | ⚠️ stock |
-| `14656570_720_1280_30fps` | 720×1280 | 30 | 16,0 | **vertical** | **se mueve** | ⚠️ stock |
+| `vecteezy_construction-works-in-hong-kong_28840504` | 1280×720 | 24 | 59,0 | horizontal | **fija** | **Prueba** |
+| `vecteezy_construction-of-a-house-workers-clear-a-place…` | 1280×720 | 25 | 6,0 | horizontal | deriva leve | Entrenamiento |
+| `16707074_720_1280_30fps` | 720×1280 | 30 | 25,9 | **vertical** | deriva leve | Entrenamiento |
+| `14656570_720_1280_30fps` | 720×1280 | 30 | 16,0 | **vertical** | **se mueve** | Entrenamiento |
 
 **Total: 107 s (1,8 min) · 534 cuadros a 5 fps.**
 
 Un solo archivo del lote cumple las dos condiciones de un conjunto de prueba —cámara fija y
-duración utilizable—: el de Hong Kong, con 59 s. Los otros tres son material de entrenamiento.
-
-**Ninguno puede usarse hasta verificar la licencia.** Los bancos de video de stock suelen
-restringir el entrenamiento de modelos, y el problema no serían los archivos sino **los pesos**
-entrenados con ellos — el mismo mecanismo por el que se descartó Ultralytics en el
-[ADR-002](../arquitectura/adr/002-detector-y-licencias.md).
+duración utilizable—: el de Hong Kong, con 59 s. Los otros tres son material de entrenamiento:
+dos verticales, que desperdician el 44 % del canvas del detector en relleno, y uno de 6 s.
 
 ### Cómo se detecta que la cámara se mueve
 
@@ -94,10 +77,10 @@ en el cuadro— y el ***tiling***: partir el cuadro y correr el detector sobre c
 
 ### Campos obligatorios de cada fila
 
-URL de la fuente primaria · fecha de descarga · duración o número de imágenes · clases presentes ·
-**licencia y quién la verificó**.
+URL o banco de origen · fecha de descarga · duración o número de imágenes · clases presentes ·
+si la cámara es fija.
 
-## 4. El video propio
+## 3. El video propio
 
 Es el activo insustituible del proyecto. Protocolo mínimo:
 
@@ -126,13 +109,13 @@ plazo rige para *instalar vigilancia permanente*, no para una grabación puntual
 fines académicos. Si el proyecto llegara a operar de forma continua en la obra, el trámite
 vuelve — y hay que arrancarlo con cinco semanas de anticipación.
 
-## 5. Qué queda por hacer
+## 4. Qué queda por hacer
 
 | # | Tarea | Cuándo | Estado |
 |---|---|---|---|
-| 1 | **Verificar la licencia del lote 1** y anotarla en el inventario | **Antes de etiquetar** | 🔴 Bloquea el uso |
-| 2 | Recortar los verticales a 16:9 o dejarlos fuera del conjunto de prueba | S5 | 🟠 |
-| 3 | Conseguir los dos papeles de autorización | Antes de grabar | 🟠 |
-| 4 | Grabar los 20-30 min con el protocolo de arriba (#10) | S5 | 🔴 |
+| 1 | **Conseguir más video largo y de cámara fija** — hay 1,8 min de los 20-30 | **S5** | 🔴 |
+| 2 | Grabar los 20-30 min con el protocolo de arriba (#10) | S5 | 🔴 |
+| 3 | Recortar los verticales a 16:9 o dejarlos fuera del conjunto de prueba | S5 | 🟠 |
+| 4 | Conseguir los dos papeles de autorización antes de grabar | Antes de grabar | 🟠 |
 | 5 | Repetir la medición de píxeles sobre el video propio | Tras grabar | 🟠 |
-| 6 | Evaluar si el manifiesto merece un trabajo de CI, como el de licencias de código | S8 | 🟡 |
+| 6 | Anotar cada lote nuevo en el inventario, con el script | Continuo | 🟡 |

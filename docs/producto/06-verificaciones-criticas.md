@@ -19,7 +19,7 @@ Eso obligó a decidir el dominio del proyecto, y quedó escrito en
 |---|---|
 | Dominio evaluado | **Construcción.** El conjunto de prueba y la demo de S15 salen de obra |
 | Minería | **Perfil de configuración**, demostrado sin tocar código y declarado como no evaluado |
-| Entrenamiento | Datasets públicos de imágenes, con licencia verificada |
+| Entrenamiento | Datasets públicos de imágenes |
 | Prueba y demo | **Video propio de obra, 20-30 min continuos** — es lo insustituible |
 | Procedencia | Toda fuente pasa por [`07-datasets.md`](07-datasets.md) antes de usarse |
 
