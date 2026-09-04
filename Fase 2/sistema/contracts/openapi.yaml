@@ -95,7 +95,7 @@ paths:
                     ts_inicio: '2026-09-03T10:14:07-03:00'
                     ts_fin: '2026-09-03T10:17:19-03:00'
                     duracion_s: 192.0
-                    cuadros_confirmados: 47
+                    cuadros_confirmados: 912
                     confianza_media: 0.91
                     estado: por_revisar
                     miniatura_url: /api/v1/evidencias/9912/miniatura
@@ -111,7 +111,7 @@ paths:
                     ts_inicio: '2026-09-03T08:22:40-03:00'
                     ts_fin: '2026-09-03T08:24:27-03:00'
                     duracion_s: 107.0
-                    cuadros_confirmados: 31
+                    cuadros_confirmados: 508
                     confianza_media: 0.88
                     estado: por_revisar
                     miniatura_url: /api/v1/evidencias/9908/miniatura
@@ -127,7 +127,7 @@ paths:
                     ts_inicio: '2026-09-03T07:41:55-03:00'
                     ts_fin: '2026-09-03T07:42:43-03:00'
                     duracion_s: 48.0
-                    cuadros_confirmados: 14
+                    cuadros_confirmados: 228
                     confianza_media: 0.76
                     estado: por_revisar
                     miniatura_url: /api/v1/evidencias/9901/miniatura
@@ -143,7 +143,7 @@ paths:
                     ts_inicio: '2026-09-02T14:02:31-03:00'
                     ts_fin: '2026-09-02T14:03:36-03:00'
                     duracion_s: 65.0
-                    cuadros_confirmados: 19
+                    cuadros_confirmados: 309
                     confianza_media: 0.83
                     estado: confirmado
                     miniatura_url: /api/v1/evidencias/9874/miniatura
@@ -706,7 +706,11 @@ components:
             Total de cuadros en que se confirmó el incumplimiento. **Es un entero, no una razón:**
             la razón del umbral ("4 de 5 en 2,0 s") pertenece al visor, en `por_que_se_disparo`.
             Mostrarla en la bandeja reintroduce el pensamiento en cuadros que el ADR-005 prohíbe.
-          example: 47
+
+            **Coherencia obligatoria con `duracion_s`:** el sistema muestrea a 5 fps, así que este
+            valor ronda `duracion_s × 5`. Un hallazgo de 192 s tiene del orden de 900 cuadros
+            confirmados, no 47. Si la razón entre ambos no da ~5, uno de los dos está mal.
+          example: 912
         confianza_media:
           type: number
           format: float
@@ -789,7 +793,7 @@ components:
                   example: 4 de 5 cuadros en 2,0 s
                 valores_observados:
                   type: string
-                  example: 47 de 51 cuadros en 192,0 s
+                  example: 912 de 960 cuadros en 192,0 s
                 confianza_minima: { type: number, format: float, example: 0.45 }
                 base_licitud:
                   type: string
