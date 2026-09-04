@@ -23,7 +23,7 @@ Dos etapas con responsabilidades separadas:
   alcanza cerca de **F1 0,51** clasificando peligros de construcción, pero **BERTScore 0,82**
   describiéndolos. Sirve para redactar, no para decidir.
 - Un sistema cuyas alertas dependen de un VLM no es **auditable**: no se puede explicar por qué
-  se disparó. Un cliente minero lo va a exigir.
+  se disparó. El cliente lo va a exigir.
 - Si el VLM está en la ruta crítica, cargarlo deja al detector sin VRAM justo en el momento en
   que hay un hallazgo — es decir, justo cuando el sistema no puede fallar.
 

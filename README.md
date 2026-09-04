@@ -2,7 +2,7 @@
 
 # 🦺 Guardián EPP
 
-**Detección automática de uso de Elementos de Protección Personal sobre video de faena minera**
+**Detección automática de uso de Elementos de Protección Personal sobre video de obra de construcción**
 
 *Portafolio de Título APT122 · Ingeniería en Informática · Duoc UC · Semestre 2-2026*
 
@@ -17,8 +17,8 @@
 
 ## El problema
 
-En una faena minera el uso de EPP es obligatorio y su incumplimiento causa lesiones. Hoy se
-fiscaliza **mirando**: un prevencionista recorre el área y anota en una planilla.
+En una obra de construcción el uso de EPP es obligatorio y su incumplimiento causa lesiones. Hoy
+se fiscaliza **mirando**: un prevencionista recorre el área y anota en una planilla.
 
 Ese método falla por cuatro sitios a la vez, y ninguno se arregla contratando más gente:
 
@@ -27,7 +27,7 @@ Ese método falla por cuatro sitios a la vez, y ninguno se arregla contratando m
 - **No deja dato** — nadie puede responder "¿qué EPP se incumple más y dónde?".
 - **No es trazable** — no queda registro de que alguien haya actuado.
 
-Mientras tanto, **la faena ya tiene cámaras grabando**. La infraestructura de observación
+Mientras tanto, **la obra ya tiene cámaras grabando**. La infraestructura de observación
 continua existe. Lo que falta es alguien que mire.
 
 ## Qué hace Guardián EPP

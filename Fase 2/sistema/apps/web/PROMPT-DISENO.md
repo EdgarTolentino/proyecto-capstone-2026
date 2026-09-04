@@ -11,8 +11,8 @@ lleva el contexto, las pantallas, el estilo y datos de ejemplo realistas.
 
 ```
 Diseña la interfaz de "Guardián EPP", una plataforma web que detecta automáticamente el
-incumplimiento en el uso de Elementos de Protección Personal sobre video de CCTV de una faena
-minera chilena, y convierte cada incumplimiento en un hallazgo gestionable.
+incumplimiento en el uso de Elementos de Protección Personal sobre video de CCTV de una obra de
+construcción chilena, y convierte cada incumplimiento en un hallazgo gestionable.
 
 CONCEPTO CLAVE — léelo antes de decidir nada:
 Esto NO es un dashboard de analítica. Es una BANDEJA DE TRIAGE. El usuario principal es un

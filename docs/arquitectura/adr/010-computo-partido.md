@@ -7,8 +7,8 @@
 Dos decisiones previas se contradicen y nadie lo había notado:
 
 1. *"Sin GPU el proyecto igual se termina: las plataformas gratuitas dan 30 h semanales."*
-2. Toda la defensa de privacidad —y el argumento de venta al cliente minero— se apoya en que
-   **el video de faena no sale de la infraestructura controlada**.
+2. Toda la defensa de privacidad —y el argumento de venta al cliente— se apoya en que
+   **el video de obra no sale de la infraestructura controlada**.
 
 Las dos no pueden ser verdad a la vez con el mismo material.
 

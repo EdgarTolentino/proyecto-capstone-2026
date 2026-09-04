@@ -2,9 +2,9 @@
 
 | Documento | Origen |
 |---|---|
-| Especificación de arquitectura | [`docs/arquitectura/`](../../../../docs/arquitectura/) |
+| Especificación de arquitectura | [`docs/arquitectura/`](../../../docs/arquitectura/) |
 | Diseño de interfaz (GUI) | `docs/producto/` + capturas del sistema |
-| Modelo de datos | [`docs/arquitectura/`](../../../../docs/arquitectura/) |
+| Modelo de datos | [`docs/arquitectura/`](../../../docs/arquitectura/) |
 | Plan de pruebas y resultados | `docs/operacion/` |
 | Manual de usuario | Se redacta en la Fase 3 |
 | Manual técnico / despliegue | `docs/operacion/` |

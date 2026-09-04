@@ -5,7 +5,7 @@
 
 ## 1. El problema
 
-En una faena minera el uso de Elementos de Protección Personal es obligatorio y su
+En una obra de construcción el uso de Elementos de Protección Personal es obligatorio y su
 incumplimiento es causa directa de lesiones. Hoy la fiscalización de ese uso descansa en la
 **observación humana**: el prevencionista recorre el área, mira, y anota en una planilla.
 
@@ -44,7 +44,7 @@ Delimitarlo importa tanto como definirlo:
 
 - **No es un sistema de vigilancia individual.** No identifica personas, no lleva un registro por
   trabajador y no alimenta procesos disciplinarios. Es una herramienta de gestión preventiva por
-  área. Esta restricción es legal, ética y de diseño — está en [`docs/producto/02-privacidad.md`](02-privacidad.md).
+  área. Esta restricción es legal, ética y de diseño — está en [`docs/producto/02-privacidad.md`](02-privacidad-y-cumplimiento.md).
 - **No es un detector de objetos.** El detector es una pieza; el proyecto es la plataforma que
   convierte detecciones en decisiones. Un modelo sin gestión de hallazgos no le sirve a nadie.
 - **No reemplaza al prevencionista.** Le devuelve el tiempo que hoy gasta recorriendo para
@@ -105,9 +105,10 @@ justamente la apuesta de arquitectura, y está detallada en
 
 Tres cosas, y conviene poder decirlas en una frase cada una en la defensa:
 
-1. **El dato es propio.** El modelo se entrena con un conjunto etiquetado por nosotros para el
-   dominio minero chileno. Un detector descargado con clases genéricas no distingue un casco de
-   seguridad de un gorro, ni un chaleco reflectante de una polera naranja.
+1. **El dato es propio.** El conjunto de prueba es video de obra grabado y etiquetado por
+   nosotros: un detector descargado con clases genéricas no distingue un casco de seguridad de un
+   gorro, ni un chaleco reflectante de una polera naranja. Y el dominio no está cableado — es un
+   perfil que se cambia sin tocar código ([ADR-011](../arquitectura/adr/011-dominio-configurable.md)).
 2. **El incumplimiento es un evento, no un cuadro.** El salto difícil no es detectar un casco:
    es decidir que *esta persona*, durante *estos 40 segundos*, en *esta zona*, estuvo sin él —
    y que eso es un solo hallazgo, no 200 alertas.

@@ -41,7 +41,7 @@ Las bases correctas son otras dos, y se declaran **por regla** en la base de dat
 
 | Base | Cuándo aplica | Norma que la funda |
 |---|---|---|
-| **Obligación legal** | El empleador debe fiscalizar el uso de EPP | Ley 16.744 art. 68 · DS 44 art. 13 · DS 132 art. 32 (obliga a las líneas de mando a *verificar el uso*) |
+| **Obligación legal** | El empleador debe fiscalizar el uso de EPP | Ley 16.744 art. 68 · DS 44 art. 13 · **DS 594 art. 53** (dominio evaluado: obra) · DS 132 art. 32 (perfil minero) |
 | **Interés legítimo** | Prevención de accidentes en zona de riesgo | Requiere test de proporcionalidad escrito |
 
 Por eso la tabla `regla` lleva `base_licitud`, `norma_fundante`, `finalidad_declarada` y
