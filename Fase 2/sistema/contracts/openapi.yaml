@@ -1,0 +1,1139 @@
+openapi: 3.1.0
+
+info:
+  title: Guardián EPP — API
+  version: 0.1.0
+  description: |
+    Contrato de la API de Guardián EPP. **Es la frontera entre el backend y el frontend**, y por
+    eso se congela: mientras esté congelado, `apps/web` construye contra el servidor simulado sin
+    esperar al detector, a la GPU ni a la base de datos (ADR-003).
+
+    Reglas del dominio que este contrato hace cumplir por forma, no por convención:
+
+    - **No se identifica a nadie.** No existe ningún campo con nombre, RUT, foto ni identificador
+      persistente de trabajador. El `track_id` es efímero: único dentro de un video y sin
+      significado fuera de él (ADR-006).
+    - **Severidad y confianza son ejes independientes.** Nunca se combinan en un solo indicador.
+    - **Todos los umbrales van en segundos**, jamás en cuadros (ADR-005).
+    - **Todo instante es hora de captura**, derivada de la fuente — nunca hora de procesamiento.
+    - **La evidencia se sirve ya anonimizada.** No existe una versión con rostro visible.
+    - **Los reportes segmentados suprimen las celdas con n < 5** y devuelven `datos_insuficientes`.
+
+  contact:
+    name: Equipo Guardián EPP — Portafolio de Título APT122, Duoc UC
+
+servers:
+  - url: http://localhost:8000/api/v1
+    description: Desarrollo
+  - url: http://localhost:4010/api/v1
+    description: Servidor simulado (prism)
+
+security:
+  - bearerAuth: []
+
+tags:
+  - name: Hallazgos
+    description: La bandeja de triage y el visor de evidencia. El corazón del producto.
+  - name: Videos
+    description: Cola de ingesta.
+  - name: Panel
+    description: Indicadores de la portada.
+  - name: Reglas
+    description: Editor de reglas y simulador.
+  - name: Reportes
+    description: Analítica agregada.
+  - name: Catálogos
+    description: Obras, áreas, zonas, fuentes y usuarios.
+
+paths:
+
+  # ─────────────────────────── Bandeja de hallazgos ───────────────────────────
+  /hallazgos:
+    get:
+      tags: [Hallazgos]
+      summary: Lista de hallazgos para la bandeja de triage
+      description: |
+        Devuelve la página de hallazgos y, en `contadores`, el total de cada pestaña **con los
+        mismos filtros aplicados salvo `estado`** — así las pestañas no mienten al filtrar.
+      operationId: listarHallazgos
+      parameters:
+        - { $ref: '#/components/parameters/Estado' }
+        - { $ref: '#/components/parameters/Severidad' }
+        - { $ref: '#/components/parameters/AreaId' }
+        - { $ref: '#/components/parameters/ZonaId' }
+        - { $ref: '#/components/parameters/FuenteId' }
+        - { $ref: '#/components/parameters/Epp' }
+        - { $ref: '#/components/parameters/Desde' }
+        - { $ref: '#/components/parameters/Hasta' }
+        - { $ref: '#/components/parameters/Turno' }
+        - name: reincidente
+          in: query
+          description: Solo hallazgos en zonas con más de un hallazgo en la ventana consultada.
+          schema: { type: boolean }
+        - name: orden
+          in: query
+          schema:
+            type: string
+            enum: [ts_inicio_desc, ts_inicio_asc, severidad_desc, duracion_desc, confianza_desc]
+            default: ts_inicio_desc
+        - { $ref: '#/components/parameters/Limite' }
+        - { $ref: '#/components/parameters/Cursor' }
+      responses:
+        '200':
+          description: Página de hallazgos
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/PaginaHallazgos' }
+              example:
+                items:
+                  - id: 4821
+                    area: { id: 5, nombre: Andamio Fachada Norte }
+                    zona: { id: 14, nombre: Plataforma nivel 4 }
+                    fuente: { id: 4, nombre: CAM-04 Fachada Norte }
+                    epp_faltante: [arnes]
+                    severidad: 4
+                    ts_inicio: '2026-09-03T10:14:07-03:00'
+                    ts_fin: '2026-09-03T10:17:19-03:00'
+                    duracion_s: 192.0
+                    cuadros_confirmados: 47
+                    confianza_media: 0.91
+                    estado: por_revisar
+                    miniatura_url: /api/v1/evidencias/9912/miniatura
+                    asignado_a: null
+                    reincidente: true
+                    aviso_legal: Indicio automatizado. Requiere validación humana.
+                  - id: 4820
+                    area: { id: 3, nombre: Excavación y Fundaciones }
+                    zona: { id: 11, nombre: Borde de excavación }
+                    fuente: { id: 1, nombre: CAM-01 Acceso Obra }
+                    epp_faltante: [casco]
+                    severidad: 4
+                    ts_inicio: '2026-09-03T08:22:40-03:00'
+                    ts_fin: '2026-09-03T08:24:27-03:00'
+                    duracion_s: 107.0
+                    cuadros_confirmados: 31
+                    confianza_media: 0.88
+                    estado: por_revisar
+                    miniatura_url: /api/v1/evidencias/9908/miniatura
+                    asignado_a: null
+                    reincidente: false
+                    aviso_legal: Indicio automatizado. Requiere validación humana.
+                  - id: 4817
+                    area: { id: 7, nombre: Patio de Maniobras }
+                    zona: { id: 21, nombre: Zona de descarga }
+                    fuente: { id: 9, nombre: CAM-09 Patio }
+                    epp_faltante: [chaleco]
+                    severidad: 3
+                    ts_inicio: '2026-09-03T07:41:55-03:00'
+                    ts_fin: '2026-09-03T07:42:43-03:00'
+                    duracion_s: 48.0
+                    cuadros_confirmados: 14
+                    confianza_media: 0.76
+                    estado: por_revisar
+                    miniatura_url: /api/v1/evidencias/9901/miniatura
+                    asignado_a: null
+                    reincidente: false
+                    aviso_legal: Indicio automatizado. Requiere validación humana.
+                  - id: 4802
+                    area: { id: 6, nombre: Losa Nivel 3 }
+                    zona: { id: 18, nombre: Frente de hormigonado }
+                    fuente: { id: 7, nombre: CAM-07 Losa N3 }
+                    epp_faltante: [casco, chaleco]
+                    severidad: 3
+                    ts_inicio: '2026-09-02T14:02:31-03:00'
+                    ts_fin: '2026-09-02T14:03:36-03:00'
+                    duracion_s: 65.0
+                    cuadros_confirmados: 19
+                    confianza_media: 0.83
+                    estado: confirmado
+                    miniatura_url: /api/v1/evidencias/9874/miniatura
+                    asignado_a: { id: 7, nombre: Supervisor Losa N3 }
+                    reincidente: true
+                    aviso_legal: Indicio automatizado. Requiere validación humana.
+                contadores:
+                  por_revisar: 34
+                  confirmado: 128
+                  descartado: 41
+                  reincidente: 9
+                  todos: 203
+                siguiente_cursor: null
+        '401': { $ref: '#/components/responses/NoAutenticado' }
+
+        '4XX': { $ref: '#/components/responses/Error' }
+  /hallazgos/{id}:
+    get:
+      tags: [Hallazgos]
+      summary: Detalle de un hallazgo, para el visor de evidencia
+      operationId: obtenerHallazgo
+      parameters:
+        - { $ref: '#/components/parameters/HallazgoId' }
+      responses:
+        '200':
+          description: Hallazgo con evidencia, línea de tiempo y trazabilidad de la regla
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/HallazgoDetalle' }
+        '403': { $ref: '#/components/responses/SinPermiso' }
+        '404': { $ref: '#/components/responses/NoEncontrado' }
+
+        '4XX': { $ref: '#/components/responses/Error' }
+  /hallazgos/{id}/triage:
+    post:
+      tags: [Hallazgos]
+      summary: Resolver un hallazgo
+      description: |
+        Registra la decisión humana. Queda en `auditoria`, que es append-only: es lo que permite
+        acreditar quién validó qué y cuándo.
+      operationId: triarHallazgo
+      parameters:
+        - { $ref: '#/components/parameters/HallazgoId' }
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema: { $ref: '#/components/schemas/DecisionTriage' }
+      responses:
+        '200':
+          description: Hallazgo actualizado
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/Hallazgo' }
+        '409':
+          description: Otro usuario ya lo resolvió
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/Error' }
+
+        '4XX': { $ref: '#/components/responses/Error' }
+  /hallazgos/triage-lote:
+    post:
+      tags: [Hallazgos]
+      summary: Resolver varios hallazgos a la vez
+      description: Sostiene la barra flotante de acciones en lote de la bandeja.
+      operationId: triarLote
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [ids, decision]
+              properties:
+                ids:
+                  type: array
+                  minItems: 1
+                  maxItems: 200
+                  items: { type: integer, format: int64 }
+                decision: { $ref: '#/components/schemas/DecisionTriage' }
+      responses:
+        '200':
+          description: Resultado por hallazgo
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  aplicados: { type: integer, example: 12 }
+                  omitidos:
+                    type: array
+                    items:
+                      type: object
+                      properties:
+                        id: { type: integer, format: int64 }
+                        motivo: { type: string, example: 'ya resuelto por otro usuario' }
+
+        '4XX': { $ref: '#/components/responses/Error' }
+  /hallazgos/{id}/acciones:
+    post:
+      tags: [Hallazgos]
+      summary: Asignar una acción correctiva
+      description: Cierra el ciclo. Sin esto el sistema produce ruido, no seguridad.
+      operationId: crearAccionCorrectiva
+      parameters:
+        - { $ref: '#/components/parameters/HallazgoId' }
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema: { $ref: '#/components/schemas/AccionCorrectivaNueva' }
+      responses:
+        '201':
+          description: Acción creada
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/AccionCorrectiva' }
+
+        '4XX': { $ref: '#/components/responses/Error' }
+  # ────────────────────────────── Cola de ingesta ──────────────────────────────
+  /videos:
+    get:
+      tags: [Videos]
+      summary: Cola de ingesta
+      operationId: listarVideos
+      parameters:
+        - name: estado
+          in: query
+          schema:
+            type: string
+            enum: [en_cola, procesando, listo, error]
+        - { $ref: '#/components/parameters/FuenteId' }
+        - { $ref: '#/components/parameters/Limite' }
+        - { $ref: '#/components/parameters/Cursor' }
+      responses:
+        '200':
+          description: Página de videos
+          content:
+            application/json:
+              schema:
+                type: object
+                required: [items]
+                properties:
+                  items:
+                    type: array
+                    items: { $ref: '#/components/schemas/Video' }
+                  siguiente_cursor: { type: [string, 'null'] }
+
+        '4XX': { $ref: '#/components/responses/Error' }
+  /videos/{id}/reprocesar:
+    post:
+      tags: [Videos]
+      summary: Reprocesar un video
+      description: |
+        Idempotente por `hash_sha256`: reprocesar no duplica hallazgos, los reemplaza. Es lo que
+        permite recalcular reglas sin volver a tocar la GPU.
+      operationId: reprocesarVideo
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema: { type: integer, format: int64 }
+      responses:
+        '202':
+          description: Encolado
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/Video' }
+
+        '4XX': { $ref: '#/components/responses/Error' }
+  # ──────────────────────────────── Panel general ────────────────────────────────
+  /panel:
+    get:
+      tags: [Panel]
+      summary: Las tres bandas de la portada, en una sola llamada
+      description: Una llamada y no cinco, porque la portada se pinta de una vez o parpadea.
+      operationId: obtenerPanel
+      parameters:
+        - { $ref: '#/components/parameters/Desde' }
+        - { $ref: '#/components/parameters/Hasta' }
+        - { $ref: '#/components/parameters/Turno' }
+        - { $ref: '#/components/parameters/ObraId' }
+      responses:
+        '200':
+          description: Indicadores, series y críticos recientes
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/Panel' }
+
+        '4XX': { $ref: '#/components/responses/Error' }
+  # ───────────────────────────────── Reglas ─────────────────────────────────
+  /reglas:
+    get:
+      tags: [Reglas]
+      summary: Lista de reglas
+      operationId: listarReglas
+      parameters:
+        - { $ref: '#/components/parameters/AreaId' }
+        - name: activa
+          in: query
+          schema: { type: boolean }
+      responses:
+        '200':
+          description: Reglas
+          content:
+            application/json:
+              schema:
+                type: array
+                items: { $ref: '#/components/schemas/Regla' }
+        '4XX': { $ref: '#/components/responses/Error' }
+    post:
+      tags: [Reglas]
+      summary: Crear una regla
+      operationId: crearRegla
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema: { $ref: '#/components/schemas/ReglaEntrada' }
+      responses:
+        '201':
+          description: Regla creada en versión 1
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/Regla' }
+
+        '4XX': { $ref: '#/components/responses/Error' }
+  /reglas/{id}:
+    get:
+      tags: [Reglas]
+      summary: Detalle de una regla
+      operationId: obtenerRegla
+      parameters:
+        - { $ref: '#/components/parameters/ReglaId' }
+      responses:
+        '200':
+          description: Regla
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/Regla' }
+        '4XX': { $ref: '#/components/responses/Error' }
+    put:
+      tags: [Reglas]
+      summary: Editar una regla — crea una versión nueva
+      description: |
+        **No modifica la versión vigente: crea la siguiente y desactiva la anterior.** Sin esto,
+        en la defensa nadie puede explicar por qué un hallazgo de la S8 se disparó con un umbral
+        que ya no existe.
+      operationId: actualizarRegla
+      parameters:
+        - { $ref: '#/components/parameters/ReglaId' }
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema: { $ref: '#/components/schemas/ReglaEntrada' }
+      responses:
+        '200':
+          description: Nueva versión de la regla
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/Regla' }
+
+        '4XX': { $ref: '#/components/responses/Error' }
+  /reglas/{id}/simular:
+    post:
+      tags: [Reglas]
+      summary: '"¿Y si...?" — simular la regla sobre el histórico'
+      description: |
+        Recalcula la regla sobre las **detecciones ya persistidas**, sin GPU y sin volver a leer
+        video. Es el botón "Simular sobre los últimos 30 días" del editor.
+      operationId: simularRegla
+      parameters:
+        - { $ref: '#/components/parameters/ReglaId' }
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [desde, hasta, regla]
+              properties:
+                desde: { type: string, format: date }
+                hasta: { type: string, format: date }
+                regla: { $ref: '#/components/schemas/ReglaEntrada' }
+      responses:
+        '200':
+          description: Resultado de la simulación
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/ResultadoSimulacion' }
+
+        '4XX': { $ref: '#/components/responses/Error' }
+  # ──────────────────────────────── Reportes ────────────────────────────────
+  /reportes/{tipo}:
+    get:
+      tags: [Reportes]
+      summary: Reporte agregado
+      description: |
+        Las celdas cuya población es menor que 5 se devuelven con `datos_insuficientes: true` y
+        **sin valor**. La supresión ocurre en el servidor: el frontend no puede saltársela.
+      operationId: obtenerReporte
+      parameters:
+        - name: tipo
+          in: path
+          required: true
+          schema:
+            type: string
+            enum: [ranking-epp, zonas, mapa-calor, tendencia]
+        - name: segmentacion
+          in: query
+          schema:
+            type: string
+            enum: [zona, turno, camara, epp]
+        - { $ref: '#/components/parameters/Desde' }
+        - { $ref: '#/components/parameters/Hasta' }
+        - { $ref: '#/components/parameters/AreaId' }
+        - name: formato
+          in: query
+          schema: { type: string, enum: [json, csv], default: json }
+      responses:
+        '200':
+          description: Reporte
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/Reporte' }
+            text/csv:
+              schema: { type: string }
+
+        '4XX': { $ref: '#/components/responses/Error' }
+  # ──────────────────────────────── Catálogos ────────────────────────────────
+  /catalogos:
+    get:
+      tags: [Catálogos]
+      summary: Obras, áreas, zonas, fuentes y turnos, de una vez
+      description: Alimenta todos los selectores de la aplicación. Se pide una vez al arrancar.
+      operationId: obtenerCatalogos
+      responses:
+        '200':
+          description: Catálogos
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/Catalogos' }
+
+        '4XX': { $ref: '#/components/responses/Error' }
+  /yo:
+    get:
+      tags: [Catálogos]
+      summary: Usuario de la sesión y sus permisos
+      description: |
+        El frontend pinta según `permisos`, no según el rol. El administrador **no** ve evidencia:
+        es lo que separa a quien configura de quien observa.
+      operationId: obtenerSesion
+      responses:
+        '200':
+          description: Sesión
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/Sesion' }
+              example:
+                id: 7
+                nombre: Prevencionista de turno
+                rol: prevencionista
+                area_id: null
+                permisos:
+                  [ver_hallazgos, triar_hallazgos, ver_evidencia, ver_reportes, asignar_acciones]
+
+        '4XX': { $ref: '#/components/responses/Error' }
+components:
+
+  securitySchemes:
+    bearerAuth:
+      type: http
+      scheme: bearer
+      bearerFormat: JWT
+
+  parameters:
+    HallazgoId:
+      name: id
+      in: path
+      required: true
+      schema: { type: integer, format: int64 }
+    ReglaId:
+      name: id
+      in: path
+      required: true
+      schema: { type: integer, format: int64 }
+    Estado:
+      name: estado
+      in: query
+      schema: { $ref: '#/components/schemas/EstadoHallazgo' }
+    Severidad:
+      name: severidad
+      in: query
+      description: 4 crítica · 3 alta · 2 media · 1 baja
+      schema:
+        type: array
+        items: { $ref: '#/components/schemas/Severidad' }
+      style: form
+      explode: false
+    AreaId:
+      name: area_id
+      in: query
+      schema: { type: integer, format: int64 }
+    ZonaId:
+      name: zona_id
+      in: query
+      schema: { type: integer, format: int64 }
+    FuenteId:
+      name: fuente_id
+      in: query
+      schema: { type: integer, format: int64 }
+    ObraId:
+      name: obra_id
+      in: query
+      schema: { type: integer, format: int64 }
+    Epp:
+      name: epp
+      in: query
+      description: Filtra por EPP faltante.
+      schema:
+        type: array
+        items: { $ref: '#/components/schemas/TipoEpp' }
+      style: form
+      explode: false
+    Desde:
+      name: desde
+      in: query
+      description: Hora de **captura**, no de procesamiento.
+      schema: { type: string, format: date-time }
+    Hasta:
+      name: hasta
+      in: query
+      schema: { type: string, format: date-time }
+    Turno:
+      name: turno
+      in: query
+      schema: { type: string, example: 'A' }
+    Limite:
+      name: limite
+      in: query
+      schema: { type: integer, minimum: 1, maximum: 200, default: 50 }
+    Cursor:
+      name: cursor
+      in: query
+      schema: { type: string }
+
+  responses:
+    Error:
+      description: Petición rechazada
+      content:
+        application/json:
+          schema: { $ref: '#/components/schemas/Error' }
+    NoAutenticado:
+      description: Falta o caducó la sesión
+      content:
+        application/json:
+          schema: { $ref: '#/components/schemas/Error' }
+    SinPermiso:
+      description: El rol no alcanza. El administrador no accede a evidencia.
+      content:
+        application/json:
+          schema: { $ref: '#/components/schemas/Error' }
+    NoEncontrado:
+      description: No existe
+      content:
+        application/json:
+          schema: { $ref: '#/components/schemas/Error' }
+
+  schemas:
+
+    Severidad:
+      type: integer
+      enum: [1, 2, 3, 4]
+      description: 1 baja · 2 media · 3 alta · 4 crítica. **Independiente de la confianza.**
+      example: 4
+
+    TipoEpp:
+      type: string
+      enum: [casco, chaleco, lentes, guantes, arnes, calzado]
+      example: casco
+
+    EstadoHallazgo:
+      type: string
+      enum: [por_revisar, confirmado, falso_positivo, duplicado, pospuesto]
+      example: por_revisar
+
+    Hallazgo:
+      type: object
+      description: |
+        La unidad del sistema. **No es un cuadro con una caja**: es un track, en una zona, durante
+        un intervalo, que incumplió una regla.
+      required:
+        [id, area, zona, fuente, epp_faltante, severidad, ts_inicio, duracion_s,
+         cuadros_confirmados, confianza_media, estado, aviso_legal]
+      properties:
+        id: { type: integer, format: int64, example: 4821 }
+        area:
+          $ref: '#/components/schemas/Referencia'
+          example: { id: 3, nombre: Excavación y Fundaciones }
+        zona:
+          $ref: '#/components/schemas/Referencia'
+          example: { id: 11, nombre: Borde de excavación }
+        fuente:
+          $ref: '#/components/schemas/Referencia'
+          example: { id: 1, nombre: CAM-01 Acceso Obra }
+        epp_faltante:
+          type: array
+          minItems: 1
+          items: { $ref: '#/components/schemas/TipoEpp' }
+          example: [casco, chaleco]
+        severidad:
+          $ref: '#/components/schemas/Severidad'
+          example: 4
+        ts_inicio:
+          type: string
+          format: date-time
+          description: Hora de **captura**.
+          example: '2026-09-03T10:14:07-03:00'
+        ts_fin:
+          type: [string, 'null']
+          format: date-time
+          description: Nulo mientras el evento sigue vivo (solo v2, en vivo).
+          example: '2026-09-03T10:17:19-03:00'
+        duracion_s: { type: number, format: float, example: 192.0 }
+        cuadros_confirmados: { type: integer, example: 47 }
+        confianza_media:
+          type: number
+          format: float
+          minimum: 0
+          maximum: 1
+          description: Eje **separado** de la severidad. Nunca se combinan.
+          example: 0.91
+        estado: { $ref: '#/components/schemas/EstadoHallazgo' }
+        miniatura_url:
+          type: [string, 'null']
+          format: uri-reference
+          description: Recorte 64×36 **ya anonimizado**.
+          example: /api/v1/evidencias/9912/miniatura
+        asignado_a:
+          $ref: '#/components/schemas/Referencia'
+          example: null
+        reincidente:
+          type: boolean
+          description: La zona acumula más de un hallazgo en la ventana consultada.
+          example: true
+        aviso_legal:
+          type: string
+          description: Se muestra en cada hallazgo, sin excepción.
+          default: Indicio automatizado. Requiere validación humana.
+          example: Indicio automatizado. Requiere validación humana.
+
+    HallazgoDetalle:
+      allOf:
+        - { $ref: '#/components/schemas/Hallazgo' }
+        - type: object
+          required: [evidencias, por_que_se_disparo, tecnicos]
+          properties:
+            recorte_video_url:
+              type: [string, 'null']
+              format: uri-reference
+              description: Clip de ~8 s en bucle, con el rostro ya difuminado en el archivo.
+              example: /api/v1/evidencias/9912/clip
+            evidencias:
+              type: array
+              items: { $ref: '#/components/schemas/Evidencia' }
+            linea_tiempo:
+              type: object
+              description: Las tres marcas del visor.
+              properties:
+                primera_deteccion: { type: string, format: date-time }
+                umbral_alcanzado: { type: string, format: date-time }
+                fin: { type: [string, 'null'], format: date-time }
+            descripcion_automatica:
+              type: [object, 'null']
+              description: |
+                Etapa 2. **El modelo de lenguaje visual describe; no decide.** Nunca crea, suprime
+                ni cambia la severidad de un hallazgo (ADR-001).
+              properties:
+                titulo: { type: string, example: Trabajador sin casco junto a excavación }
+                descripcion:
+                  type: string
+                  example: >-
+                    Una persona permanece en el borde de la excavación sin casco durante poco más
+                    de tres minutos, mientras dos compañeros trabajan con equipo de protección
+                    completo.
+                confianza: { type: number, format: float, example: 0.72 }
+                modelo: { type: string, example: qwen3-vl-4b-q4 }
+            por_que_se_disparo:
+              type: object
+              description: |
+                El bloque que hace auditable el sistema. Sin esto no se puede explicar una alerta,
+                y una alerta que no se explica no se defiende.
+              required: [regla_nombre, regla_version, umbral_configurado, valores_observados]
+              properties:
+                regla_id: { type: integer, format: int64, example: 12 }
+                regla_nombre: { type: string, example: 'Casco obligatorio — Excavación' }
+                regla_version: { type: integer, example: 3 }
+                zona: { type: string, example: Excavación y Fundaciones }
+                epp_exigido:
+                  type: array
+                  items: { $ref: '#/components/schemas/TipoEpp' }
+                umbral_configurado:
+                  type: string
+                  description: En segundos, en lenguaje natural. **Nunca en cuadros.**
+                  example: 4 de 5 cuadros en 2,0 s
+                valores_observados:
+                  type: string
+                  example: 47 de 51 cuadros en 192,0 s
+                confianza_minima: { type: number, format: float, example: 0.45 }
+                base_licitud:
+                  type: string
+                  enum: [obligacion_legal, interes_legitimo, contrato]
+                norma_fundante: { type: string, example: DS 594 art. 53 }
+            tecnicos:
+              type: object
+              description: Metadatos plegados del visor.
+              properties:
+                video_archivo: { type: string, example: CAM-01_2026-09-03_08-00.mp4 }
+                video_hash: { type: string, example: 9f2c1a7e…b304 }
+                segundo_en_video: { type: number, format: float, example: 854.4 }
+                fps_muestreo:
+                  type: number
+                  format: float
+                  description: Cadencia real de análisis. Las reglas son invariantes a este valor.
+                  example: 5.0
+                modelo_version: { type: string, example: rfdetr-b-epp-v3 }
+                track_id:
+                  type: integer
+                  description: |
+                    **Efímero.** Único dentro de este video y sin significado fuera de él. No se
+                    cruza entre videos, cámaras ni días.
+                  example: 17
+            acciones:
+              type: array
+              items: { $ref: '#/components/schemas/AccionCorrectiva' }
+
+    PaginaHallazgos:
+      type: object
+      required: [items, contadores]
+      properties:
+        items:
+          type: array
+          items: { $ref: '#/components/schemas/Hallazgo' }
+        contadores:
+          type: object
+          description: Totales de cada pestaña, con los mismos filtros salvo `estado`.
+          properties:
+            por_revisar: { type: integer, example: 34 }
+            confirmado: { type: integer, example: 128 }
+            descartado: { type: integer, example: 41 }
+            reincidente: { type: integer, example: 9 }
+            todos: { type: integer, example: 203 }
+        siguiente_cursor: { type: [string, 'null'], example: null }
+
+    DecisionTriage:
+      type: object
+      required: [estado]
+      properties:
+        estado:
+          type: string
+          enum: [confirmado, falso_positivo, duplicado, pospuesto]
+        motivo:
+          type: string
+          description: Obligatorio para `falso_positivo` — alimenta el análisis de error.
+          example: La persona lleva casco, tapado por el andamio
+        duplicado_de: { type: [integer, 'null'], format: int64 }
+        posponer_hasta: { type: [string, 'null'], format: date-time }
+
+    Evidencia:
+      type: object
+      required: [id, cuadro_idx, capture_ts, anonimizado, url]
+      properties:
+        id: { type: integer, format: int64, example: 9912 }
+        cuadro_idx: { type: integer, example: 4272 }
+        capture_ts: { type: string, format: date-time }
+        anonimizado:
+          type: boolean
+          description: Siempre `true`. El recorte se escribe ya difuminado; no hay otra versión.
+          const: true
+        url: { type: string, format: uri-reference, example: /api/v1/evidencias/9912 }
+        purgar_el:
+          type: string
+          format: date
+          description: Calculada desde `regla.retencion_dias`.
+          example: '2026-10-03'
+
+    AccionCorrectivaNueva:
+      type: object
+      required: [responsable_id, descripcion, plazo]
+      properties:
+        responsable_id: { type: integer, format: int64, example: 7 }
+        descripcion: { type: string, example: Reponer casco y reinstruir al frente de trabajo }
+        plazo: { type: string, format: date, example: '2026-09-08' }
+
+    AccionCorrectiva:
+      allOf:
+        - { $ref: '#/components/schemas/AccionCorrectivaNueva' }
+        - type: object
+          properties:
+            id: { type: integer, format: int64, example: 301 }
+            estado: { type: string, enum: [abierta, en_curso, cerrada, vencida] }
+            cerrada_en: { type: [string, 'null'], format: date-time }
+            comentario_cierre: { type: [string, 'null'] }
+
+    Video:
+      type: object
+      required: [id, archivo, estado, capture_ts_inicio]
+      properties:
+        id: { type: integer, format: int64, example: 88 }
+        archivo: { type: string, example: CAM-01_2026-09-03_08-00.mp4 }
+        hash_abreviado: { type: string, example: 9f2c1a7e }
+        fuente: { $ref: '#/components/schemas/Referencia' }
+        duracion_s: { type: number, format: float, example: 3600.0 }
+        bytes: { type: integer, format: int64, example: 734003200 }
+        ancho: { type: integer, example: 1280 }
+        alto: { type: integer, example: 720 }
+        capture_ts_inicio:
+          type: string
+          format: date-time
+          description: De los metadatos del contenedor o de `mtime - duración`. **Nunca `now()`.**
+        origen_capture_ts:
+          type: string
+          enum: [metadatos, mtime, manual, ocr]
+          description: Se muestra en la interfaz — un reloj de origen dudoso debe verse.
+        estado: { type: string, enum: [en_cola, procesando, listo, error] }
+        progreso:
+          type: [number, 'null']
+          format: float
+          minimum: 0
+          maximum: 1
+          example: 0.42
+        error_motivo: { type: [string, 'null'] }
+        fps_efectivo: { type: [number, 'null'], format: float, example: 5.0 }
+        cuadros_analizados: { type: [integer, 'null'], example: 18000 }
+        proceso_ms: { type: [integer, 'null'], format: int64, example: 412000 }
+        hallazgos_generados: { type: integer, example: 6 }
+
+    Panel:
+      type: object
+      required: [indicadores, tendencia, ranking_epp, criticos_recientes, cobertura]
+      properties:
+        indicadores:
+          type: array
+          description: Las cinco tarjetas, en orden de presentación.
+          items:
+            type: object
+            required: [clave, etiqueta, valor]
+            properties:
+              clave:
+                type: string
+                enum:
+                  [hallazgos_abiertos, criticos_sin_revisar, cumplimiento_epp,
+                   zona_mas_incumplimientos, videos_procesados_hoy]
+              etiqueta: { type: string, example: Hallazgos abiertos }
+              valor: { oneOf: [{ type: number }, { type: string }], example: 34 }
+              unidad: { type: [string, 'null'], example: '%' }
+              variacion:
+                type: [number, 'null']
+                format: float
+                description: Contra el período anterior. La interfaz muestra flecha **y** signo.
+                example: -0.12
+              serie:
+                type: array
+                description: Minigráfico de 60×20.
+                items: { type: number }
+                example: [12, 15, 9, 18, 22, 17, 14]
+        tendencia:
+          type: object
+          description: Máximo cuatro series, una por severidad.
+          properties:
+            etiquetas:
+              type: array
+              items: { type: string }
+              example: ['L', 'M', 'M', 'J', 'V', 'S', 'D']
+            series:
+              type: array
+              maxItems: 4
+              items:
+                type: object
+                properties:
+                  severidad: { $ref: '#/components/schemas/Severidad' }
+                  valores: { type: array, items: { type: number } }
+        ranking_epp:
+          type: array
+          description: Top 5 más "Otros".
+          items:
+            type: object
+            properties:
+              epp: { type: string, example: casco }
+              total: { type: integer, example: 61 }
+        criticos_recientes:
+          type: array
+          maxItems: 8
+          items: { $ref: '#/components/schemas/Hallazgo' }
+        cobertura:
+          type: object
+          description: |
+            **El hueco tiene que verse.** Si el sistema no está mirando una zona, el prevencionista
+            debe saberlo: es la mitigación del riesgo de falso negativo con complacencia.
+          properties:
+            fuentes_activas: { type: integer, example: 3 }
+            fuentes_totales: { type: integer, example: 4 }
+            sin_cobertura:
+              type: array
+              items:
+                type: object
+                properties:
+                  fuente: { $ref: '#/components/schemas/Referencia' }
+                  motivo:
+                    type: string
+                    enum: [sin_ingesta, requiere_recalibracion, error, regla_degradada]
+                  desde: { type: string, format: date-time }
+
+    ReglaEntrada:
+      type: object
+      required: [nombre, area_id, epp_exigido, confirmacion_segundos, severidad, finalidad_declarada]
+      properties:
+        nombre: { type: string, example: 'Casco obligatorio — Excavación' }
+        area_id: { type: integer, format: int64, example: 3 }
+        zona_ids:
+          type: array
+          items: { type: integer, format: int64 }
+        epp_exigido:
+          type: array
+          minItems: 1
+          items: { $ref: '#/components/schemas/TipoEpp' }
+          example: [casco]
+        confirmacion_segundos:
+          type: number
+          format: float
+          minimum: 0.2
+          description: |
+            **Segundos, nunca cuadros.** Los cuadros se derivan en ejecución: así la misma regla
+            significa lo mismo a 2, 5, 10 o 15 fps.
+          example: 2.0
+        cierre_segundos: { type: number, format: float, default: 3.0 }
+        confianza_minima: { type: number, format: float, default: 0.45 }
+        severidad: { $ref: '#/components/schemas/Severidad' }
+        turno: { type: [string, 'null'], example: A }
+        hora_desde: { type: [string, 'null'], example: '08:00' }
+        hora_hasta: { type: [string, 'null'], example: '17:30' }
+        activa: { type: boolean, default: true }
+        base_licitud:
+          type: string
+          enum: [obligacion_legal, interes_legitimo, contrato]
+          default: obligacion_legal
+        norma_fundante: { type: string, example: DS 594 art. 53 }
+        finalidad_declarada: { type: string, example: Prevención de lesiones por caída de objetos }
+        retencion_dias: { type: integer, default: 30 }
+        destinatarios:
+          type: array
+          items: { type: integer, format: int64 }
+        espera_entre_alertas_s:
+          type: integer
+          description: Sostiene el presupuesto de ≤6 avisos por turno de 12 h (ADR-008).
+          example: 900
+
+    Regla:
+      allOf:
+        - { $ref: '#/components/schemas/ReglaEntrada' }
+        - type: object
+          required: [id, version]
+          properties:
+            id: { type: integer, format: int64, example: 12 }
+            version: { type: integer, example: 3 }
+            hallazgos_30d: { type: integer, example: 47 }
+            evaluable:
+              type: boolean
+              description: |
+                Falso cuando la cámara no resuelve el EPP exigido en esa zona (tabla
+                `zona × EPP × evaluable`, V2). **El motor nunca exige lo que la cámara no ve.**
+              example: true
+            creada_en: { type: string, format: date-time }
+
+    ResultadoSimulacion:
+      type: object
+      required: [hallazgos_estimados]
+      properties:
+        hallazgos_estimados: { type: integer, example: 47 }
+        contra_version_vigente:
+          type: object
+          properties:
+            actuales: { type: integer, example: 61 }
+            variacion: { type: integer, example: -14 }
+        por_severidad:
+          type: object
+          additionalProperties: { type: integer }
+          example: { '4': 6, '3': 19, '2': 22 }
+        ejemplos:
+          type: array
+          maxItems: 6
+          items: { $ref: '#/components/schemas/Evidencia' }
+        alertas_por_turno_estimadas:
+          type: number
+          format: float
+          description: Contra el presupuesto de ≤6 por turno de 12 h.
+          example: 4.2
+
+    Reporte:
+      type: object
+      required: [tipo, filas]
+      properties:
+        tipo: { type: string, example: ranking-epp }
+        segmentacion: { type: [string, 'null'], example: zona }
+        filas:
+          type: array
+          items:
+            type: object
+            required: [etiqueta]
+            properties:
+              etiqueta: { type: string, example: Andamio Fachada Norte }
+              valor: { type: [number, 'null'], example: 23 }
+              n: { type: [integer, 'null'], description: Población de la celda., example: 18 }
+              datos_insuficientes:
+                type: boolean
+                description: |
+                  `true` cuando n < 5. En ese caso `valor` viene nulo y la interfaz muestra
+                  "datos insuficientes". La supresión es del servidor.
+                default: false
+              serie:
+                type: array
+                description: Minigráfico de 8 semanas, en el ranking por zona.
+                items: { type: number }
+
+    Catalogos:
+      type: object
+      properties:
+        obras:
+          type: array
+          items: { $ref: '#/components/schemas/Referencia' }
+        areas:
+          type: array
+          items: { $ref: '#/components/schemas/Referencia' }
+        zonas:
+          type: array
+          items: { $ref: '#/components/schemas/Referencia' }
+        fuentes:
+          type: array
+          items: { $ref: '#/components/schemas/Referencia' }
+        turnos:
+          type: array
+          items:
+            type: object
+            properties:
+              codigo: { type: string, example: A }
+              etiqueta: { type: string, example: 'Turno A (08:00-17:30)' }
+        epp:
+          type: array
+          items: { $ref: '#/components/schemas/TipoEpp' }
+
+    Sesion:
+      type: object
+      required: [id, nombre, rol, permisos]
+      properties:
+        id: { type: integer, format: int64, example: 7 }
+        nombre: { type: string, example: Edgar Tolentino }
+        rol:
+          type: string
+          enum: [administrador, prevencionista, supervisor, auditor]
+          example: prevencionista
+        area_id:
+          type: [integer, 'null']
+          format: int64
+          description: El supervisor solo ve su área.
+        permisos:
+          type: array
+          description: |
+            El frontend se pinta contra esta lista, no contra el rol. `ver_evidencia` no lo tiene
+            el administrador: quien configura no observa.
+            No existe ningún permiso de descarga masiva de recortes.
+          items:
+            type: string
+            enum:
+              [ver_hallazgos, triar_hallazgos, ver_evidencia, editar_reglas,
+               ver_reportes, ver_auditoria, asignar_acciones]
+          example: [ver_hallazgos, triar_hallazgos, ver_evidencia, ver_reportes, asignar_acciones]
+
+    Referencia:
+      type: [object, 'null']
+      description: Identificador y nombre para pintar. Nunca datos de una persona trabajadora.
+      properties:
+        id: { type: integer, format: int64, example: 3 }
+        nombre: { type: string, example: Excavación y Fundaciones }
+
+    Error:
+      type: object
+      required: [codigo, mensaje]
+      properties:
+        codigo: { type: string, example: hallazgo_ya_resuelto }
+        mensaje: { type: string, example: Otro usuario resolvió este hallazgo hace 2 minutos }
+        detalle: { type: [object, 'null'] }
