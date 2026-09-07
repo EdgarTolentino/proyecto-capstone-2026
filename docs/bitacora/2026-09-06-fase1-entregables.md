@@ -41,6 +41,10 @@ Los generadores viven fuera del repositorio, en `~/proyectos/edgar_duoc/_generad
 (`contenido_fase1.py` es la única fuente de los textos; `guia_1_5.py` y `presentacion_fase1.py`
 rellenan las plantillas).
 
+**Regla decidida el 6-sep: los RUT no entran al repositorio**, que es público. En el repo los
+documentos llevan el marcador `[[RUT]]`; la copia con RUT para la plataforma del docente se
+genera fuera del repo con `_generadores/entrega_con_rut.py`, leyendo `_generadores/privado.py`.
+
 **Marcadores pendientes en los documentos:** apellido de Liân, RUT de los tres, sede, docente,
 año de ingreso, y los párrafos de intereses profesionales y conclusiones de Miguel y Liân, que
 están redactados como borrador para que cada uno los haga suyos.
