@@ -25,7 +25,7 @@ info:
 servers:
   - url: http://localhost:8000/api/v1
     description: Desarrollo
-  - url: http://localhost:4010/api/v1
+  - url: http://127.0.0.1:4010
     description: Servidor simulado (prism)
 
 security:
@@ -98,7 +98,7 @@ paths:
                     cuadros_confirmados: 912
                     confianza_media: 0.91
                     estado: por_revisar
-                    miniatura_url: /api/v1/evidencias/9912/miniatura
+                    miniatura_url: /evidencias/9912
                     asignado_a: null
                     reincidente: true
                     aviso_legal: Indicio automatizado. Requiere validación humana.
@@ -114,7 +114,7 @@ paths:
                     cuadros_confirmados: 508
                     confianza_media: 0.88
                     estado: por_revisar
-                    miniatura_url: /api/v1/evidencias/9908/miniatura
+                    miniatura_url: /evidencias/9908
                     asignado_a: null
                     reincidente: false
                     aviso_legal: Indicio automatizado. Requiere validación humana.
@@ -130,7 +130,7 @@ paths:
                     cuadros_confirmados: 228
                     confianza_media: 0.76
                     estado: por_revisar
-                    miniatura_url: /api/v1/evidencias/9901/miniatura
+                    miniatura_url: /evidencias/9901
                     asignado_a: null
                     reincidente: false
                     aviso_legal: Indicio automatizado. Requiere validación humana.
@@ -146,16 +146,196 @@ paths:
                     cuadros_confirmados: 309
                     confianza_media: 0.83
                     estado: confirmado
-                    miniatura_url: /api/v1/evidencias/9874/miniatura
+                    miniatura_url: /evidencias/9874
                     asignado_a: { id: 7, nombre: Supervisor Losa N3 }
                     reincidente: true
                     aviso_legal: Indicio automatizado. Requiere validación humana.
+                  - id: 2414
+                    area: { id: 5, nombre: Bodega de Materiales }
+                    zona: { id: 51, nombre: Corte y esmerilado }
+                    fuente: { id: 3, nombre: CAM-09 Patio }
+                    epp_faltante: [lentes]
+                    severidad: 2
+                    ts_inicio: '2026-09-02T09:18:44-03:00'
+                    duracion_s: 150.0
+                    cuadros_confirmados: 712
+                    confianza_media: 0.64
+                    estado: falso_positivo
+                    miniatura_url: /evidencias/24140
+                    asignado_a: { id: 7, nombre: Prevencionista de turno }
+                    reincidente: false
+                    aviso_legal: Indicio automatizado. Requiere validación humana.
+                  - id: 2413
+                    area: { id: 1, nombre: Andamio Fachada Norte }
+                    zona: { id: 12, nombre: Plataforma N3 }
+                    fuente: { id: 1, nombre: CAM-04 Fachada Norte }
+                    epp_faltante: [arnes]
+                    severidad: 4
+                    ts_inicio: '2026-09-02T11:36:02-03:00'
+                    duracion_s: 82.0
+                    cuadros_confirmados: 389
+                    confianza_media: 0.87
+                    estado: por_revisar
+                    miniatura_url: /evidencias/24130
+                    asignado_a: null
+                    reincidente: true
+                    aviso_legal: Indicio automatizado. Requiere validación humana.
+                  - id: 2412
+                    area: { id: 4, nombre: Losa Nivel 3 }
+                    zona: { id: 42, nombre: Enfierradura }
+                    fuente: { id: 4, nombre: CAM-07 Losa N3 }
+                    epp_faltante: [casco]
+                    severidad: 3
+                    ts_inicio: '2026-09-03T12:05:18-03:00'
+                    duracion_s: 56.0
+                    cuadros_confirmados: 266
+                    confianza_media: 0.79
+                    estado: por_revisar
+                    miniatura_url: /evidencias/24120
+                    asignado_a: null
+                    reincidente: false
+                    aviso_legal: Indicio automatizado. Requiere validación humana.
+                  - id: 2411
+                    area: { id: 5, nombre: Bodega de Materiales }
+                    zona: { id: 52, nombre: Acopio }
+                    fuente: { id: 3, nombre: CAM-09 Patio }
+                    epp_faltante: [guantes]
+                    severidad: 1
+                    ts_inicio: '2026-09-03T13:44:09-03:00'
+                    duracion_s: 70.0
+                    cuadros_confirmados: 332
+                    confianza_media: 0.58
+                    estado: por_revisar
+                    miniatura_url: /evidencias/24110
+                    asignado_a: null
+                    reincidente: false
+                    aviso_legal: Indicio automatizado. Requiere validación humana.
+                  - id: 2410
+                    area: { id: 2, nombre: Excavación y Fundaciones }
+                    zona: { id: 22, nombre: Acceso maquinaria }
+                    fuente: { id: 2, nombre: CAM-01 Acceso Obra }
+                    epp_faltante: [chaleco]
+                    severidad: 3
+                    ts_inicio: '2026-09-02T08:57:33-03:00'
+                    duracion_s: 124.0
+                    cuadros_confirmados: 589
+                    confianza_media: 0.81
+                    estado: confirmado
+                    miniatura_url: /evidencias/24100
+                    asignado_a: { id: 8, nombre: Supervisor de obra }
+                    reincidente: false
+                    aviso_legal: Indicio automatizado. Requiere validación humana.
+                  - id: 2409
+                    area: { id: 1, nombre: Andamio Fachada Norte }
+                    zona: { id: 11, nombre: Plataforma N4 }
+                    fuente: { id: 1, nombre: CAM-04 Fachada Norte }
+                    epp_faltante: [casco, arnes]
+                    severidad: 4
+                    ts_inicio: '2026-09-01T16:12:47-03:00'
+                    duracion_s: 278.0
+                    cuadros_confirmados: 1320
+                    confianza_media: 0.93
+                    estado: confirmado
+                    miniatura_url: /evidencias/24090
+                    asignado_a: { id: 8, nombre: Supervisor de obra }
+                    reincidente: true
+                    aviso_legal: Indicio automatizado. Requiere validación humana.
+                  - id: 2408
+                    area: { id: 4, nombre: Losa Nivel 3 }
+                    zona: { id: 43, nombre: Corte de moldaje }
+                    fuente: { id: 4, nombre: CAM-07 Losa N3 }
+                    epp_faltante: [lentes]
+                    severidad: 2
+                    ts_inicio: '2026-09-02T15:29:56-03:00'
+                    duracion_s: 38.0
+                    cuadros_confirmados: 180
+                    confianza_media: 0.67
+                    estado: por_revisar
+                    miniatura_url: /evidencias/24080
+                    asignado_a: null
+                    reincidente: false
+                    aviso_legal: Indicio automatizado. Requiere validación humana.
+                  - id: 2407
+                    area: { id: 3, nombre: Patio de Maniobras }
+                    zona: { id: 32, nombre: Pasillo peatonal }
+                    fuente: { id: 3, nombre: CAM-09 Patio }
+                    epp_faltante: [calzado]
+                    severidad: 1
+                    ts_inicio: '2026-09-01T17:02:14-03:00'
+                    duracion_s: 27.0
+                    cuadros_confirmados: 128
+                    confianza_media: 0.55
+                    estado: falso_positivo
+                    miniatura_url: /evidencias/24070
+                    asignado_a: { id: 7, nombre: Prevencionista de turno }
+                    reincidente: false
+                    aviso_legal: Indicio automatizado. Requiere validación humana.
+                  - id: 2406
+                    area: { id: 3, nombre: Patio de Maniobras }
+                    zona: { id: 31, nombre: Zona de grúa }
+                    fuente: { id: 3, nombre: CAM-09 Patio }
+                    epp_faltante: [chaleco]
+                    severidad: 3
+                    ts_inicio: '2026-09-02T07:12:03-03:00'
+                    duracion_s: 93.0
+                    cuadros_confirmados: 441
+                    confianza_media: 0.74
+                    estado: por_revisar
+                    miniatura_url: /evidencias/24060
+                    asignado_a: null
+                    reincidente: true
+                    aviso_legal: Indicio automatizado. Requiere validación humana.
+                  - id: 2405
+                    area: { id: 2, nombre: Excavación y Fundaciones }
+                    zona: { id: 23, nombre: Hormigonado }
+                    fuente: { id: 2, nombre: CAM-01 Acceso Obra }
+                    epp_faltante: [guantes]
+                    severidad: 2
+                    ts_inicio: '2026-09-01T10:48:21-03:00'
+                    duracion_s: 118.0
+                    cuadros_confirmados: 560
+                    confianza_media: 0.62
+                    estado: por_revisar
+                    miniatura_url: /evidencias/24050
+                    asignado_a: null
+                    reincidente: false
+                    aviso_legal: Indicio automatizado. Requiere validación humana.
+                  - id: 2404
+                    area: { id: 4, nombre: Losa Nivel 3 }
+                    zona: { id: 44, nombre: Borde poniente }
+                    fuente: { id: 4, nombre: CAM-07 Losa N3 }
+                    epp_faltante: [arnes]
+                    severidad: 4
+                    ts_inicio: '2026-09-02T09:03:39-03:00'
+                    duracion_s: 167.0
+                    cuadros_confirmados: 793
+                    confianza_media: 0.90
+                    estado: por_revisar
+                    miniatura_url: /evidencias/24040
+                    asignado_a: null
+                    reincidente: false
+                    aviso_legal: Indicio automatizado. Requiere validación humana.
+                  - id: 2403
+                    area: { id: 5, nombre: Bodega de Materiales }
+                    zona: { id: 53, nombre: Mesón de corte }
+                    fuente: { id: 3, nombre: CAM-09 Patio }
+                    epp_faltante: [lentes]
+                    severidad: 1
+                    ts_inicio: '2026-09-01T11:51:07-03:00'
+                    duracion_s: 44.0
+                    cuadros_confirmados: 209
+                    confianza_media: 0.53
+                    estado: duplicado
+                    miniatura_url: /evidencias/24030
+                    asignado_a: { id: 7, nombre: Prevencionista de turno }
+                    reincidente: false
+                    aviso_legal: Indicio automatizado. Requiere validación humana.
                 contadores:
-                  por_revisar: 34
-                  confirmado: 128
-                  descartado: 41
-                  reincidente: 9
-                  todos: 203
+                  por_revisar: 10
+                  confirmado: 3
+                  descartado: 3
+                  reincidente: 5
+                  todos: 16
                 siguiente_cursor: null
         '401': { $ref: '#/components/responses/NoAutenticado' }
 
@@ -177,6 +357,41 @@ paths:
         '404': { $ref: '#/components/responses/NoEncontrado' }
 
         '4XX': { $ref: '#/components/responses/Error' }
+
+  /evidencias/{id}:
+    get:
+      tags: [Hallazgos]
+      summary: Entrega una evidencia anonimizada
+      description: |
+        Devuelve el cuadro ya anonimizado. No existe una variante sin difuminado ni se incluyen
+        identificadores persistentes de personas.
+      operationId: obtenerEvidencia
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema: { type: integer, format: int64 }
+      responses:
+        '200':
+          description: Imagen sintética anonimizada para desarrollo con Prism
+          content:
+            image/svg+xml:
+              schema: { type: string }
+              example: |
+                <svg xmlns="http://www.w3.org/2000/svg" width="640" height="360" viewBox="0 0 640 360" role="img" aria-label="Evidencia simulada 9912">
+                  <rect width="640" height="360" fill="#14171A"/>
+                  <rect x="72" y="54" width="496" height="252" rx="8" fill="#1A1E23" stroke="#3A3F46"/>
+                  <path d="M320 105l52 90h-104z" fill="#E69F00"/>
+                  <circle cx="320" cy="170" r="18" fill="#14171A"/>
+                  <rect x="304" y="188" width="32" height="54" rx="8" fill="#14171A"/>
+                  <text x="320" y="276" text-anchor="middle" fill="#E6E8EB" font-family="sans-serif" font-size="18">Evidencia simulada · 9912</text>
+                  <text x="320" y="299" text-anchor="middle" fill="#A6ADB5" font-family="sans-serif" font-size="12">Sin imagen real ni datos personales</text>
+                </svg>
+        '403': { $ref: '#/components/responses/SinPermiso' }
+        '404': { $ref: '#/components/responses/NoEncontrado' }
+
+        '4XX': { $ref: '#/components/responses/Error' }
+
   /hallazgos/{id}/triage:
     post:
       tags: [Hallazgos]
@@ -723,7 +938,7 @@ components:
           type: [string, 'null']
           format: uri-reference
           description: Recorte 64×36 **ya anonimizado**.
-          example: /api/v1/evidencias/9912/miniatura
+          example: /evidencias/9912
         asignado_a:
           $ref: '#/components/schemas/Referencia'
           example: null
@@ -747,7 +962,7 @@ components:
               type: [string, 'null']
               format: uri-reference
               description: Clip de ~8 s en bucle, con el rostro ya difuminado en el archivo.
-              example: /api/v1/evidencias/9912/clip
+              example: null
             evidencias:
               type: array
               items: { $ref: '#/components/schemas/Evidencia' }
@@ -865,7 +1080,7 @@ components:
           type: boolean
           description: Siempre `true`. El recorte se escribe ya difuminado; no hay otra versión.
           const: true
-        url: { type: string, format: uri-reference, example: /api/v1/evidencias/9912 }
+        url: { type: string, format: uri-reference, example: /evidencias/9912 }
         purgar_el:
           type: string
           format: date
