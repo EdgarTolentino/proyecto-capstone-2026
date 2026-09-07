@@ -9,6 +9,7 @@
 *.mpg
 *.mpeg
 *.ts
+!Fase 2/sistema/apps/web/**/*.ts
 *.webm
 !**/fixtures/**/*.mp4          # excepción: videos cortos de prueba (< 2 MB)
 

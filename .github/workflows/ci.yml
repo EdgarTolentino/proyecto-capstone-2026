@@ -33,6 +33,7 @@ jobs:
         with:
           filters: |
             python:
+              - 'Fase 2/sistema/apps/mock/**'
               - 'Fase 2/sistema/packages/**'
               - 'Fase 2/sistema/tests/**'
               - 'Fase 2/sistema/scripts/**'
@@ -89,6 +90,17 @@ jobs:
       # El dominio es Python puro justo para que esto sea posible (ADR-007).
       - name: pytest
         run: uv run pytest -m "not gpu and not slow" --cov --cov-report=term-missing
+      - name: Arranque de make mock
+        run: |
+          make mock > /tmp/mock.log 2>&1 &
+          proceso=$!
+          trap 'kill "$proceso" 2>/dev/null || true' EXIT
+          for intento in $(seq 1 20); do
+            if curl --fail --silent http://127.0.0.1:4010/health; then exit 0; fi
+            sleep 1
+          done
+          cat /tmp/mock.log
+          exit 1
 
   licencias:
     name: Higiene de licencias

@@ -18,13 +18,13 @@ autorización**: sin ella el contrato exige sesión y el simulado responde 401, 
 backend real.
 
 ```bash
-curl -H "Authorization: Bearer demo" http://127.0.0.1:4010/hallazgos
+curl -H "Authorization: Bearer demo" http://127.0.0.1:4010/api/v1/hallazgos
 ```
 
 Desde el frontend, en desarrollo:
 
 ```js
-const api = "http://127.0.0.1:4010"
+const api = "http://127.0.0.1:4010/api/v1"
 const cabeceras = { Authorization: "Bearer demo" }
 ```
 

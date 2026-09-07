@@ -1,5 +1,5 @@
-# Seis verbos. Ni uno más: lo primero que mira alguien nuevo en el repositorio.
-# Encapsula la ruta con espacio para que nadie tenga que escribirla.
+# Este archivo reúne los comandos más usados del proyecto.
+# Así nadie tiene que recordar comandos largos ni escribir rutas con espacios.
 
 .PHONY: ayuda setup lint fmt tipos test test-gpu cobertura contrato contrato-lint mock up down limpiar
 
@@ -39,9 +39,10 @@ contrato:  ## Exporta el OpenAPI y falla si cambió sin actualizar el contrato
 contrato-lint:  ## Valida el contrato OpenAPI
 	npx --yes @redocly/cli@latest lint contracts/openapi.yaml
 
-mock:  ## Levanta el servidor simulado del contrato en el puerto 4010
+mock:  ## Levanta el servidor simulado de la API para el frontend
 	@echo "Recuerda la cabecera:  Authorization: Bearer demo"
-	npx --yes @stoplight/prism-cli@latest mock contracts/openapi.yaml -p 4010
+	# uv usa el Python y las dependencias guardadas en .venv.
+	uv run python apps/mock/server.py
 
 up:  ## Levanta PostgreSQL y Redis
 	docker compose -f docker/compose.yml up -d
