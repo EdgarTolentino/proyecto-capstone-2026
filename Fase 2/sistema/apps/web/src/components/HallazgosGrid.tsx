@@ -40,7 +40,14 @@ export function HallazgosGrid(props: HallazgosGridProps) {
   }, [props.activoId, props.hallazgos, virtual]);
 
   return (
-    <div className="findings-grid" role="grid" aria-label="Bandeja de hallazgos" aria-rowcount={props.hallazgos.length + 1}>
+    <div
+      className="findings-grid"
+      role="grid"
+      tabIndex={0}
+      aria-label="Bandeja de hallazgos"
+      aria-rowcount={props.hallazgos.length + 1}
+      aria-activedescendant={props.activoId ? `hallazgo-${props.activoId}` : undefined}
+    >
       <div className="grid-header" role="row">
         {columnas.map((columna, indice) => (
           <div role="columnheader" key={`${columna}-${indice}`}>
@@ -53,8 +60,6 @@ export function HallazgosGrid(props: HallazgosGridProps) {
       <div
         className="grid-viewport"
         ref={viewportRef}
-        tabIndex={0}
-        aria-activedescendant={props.activoId ? `hallazgo-${props.activoId}` : undefined}
       >
         <div className="grid-spacer" style={{ height: virtual.getTotalSize() }}>
           {virtual.getVirtualItems().map((row) => {

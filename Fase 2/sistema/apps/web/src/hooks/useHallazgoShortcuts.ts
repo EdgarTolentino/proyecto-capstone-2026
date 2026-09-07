@@ -18,10 +18,14 @@ interface ShortcutOptions {
 export function useHallazgoShortcuts(options: ShortcutOptions) {
   useEffect(() => {
     const usarAtajo = (event: KeyboardEvent) => {
-      const estaInteractuando =
+      const estaEscribiendo =
         event.target instanceof Element &&
-        Boolean(event.target.closest("button, a, input, select, textarea, [role='button'], [contenteditable='true']"));
-      if (!options.enabled || estaInteractuando || event.ctrlKey || event.metaKey || event.altKey) return;
+        Boolean(event.target.closest("input, select, textarea, [contenteditable]:not([contenteditable='false'])"));
+      const estaActivandoControl =
+        (event.key === "Enter" || event.key === " " || event.key === "Spacebar") &&
+        event.target instanceof Element &&
+        Boolean(event.target.closest("button, a, [role='button']"));
+      if (!options.enabled || estaEscribiendo || estaActivandoControl || event.ctrlKey || event.metaKey || event.altKey) return;
 
       const indice = options.hallazgos.findIndex((item) => item.id === options.activoId);
       if (event.key === "j" && indice < options.hallazgos.length - 1) {

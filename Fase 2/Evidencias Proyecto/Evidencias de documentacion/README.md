@@ -24,6 +24,8 @@ registradas ahí mismo, y contrastadas contra
 | `GUI-01-bandeja-de-hallazgos.png` | Bandeja de triage — la principal |
 | `GUI-02-visor-recorte-y-cajas.png` | Visor de evidencia, parte superior: recorte con cajas, rostro difuminado, línea de tiempo |
 | `GUI-03-visor-por-que-se-disparo.png` | Visor de evidencia, parte inferior: descripción automática y bloque de auditoría |
+| `GUI-04-bandeja-implementada.png` | Bandeja implementada a 1280×800 con datos servidos por Prism |
+| `GUI-05-visor-implementado.png` | Visor implementado a 1280×800 con el estado de evidencia no disponible |
 
 **Verificaciones hechas sobre estas capturas:**
 

@@ -74,4 +74,28 @@ describe("useHallazgoShortcuts", () => {
     expect(onOpen).not.toHaveBeenCalled();
     button.remove();
   });
+
+  it("confirma con c aunque el foco esté en un botón", () => {
+    const onConfirm = vi.fn();
+    const button = document.createElement("button");
+    document.body.appendChild(button);
+    renderHook(() => useHallazgoShortcuts({
+      hallazgos,
+      activoId: 1,
+      enabled: true,
+      permiteTriar: true,
+      visorAbierto: true,
+      onActivate: vi.fn(),
+      onOpen: vi.fn(),
+      onConfirm,
+      onFalsePositive: vi.fn(),
+    }));
+
+    button.focus();
+    fireEvent.keyDown(button, { key: "c" });
+
+    expect(button).toHaveFocus();
+    expect(onConfirm).toHaveBeenCalledOnce();
+    button.remove();
+  });
 });

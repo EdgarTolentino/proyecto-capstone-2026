@@ -110,6 +110,7 @@ kbd { min-width: 18px; padding: 2px 4px; border: 1px solid var(--gepp-borde-fuer
 .drawer-scroll { overflow-y: auto; scrollbar-color: var(--gepp-borde-fuerte) transparent; }
 .evidence-content { display: grid; gap: var(--gepp-e3); padding: var(--gepp-e4); }
 .evidence-player { position: relative; aspect-ratio: 16 / 9; overflow: hidden; border: 1px solid var(--gepp-borde-fuerte); border-radius: var(--gepp-radio); background: repeating-linear-gradient(135deg, var(--gepp-superficie-alta) 0 7px, var(--gepp-superficie) 7px 14px); }
+.evidence-player > span { position: absolute; inset: 0; display: grid; place-items: center; padding: var(--gepp-e4); color: var(--gepp-texto-3); text-align: center; }
 .player-label { position: absolute; z-index: 2; top: 12px; left: 12px; padding: 3px 6px; border: 1px solid var(--gepp-borde-fuerte); border-radius: var(--gepp-radio-sm); background: var(--gepp-fondo); color: var(--gepp-texto-2); font-size: var(--gepp-texto-sm); }
 .privacy-controls { display: flex; flex-wrap: wrap; align-items: center; gap: var(--gepp-e4); min-height: 28px; color: var(--gepp-texto-2); font-size: var(--gepp-texto-md); }
 .privacy-controls label { display: flex; align-items: center; gap: 6px; }

@@ -43,7 +43,8 @@ describe("formatDuracion", () => {
     }));
 
     const grid = screen.getByRole("grid");
-    expect(grid.querySelector(".grid-viewport")).toHaveAttribute("aria-activedescendant", "hallazgo-7");
+    expect(grid).toHaveAttribute("aria-activedescendant", "hallazgo-7");
+    expect(grid).toHaveAttribute("tabindex", "0");
     expect(screen.getByRole("row", { name: /hallazgo 7/i })).toHaveAttribute("tabindex", "-1");
     expect(screen.getByRole("button", { name: "Abrir evidencia del hallazgo 7" })).toBeDisabled();
   });
