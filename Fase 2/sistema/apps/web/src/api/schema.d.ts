@@ -1050,6 +1050,62 @@ export interface operations {
                      * @example {
                      *       "items": [
                      *         {
+                     *           "id": 2411,
+                     *           "area": {
+                     *             "id": 5,
+                     *             "nombre": "Bodega de Materiales"
+                     *           },
+                     *           "zona": {
+                     *             "id": 52,
+                     *             "nombre": "Acopio"
+                     *           },
+                     *           "fuente": {
+                     *             "id": 3,
+                     *             "nombre": "CAM-09 Patio"
+                     *           },
+                     *           "epp_faltante": [
+                     *             "guantes"
+                     *           ],
+                     *           "severidad": 1,
+                     *           "ts_inicio": "2026-09-03T13:44:09-03:00",
+                     *           "duracion_s": 70,
+                     *           "cuadros_confirmados": 332,
+                     *           "confianza_media": 0.58,
+                     *           "estado": "por_revisar",
+                     *           "miniatura_url": "/evidencias/24110",
+                     *           "asignado_a": null,
+                     *           "reincidente": false,
+                     *           "aviso_legal": "Indicio automatizado. Requiere validación humana."
+                     *         },
+                     *         {
+                     *           "id": 2412,
+                     *           "area": {
+                     *             "id": 4,
+                     *             "nombre": "Losa Nivel 3"
+                     *           },
+                     *           "zona": {
+                     *             "id": 42,
+                     *             "nombre": "Enfierradura"
+                     *           },
+                     *           "fuente": {
+                     *             "id": 4,
+                     *             "nombre": "CAM-07 Losa N3"
+                     *           },
+                     *           "epp_faltante": [
+                     *             "casco"
+                     *           ],
+                     *           "severidad": 3,
+                     *           "ts_inicio": "2026-09-03T12:05:18-03:00",
+                     *           "duracion_s": 56,
+                     *           "cuadros_confirmados": 266,
+                     *           "confianza_media": 0.79,
+                     *           "estado": "por_revisar",
+                     *           "miniatura_url": "/evidencias/24120",
+                     *           "asignado_a": null,
+                     *           "reincidente": false,
+                     *           "aviso_legal": "Indicio automatizado. Requiere validación humana."
+                     *         },
+                     *         {
                      *           "id": 4821,
                      *           "area": {
                      *             "id": 5,
@@ -1137,6 +1193,34 @@ export interface operations {
                      *           "aviso_legal": "Indicio automatizado. Requiere validación humana."
                      *         },
                      *         {
+                     *           "id": 2408,
+                     *           "area": {
+                     *             "id": 4,
+                     *             "nombre": "Losa Nivel 3"
+                     *           },
+                     *           "zona": {
+                     *             "id": 43,
+                     *             "nombre": "Corte de moldaje"
+                     *           },
+                     *           "fuente": {
+                     *             "id": 4,
+                     *             "nombre": "CAM-07 Losa N3"
+                     *           },
+                     *           "epp_faltante": [
+                     *             "lentes"
+                     *           ],
+                     *           "severidad": 2,
+                     *           "ts_inicio": "2026-09-02T15:29:56-03:00",
+                     *           "duracion_s": 38,
+                     *           "cuadros_confirmados": 180,
+                     *           "confianza_media": 0.67,
+                     *           "estado": "por_revisar",
+                     *           "miniatura_url": "/evidencias/24080",
+                     *           "asignado_a": null,
+                     *           "reincidente": false,
+                     *           "aviso_legal": "Indicio automatizado. Requiere validación humana."
+                     *         },
+                     *         {
                      *           "id": 4802,
                      *           "area": {
                      *             "id": 6,
@@ -1166,6 +1250,34 @@ export interface operations {
                      *             "id": 7,
                      *             "nombre": "Supervisor Losa N3"
                      *           },
+                     *           "reincidente": true,
+                     *           "aviso_legal": "Indicio automatizado. Requiere validación humana."
+                     *         },
+                     *         {
+                     *           "id": 2413,
+                     *           "area": {
+                     *             "id": 1,
+                     *             "nombre": "Andamio Fachada Norte"
+                     *           },
+                     *           "zona": {
+                     *             "id": 12,
+                     *             "nombre": "Plataforma N3"
+                     *           },
+                     *           "fuente": {
+                     *             "id": 1,
+                     *             "nombre": "CAM-04 Fachada Norte"
+                     *           },
+                     *           "epp_faltante": [
+                     *             "arnes"
+                     *           ],
+                     *           "severidad": 4,
+                     *           "ts_inicio": "2026-09-02T11:36:02-03:00",
+                     *           "duracion_s": 82,
+                     *           "cuadros_confirmados": 389,
+                     *           "confianza_media": 0.87,
+                     *           "estado": "por_revisar",
+                     *           "miniatura_url": "/evidencias/24130",
+                     *           "asignado_a": null,
                      *           "reincidente": true,
                      *           "aviso_legal": "Indicio automatizado. Requiere validación humana."
                      *         },
@@ -1201,85 +1313,29 @@ export interface operations {
                      *           "aviso_legal": "Indicio automatizado. Requiere validación humana."
                      *         },
                      *         {
-                     *           "id": 2413,
-                     *           "area": {
-                     *             "id": 1,
-                     *             "nombre": "Andamio Fachada Norte"
-                     *           },
-                     *           "zona": {
-                     *             "id": 12,
-                     *             "nombre": "Plataforma N3"
-                     *           },
-                     *           "fuente": {
-                     *             "id": 1,
-                     *             "nombre": "CAM-04 Fachada Norte"
-                     *           },
-                     *           "epp_faltante": [
-                     *             "arnes"
-                     *           ],
-                     *           "severidad": 4,
-                     *           "ts_inicio": "2026-09-02T11:36:02-03:00",
-                     *           "duracion_s": 82,
-                     *           "cuadros_confirmados": 389,
-                     *           "confianza_media": 0.87,
-                     *           "estado": "por_revisar",
-                     *           "miniatura_url": "/evidencias/24130",
-                     *           "asignado_a": null,
-                     *           "reincidente": true,
-                     *           "aviso_legal": "Indicio automatizado. Requiere validación humana."
-                     *         },
-                     *         {
-                     *           "id": 2412,
+                     *           "id": 2404,
                      *           "area": {
                      *             "id": 4,
                      *             "nombre": "Losa Nivel 3"
                      *           },
                      *           "zona": {
-                     *             "id": 42,
-                     *             "nombre": "Enfierradura"
+                     *             "id": 44,
+                     *             "nombre": "Borde poniente"
                      *           },
                      *           "fuente": {
                      *             "id": 4,
                      *             "nombre": "CAM-07 Losa N3"
                      *           },
                      *           "epp_faltante": [
-                     *             "casco"
+                     *             "arnes"
                      *           ],
-                     *           "severidad": 3,
-                     *           "ts_inicio": "2026-09-03T12:05:18-03:00",
-                     *           "duracion_s": 56,
-                     *           "cuadros_confirmados": 266,
-                     *           "confianza_media": 0.79,
+                     *           "severidad": 4,
+                     *           "ts_inicio": "2026-09-02T09:03:39-03:00",
+                     *           "duracion_s": 167,
+                     *           "cuadros_confirmados": 793,
+                     *           "confianza_media": 0.9,
                      *           "estado": "por_revisar",
-                     *           "miniatura_url": "/evidencias/24120",
-                     *           "asignado_a": null,
-                     *           "reincidente": false,
-                     *           "aviso_legal": "Indicio automatizado. Requiere validación humana."
-                     *         },
-                     *         {
-                     *           "id": 2411,
-                     *           "area": {
-                     *             "id": 5,
-                     *             "nombre": "Bodega de Materiales"
-                     *           },
-                     *           "zona": {
-                     *             "id": 52,
-                     *             "nombre": "Acopio"
-                     *           },
-                     *           "fuente": {
-                     *             "id": 3,
-                     *             "nombre": "CAM-09 Patio"
-                     *           },
-                     *           "epp_faltante": [
-                     *             "guantes"
-                     *           ],
-                     *           "severidad": 1,
-                     *           "ts_inicio": "2026-09-03T13:44:09-03:00",
-                     *           "duracion_s": 70,
-                     *           "cuadros_confirmados": 332,
-                     *           "confianza_media": 0.58,
-                     *           "estado": "por_revisar",
-                     *           "miniatura_url": "/evidencias/24110",
+                     *           "miniatura_url": "/evidencias/24040",
                      *           "asignado_a": null,
                      *           "reincidente": false,
                      *           "aviso_legal": "Indicio automatizado. Requiere validación humana."
@@ -1311,6 +1367,65 @@ export interface operations {
                      *           "asignado_a": {
                      *             "id": 8,
                      *             "nombre": "Supervisor de obra"
+                     *           },
+                     *           "reincidente": false,
+                     *           "aviso_legal": "Indicio automatizado. Requiere validación humana."
+                     *         },
+                     *         {
+                     *           "id": 2406,
+                     *           "area": {
+                     *             "id": 3,
+                     *             "nombre": "Patio de Maniobras"
+                     *           },
+                     *           "zona": {
+                     *             "id": 31,
+                     *             "nombre": "Zona de grúa"
+                     *           },
+                     *           "fuente": {
+                     *             "id": 3,
+                     *             "nombre": "CAM-09 Patio"
+                     *           },
+                     *           "epp_faltante": [
+                     *             "chaleco"
+                     *           ],
+                     *           "severidad": 3,
+                     *           "ts_inicio": "2026-09-02T07:12:03-03:00",
+                     *           "duracion_s": 93,
+                     *           "cuadros_confirmados": 441,
+                     *           "confianza_media": 0.74,
+                     *           "estado": "por_revisar",
+                     *           "miniatura_url": "/evidencias/24060",
+                     *           "asignado_a": null,
+                     *           "reincidente": true,
+                     *           "aviso_legal": "Indicio automatizado. Requiere validación humana."
+                     *         },
+                     *         {
+                     *           "id": 2407,
+                     *           "area": {
+                     *             "id": 3,
+                     *             "nombre": "Patio de Maniobras"
+                     *           },
+                     *           "zona": {
+                     *             "id": 32,
+                     *             "nombre": "Pasillo peatonal"
+                     *           },
+                     *           "fuente": {
+                     *             "id": 3,
+                     *             "nombre": "CAM-09 Patio"
+                     *           },
+                     *           "epp_faltante": [
+                     *             "calzado"
+                     *           ],
+                     *           "severidad": 1,
+                     *           "ts_inicio": "2026-09-01T17:02:14-03:00",
+                     *           "duracion_s": 27,
+                     *           "cuadros_confirmados": 128,
+                     *           "confianza_media": 0.55,
+                     *           "estado": "falso_positivo",
+                     *           "miniatura_url": "/evidencias/24070",
+                     *           "asignado_a": {
+                     *             "id": 7,
+                     *             "nombre": "Prevencionista de turno"
                      *           },
                      *           "reincidente": false,
                      *           "aviso_legal": "Indicio automatizado. Requiere validación humana."
@@ -1348,149 +1463,6 @@ export interface operations {
                      *           "aviso_legal": "Indicio automatizado. Requiere validación humana."
                      *         },
                      *         {
-                     *           "id": 2408,
-                     *           "area": {
-                     *             "id": 4,
-                     *             "nombre": "Losa Nivel 3"
-                     *           },
-                     *           "zona": {
-                     *             "id": 43,
-                     *             "nombre": "Corte de moldaje"
-                     *           },
-                     *           "fuente": {
-                     *             "id": 4,
-                     *             "nombre": "CAM-07 Losa N3"
-                     *           },
-                     *           "epp_faltante": [
-                     *             "lentes"
-                     *           ],
-                     *           "severidad": 2,
-                     *           "ts_inicio": "2026-09-02T15:29:56-03:00",
-                     *           "duracion_s": 38,
-                     *           "cuadros_confirmados": 180,
-                     *           "confianza_media": 0.67,
-                     *           "estado": "por_revisar",
-                     *           "miniatura_url": "/evidencias/24080",
-                     *           "asignado_a": null,
-                     *           "reincidente": false,
-                     *           "aviso_legal": "Indicio automatizado. Requiere validación humana."
-                     *         },
-                     *         {
-                     *           "id": 2407,
-                     *           "area": {
-                     *             "id": 3,
-                     *             "nombre": "Patio de Maniobras"
-                     *           },
-                     *           "zona": {
-                     *             "id": 32,
-                     *             "nombre": "Pasillo peatonal"
-                     *           },
-                     *           "fuente": {
-                     *             "id": 3,
-                     *             "nombre": "CAM-09 Patio"
-                     *           },
-                     *           "epp_faltante": [
-                     *             "calzado"
-                     *           ],
-                     *           "severidad": 1,
-                     *           "ts_inicio": "2026-09-01T17:02:14-03:00",
-                     *           "duracion_s": 27,
-                     *           "cuadros_confirmados": 128,
-                     *           "confianza_media": 0.55,
-                     *           "estado": "falso_positivo",
-                     *           "miniatura_url": "/evidencias/24070",
-                     *           "asignado_a": {
-                     *             "id": 7,
-                     *             "nombre": "Prevencionista de turno"
-                     *           },
-                     *           "reincidente": false,
-                     *           "aviso_legal": "Indicio automatizado. Requiere validación humana."
-                     *         },
-                     *         {
-                     *           "id": 2406,
-                     *           "area": {
-                     *             "id": 3,
-                     *             "nombre": "Patio de Maniobras"
-                     *           },
-                     *           "zona": {
-                     *             "id": 31,
-                     *             "nombre": "Zona de grúa"
-                     *           },
-                     *           "fuente": {
-                     *             "id": 3,
-                     *             "nombre": "CAM-09 Patio"
-                     *           },
-                     *           "epp_faltante": [
-                     *             "chaleco"
-                     *           ],
-                     *           "severidad": 3,
-                     *           "ts_inicio": "2026-09-02T07:12:03-03:00",
-                     *           "duracion_s": 93,
-                     *           "cuadros_confirmados": 441,
-                     *           "confianza_media": 0.74,
-                     *           "estado": "por_revisar",
-                     *           "miniatura_url": "/evidencias/24060",
-                     *           "asignado_a": null,
-                     *           "reincidente": true,
-                     *           "aviso_legal": "Indicio automatizado. Requiere validación humana."
-                     *         },
-                     *         {
-                     *           "id": 2405,
-                     *           "area": {
-                     *             "id": 2,
-                     *             "nombre": "Excavación y Fundaciones"
-                     *           },
-                     *           "zona": {
-                     *             "id": 23,
-                     *             "nombre": "Hormigonado"
-                     *           },
-                     *           "fuente": {
-                     *             "id": 2,
-                     *             "nombre": "CAM-01 Acceso Obra"
-                     *           },
-                     *           "epp_faltante": [
-                     *             "guantes"
-                     *           ],
-                     *           "severidad": 2,
-                     *           "ts_inicio": "2026-09-01T10:48:21-03:00",
-                     *           "duracion_s": 118,
-                     *           "cuadros_confirmados": 560,
-                     *           "confianza_media": 0.62,
-                     *           "estado": "por_revisar",
-                     *           "miniatura_url": "/evidencias/24050",
-                     *           "asignado_a": null,
-                     *           "reincidente": false,
-                     *           "aviso_legal": "Indicio automatizado. Requiere validación humana."
-                     *         },
-                     *         {
-                     *           "id": 2404,
-                     *           "area": {
-                     *             "id": 4,
-                     *             "nombre": "Losa Nivel 3"
-                     *           },
-                     *           "zona": {
-                     *             "id": 44,
-                     *             "nombre": "Borde poniente"
-                     *           },
-                     *           "fuente": {
-                     *             "id": 4,
-                     *             "nombre": "CAM-07 Losa N3"
-                     *           },
-                     *           "epp_faltante": [
-                     *             "arnes"
-                     *           ],
-                     *           "severidad": 4,
-                     *           "ts_inicio": "2026-09-02T09:03:39-03:00",
-                     *           "duracion_s": 167,
-                     *           "cuadros_confirmados": 793,
-                     *           "confianza_media": 0.9,
-                     *           "estado": "por_revisar",
-                     *           "miniatura_url": "/evidencias/24040",
-                     *           "asignado_a": null,
-                     *           "reincidente": false,
-                     *           "aviso_legal": "Indicio automatizado. Requiere validación humana."
-                     *         },
-                     *         {
                      *           "id": 2403,
                      *           "area": {
                      *             "id": 5,
@@ -1518,6 +1490,34 @@ export interface operations {
                      *             "id": 7,
                      *             "nombre": "Prevencionista de turno"
                      *           },
+                     *           "reincidente": false,
+                     *           "aviso_legal": "Indicio automatizado. Requiere validación humana."
+                     *         },
+                     *         {
+                     *           "id": 2405,
+                     *           "area": {
+                     *             "id": 2,
+                     *             "nombre": "Excavación y Fundaciones"
+                     *           },
+                     *           "zona": {
+                     *             "id": 23,
+                     *             "nombre": "Hormigonado"
+                     *           },
+                     *           "fuente": {
+                     *             "id": 2,
+                     *             "nombre": "CAM-01 Acceso Obra"
+                     *           },
+                     *           "epp_faltante": [
+                     *             "guantes"
+                     *           ],
+                     *           "severidad": 2,
+                     *           "ts_inicio": "2026-09-01T10:48:21-03:00",
+                     *           "duracion_s": 118,
+                     *           "cuadros_confirmados": 560,
+                     *           "confianza_media": 0.62,
+                     *           "estado": "por_revisar",
+                     *           "miniatura_url": "/evidencias/24050",
+                     *           "asignado_a": null,
                      *           "reincidente": false,
                      *           "aviso_legal": "Indicio automatizado. Requiere validación humana."
                      *         }
@@ -1595,6 +1595,7 @@ export interface operations {
                     "image/svg+xml": string;
                 };
             };
+            401: components["responses"]["NoAutenticado"];
             403: components["responses"]["SinPermiso"];
             404: components["responses"]["NoEncontrado"];
             "4XX": components["responses"]["Error"];
