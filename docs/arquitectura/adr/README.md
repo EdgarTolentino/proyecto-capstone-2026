@@ -16,3 +16,4 @@ un Pull Request. El formato es corto a propósito — un ADR que nadie lee no si
 | [009](009-pipeline-propio.md) | Pipeline propio, con las ideas de Frigate copiadas sin pudor | Aceptada |
 | [010](010-computo-partido.md) | El cómputo se parte: nube para lo público, local para la faena | Aceptada |
 | [011](011-dominio-configurable.md) | El dominio es configuración: se valida en construcción, la minería es un perfil | Aceptada |
+| [012](012-persistencia-compartida.md) | Persistencia compartida en un quinto paquete `gepp-bd` | Propuesta |
