@@ -32,6 +32,30 @@ gh pr create --fill
 Después: el CI corre solo, alguien revisa, y **quien revisa fusiona**. No te fusiones tu propio
 PR salvo que sea trivial y esté aprobado.
 
+## Si trabajas con GitHub Desktop
+
+Es el mismo ciclo, sin terminal:
+
+1. **Fetch origin** y, parado en `main`, **Pull origin**: partir siempre de un `main` al día.
+2. **Branch → New branch**, con un nombre de la tabla de abajo. Si ya tenías cambios hechos,
+   elige **"Bring my changes to"** la rama nueva.
+3. Escribe el mensaje y **Commit to** *tu rama*. Si el botón dice `Commit to main`, para: estás
+   en la rama equivocada y GitHub lo va a rechazar.
+4. **Publish branch**.
+5. **Create Pull Request**: se abre GitHub con la plantilla. Rellénala de verdad: qué cambia, por
+   qué y cómo lo probaste.
+
+Nunca uses una rama que ya existe de otra persona "para probar": cada rama es de una tarea y de
+quien la abrió.
+
+## Los entregables grupales no se editan en Word
+
+La Guía y la presentación de cada fase se generan desde un script que mantiene Edgar; el `.docx`
+y el `.pptx` del repositorio son salida, no fuente. Un cambio hecho a mano en Word se pierde en la
+siguiente regeneración. Lo que quieras cambiar (tu párrafo, un dato, una corrección) se manda en
+texto y se incorpora al generador. Tus documentos individuales sí los subes tú, con el nombre
+exacto que pide el docente.
+
 ## Nombres de rama
 
 | Prefijo | Cuándo | Ejemplo |
@@ -110,6 +134,8 @@ quedan once semanas.
 - **Video de obra, pesos de modelos, datasets.** Pesan gigas y GitHub no es para eso.
 - **Cualquier imagen con un rostro sin difuminar.** Es dato personal y el repo es público.
 - **Credenciales**, tokens, `.env`. Si sube una, no basta con borrarla: hay que rotarla.
+- **RUT ni datos personales de los integrantes.** Los documentos llevan el marcador `[[RUT]]`;
+  la copia con RUT se entrega solo por la plataforma del docente, generada fuera del repositorio.
 
 ## El contrato
 
