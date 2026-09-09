@@ -89,6 +89,7 @@ Cada elección está justificada en un [ADR](docs/arquitectura/adr/).
 | 🔒 [Privacidad y cumplimiento](docs/producto/02-privacidad-y-cumplimiento.md) | El marco legal, traducido a diseño |
 | ⚠️ [Verificaciones críticas](docs/producto/06-verificaciones-criticas.md) | **Léelo antes de escribir código** |
 | 📅 [Plan de trabajo](docs/producto/03-plan-de-trabajo.md) | Las 18 semanas |
+| 🧭 [Plan de desarrollo](docs/producto/09-plan-de-desarrollo-vision.md) | Visión, ingesta, API y datos: paquetes de trabajo S5-S15 |
 | 🎨 [Diseño de interfaz](docs/producto/05-diseno-interfaz.md) | Las 10 pantallas y el estilo |
 
 ## Estructura del repositorio

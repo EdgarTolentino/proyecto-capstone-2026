@@ -26,6 +26,9 @@ destrabar la integración, no impresionar a nadie.
 Lo que lo evita: el contrato de API se congela en la S5 y el frontend trabaja desde el primer
 día contra un servidor simulado. Nadie espera a nadie.
 
+> El lado de Edgar está bajado a paquetes de trabajo con módulos, horas, definición de terminado e
+> issue en [`09-plan-de-desarrollo-vision.md`](09-plan-de-desarrollo-vision.md).
+
 ## Antes que nada: dos verificaciones bloqueantes
 
 Una revisión adversarial del diseño encontró que **el proyecto se apoya en dos supuestos que
