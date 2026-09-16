@@ -1,5 +1,5 @@
 import { useVirtualizer } from "@tanstack/react-virtual";
-import { ImageOff } from "lucide-react";
+import { ArrowUpRight } from "lucide-react";
 import { useEffect, useRef } from "react";
 
 import type { Hallazgo } from "../api/types";
@@ -18,7 +18,7 @@ interface HallazgosGridProps {
   onSelectAll: (selected: boolean) => void;
 }
 
-const columnas = ["", "Severidad", "Incumplimiento", "Área / zona", "Cámara", "Inicio", "Duración", "Cuadros", "Confianza", "Recorte", "Asignado a"];
+const columnas = ["", "Prioridad", "EPP faltante", "Área / zona", "Cámara", "Inicio", "Duración", "Cuadros", "Confianza", "Evidencia", "Asignado a"];
 
 export function HallazgosGrid(props: HallazgosGridProps) {
   const viewportRef = useRef<HTMLDivElement>(null);
@@ -28,7 +28,7 @@ export function HallazgosGrid(props: HallazgosGridProps) {
   const virtual = useVirtualizer({
     count: props.hallazgos.length,
     getScrollElement: () => viewportRef.current,
-    estimateSize: () => 40,
+    estimateSize: () => 64,
     overscan: 8,
   });
   const todos = props.hallazgos.length > 0 && props.hallazgos.every((item) => props.seleccionados.has(item.id));
@@ -116,7 +116,7 @@ function HallazgoRow({ item, activo, seleccionado, permiteSeleccionar, permiteEv
       <div role="cell" className="mono">{formatDuracion(item.duracion_s)}</div>
       <div role="cell" className="mono number">{item.cuadros_confirmados}</div>
       <div role="cell" className="confidence"><span><i style={{ width: `${item.confianza_media * 100}%` }} /></span><b className="mono">{item.confianza_media.toLocaleString("es-CL", { minimumFractionDigits: 2 })}</b></div>
-      <div role="cell"><button className="thumbnail" type="button" disabled={!permiteEvidencia} title={permiteEvidencia ? undefined : "No tienes permiso para ver evidencia"} onClick={(e) => { e.stopPropagation(); onOpen(item.id); }} aria-label={`Abrir evidencia del hallazgo ${item.id}`}><ImageOff size={15} /></button></div>
+      <div role="cell"><button className="thumbnail" type="button" disabled={!permiteEvidencia} title={permiteEvidencia ? undefined : "No tienes permiso para ver evidencia"} onClick={(e) => { e.stopPropagation(); onOpen(item.id); }} aria-label={`Abrir evidencia del hallazgo ${item.id}`}><span>Ver</span><ArrowUpRight size={15} /></button></div>
       <div role="cell" className="truncate">{item.asignado_a?.nombre ?? "—"}</div>
     </div>
   );

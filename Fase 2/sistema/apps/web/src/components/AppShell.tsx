@@ -1,11 +1,10 @@
 import {
   BarChart3,
-  Bell,
-  ChevronDown,
   CircleDot,
   FileVideo,
+  HardHat,
   Map,
-  PanelLeft,
+  Radio,
   SearchCheck,
   Settings2,
   ShieldCheck,
@@ -29,59 +28,52 @@ const navegacion = [
   { texto: "Reglas", icono: Settings2, separador: "Configuración" },
   { texto: "Reportes", icono: CircleDot },
   { texto: "Zonas y cámaras", icono: Map },
-  { texto: "Notificaciones", icono: Bell },
 ];
 
 export function AppShell({ children, catalogos, estado, sesion, sesionError = false }: AppShellProps) {
   const obra = catalogos?.obras?.[0]?.nombre ?? "Sin obra seleccionada";
-  const ingestaActiva = estado?.ingesta.activa ?? false;
+  const ingestaActiva = estado?.ingesta?.activa ?? false;
+  const nombre = sesion?.nombre ?? (sesionError ? "Sesión no disponible" : "Cargando sesión…");
 
   return (
     <div className="app-shell">
-      <aside className="sidebar" aria-label="Navegación principal">
+      <header className="site-header">
         <div className="brand">
-          <span className="brand__mark"><ShieldCheck size={16} /></span>
-          <strong>Guardián EPP</strong>
+          <span className="brand__mark"><ShieldCheck size={25} /></span>
+          <div><strong>Guardián<span> EPP</span></strong><small>SEGURIDAD OPERACIONAL</small></div>
         </div>
-        <nav>
-          <p className="nav-section">Operación</p>
-          {navegacion.map(({ texto, icono: Icono, activo, separador }) => (
-            <div key={texto}>
-              {separador && <p className="nav-section">{separador}</p>}
-              <button className={`nav-item ${activo ? "nav-item--active" : ""}`} type="button">
-                <Icono size={15} aria-hidden="true" />
-                <span>{texto}</span>
-                {activo && <span className="nav-count">{estado?.pendientes_por_revisar ?? "—"}</span>}
-              </button>
-            </div>
-          ))}
-        </nav>
-        <div className="severity-key" aria-label="Leyenda de severidad">
-          <p className="nav-section">Severidad</p>
-          <span className="severity severity--critica"><i>◆</i> Crítica</span>
-          <span className="severity severity--alta"><i>▲</i> Alta</span>
-          <span className="severity severity--media"><i>●</i> Media</span>
-          <span className="severity severity--baja"><i>○</i> Baja</span>
+        <div className="site-header__context"><HardHat size={18} /><span>Centro de control <strong>Operaciones</strong></span></div>
+        <div className="user-profile">
+          <span className="user-avatar" aria-hidden="true">{sesion?.nombre?.slice(0, 1).toUpperCase() ?? "—"}</span>
+          <div><small>Sesión de trabajo</small><span>{nombre}</span></div>
         </div>
-      </aside>
-
+      </header>
+      <nav className="operations-nav" aria-label="Navegación principal">
+        {navegacion.map(({ texto, icono: Icono, activo }) => (
+          <button key={texto} className={`nav-item ${activo ? "nav-item--active" : ""}`} type="button" disabled={!activo} aria-current={activo ? "page" : undefined} title={!activo ? "Módulo próximamente disponible" : undefined}>
+            <Icono size={17} aria-hidden="true" /><span>{texto}</span>
+            {activo && <span className="nav-count">{estado?.pendientes_por_revisar ?? "—"}</span>}
+          </button>
+        ))}
+      </nav>
       <section className="workspace">
-        <header className="global-header">
-          <button className="sidebar-toggle" type="button" aria-label="Contraer navegación">
-            <PanelLeft size={16} />
-          </button>
-          <button className="header-select" type="button">
-            <span>Obra</span><strong>{obra}</strong><ChevronDown size={13} />
-          </button>
-          <div className="header-spacer" />
-          <div className={`ingestion ${ingestaActiva ? "ingestion--active" : ""}`}>
-            <span aria-hidden="true" />
-            {ingestaActiva ? "Ingesta activa" : "Ingesta detenida"}
-            {estado?.ingesta.en_proceso ? ` · ${estado.ingesta.en_proceso} en proceso` : ""}
+        <header className="operations-hero">
+          <div className="hero-copy">
+            <p className="eyebrow"><span />PREVENCIÓN EN TERRENO</p>
+            <h1>Cada hallazgo cuenta.<br /><span>La seguridad, primero.</span></h1>
+            <p>Revisa la evidencia, valida los riesgos y actúa con información.</p>
           </div>
-          <div className="user-name">{sesion?.nombre ?? (sesionError ? "Sesión no disponible" : "Cargando sesión…")}</div>
+          <div className="operation-context">
+            <div className="operation-context__title"><Map size={18} /><span>OPERACIÓN ACTUAL</span></div>
+            <strong>{obra}</strong>
+            <div className={`ingestion ${ingestaActiva ? "ingestion--active" : ""}`} role="status">
+              <Radio size={15} />{estado ? (ingestaActiva ? "Ingesta activa" : "Ingesta detenida") : "Consultando estado…"}
+              {estado?.ingesta?.en_proceso ? ` · ${estado.ingesta.en_proceso} en proceso` : ""}
+            </div>
+          </div>
         </header>
         {children}
+        <footer className="workspace-footer"><span>GUARDIÁN EPP <i>/</i> VALIDACIÓN HUMANA · PREVENCIÓN CONTINUA</span><span>Proyecto académico · Datos de demostración</span></footer>
       </section>
     </div>
   );
