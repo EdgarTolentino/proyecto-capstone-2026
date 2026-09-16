@@ -26,13 +26,10 @@ export function TriageTabs({ vista, contadores, onChange }: TriageTabsProps) {
           key={pestana.id}
           onClick={() => onChange(pestana.id)}
         >
-          {pestana.texto}
+          <strong>{pestana.texto}</strong>
           <span>{contadores?.[pestana.contador] ?? "—"}</span>
         </button>
       ))}
-      <div className="shortcut-help" aria-label="Atajos disponibles">
-        <kbd>j</kbd><kbd>k</kbd> navegar <kbd>c</kbd> confirmar <kbd>x</kbd> falso positivo <kbd>↵</kbd> abrir
-      </div>
     </div>
   );
 }

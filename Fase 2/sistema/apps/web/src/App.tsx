@@ -153,9 +153,16 @@ export default function App() {
         {sesion.data && permisos.has("ver_hallazgos") && (
           <>
             <TriageTabs vista={filtros.vista} contadores={pagina.data?.contadores} onChange={(vista) => { actualizar({ vista, estado: undefined, hallazgoId: undefined }); setSeleccionados(new Set()); }} />
+            <div className="review-heading">
+              <div><p className="eyebrow">CONTROL Y VALIDACIÓN</p><h2>Bandeja de hallazgos</h2></div>
+              <div className="shortcut-help" aria-label="Atajos disponibles"><kbd>j</kbd><kbd>k</kbd> navegar <kbd>c</kbd> confirmar <kbd>x</kbd> descartar <kbd>↵</kbd> abrir</div>
+            </div>
             <HallazgoFilters filtros={filtros} catalogos={catalogos.data} onChange={(cambios) => { actualizar(cambios); setSeleccionados(new Set()); }} />
             <div className="legal-notice"><AlertTriangle size={13} aria-hidden="true" /> Indicio automatizado. Requiere validación humana. El sistema reporta por área y turno, nunca por persona.</div>
-            <div className="result-summary" aria-live="polite">{pagina.data ? `${hallazgos.length} hallazgos` : "Consultando hallazgos…"}</div>
+            <div className="results-bar">
+              <div className="result-summary" aria-live="polite">{pagina.data ? `${hallazgos.length} hallazgos en esta vista` : "Consultando hallazgos…"}</div>
+              <div className="severity-key" aria-label="Leyenda de severidad"><span className="severity severity--critica"><i>◆</i> Crítica</span><span className="severity severity--alta"><i>▲</i> Alta</span><span className="severity severity--media"><i>●</i> Media</span><span className="severity severity--baja"><i>○</i> Baja</span></div>
+            </div>
 
             {pagina.isLoading && <div className="state-message"><LoaderCircle className="spin" /> Cargando bandeja…</div>}
             {pagina.isError && <div className="state-message state-message--error"><AlertTriangle /> No fue posible cargar la bandeja. Comprueba que el mock esté encendido con <code>make mock</code>.</div>}

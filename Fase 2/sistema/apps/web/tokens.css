@@ -1,7 +1,7 @@
 /* Tokens de diseño de Guardián EPP.
  *
- * Extraídos del diseño aprobado (diseno/bandeja-y-visor.dc.html) el 2026-09-04.
- * Son los valores exactos del maquetado, no aproximaciones sacadas de mirar una captura.
+ * Dirección visual industrial: superficies minerales claras y acento cobre/naranja.
+ * El diseño de diseno/ queda como referencia histórica, no como plantilla obligatoria.
  *
  * REGLA: en los componentes se usa la variable, nunca el hexadecimal. Si hace falta un
  * color que no está aquí, se añade aquí primero. Un `#26292E` suelto en un componente
@@ -9,31 +9,37 @@
  */
 
 :root {
-  /* ---- Superficies. La aplicación es oscura, pero nunca negro puro ---- */
-  --gepp-fondo:            #0B0D10;  /* lienzo de la aplicación */
-  --gepp-superficie:       #14171A;  /* tarjetas, campos, filtros */
-  --gepp-superficie-alta:  #1A1E23;  /* cabecera de tabla, elementos elevados */
-  --gepp-superficie-hover: #1F2328;  /* fila bajo el cursor */
-  --gepp-seleccion:        #1B2735;  /* fila seleccionada, azulada */
-  --gepp-panel:            #12161B;  /* fondo del panel deslizante */
+  /* ---- Superficies ---- */
+  --gepp-fondo:            #F3F2EF;
+  --gepp-superficie:       #FFFFFF;
+  --gepp-superficie-alta:  #F7F6F3;
+  --gepp-superficie-hover: #FAF1E8;
+  --gepp-seleccion:        #FFF0E4;
+  --gepp-panel:            #FFFFFF;
+  --gepp-mineral:          #232B2B;
+  --gepp-mineral-alto:     #344140;
+  --gepp-texto-inverso:    #FFFFFF;
+  --gepp-texto-inverso-2:  #C9D2CE;
+  --gepp-marca:            #EB5B0B;
+  --gepp-sombra:           #17221F26;
 
-  /* ---- Bordes: 1px, nunca sombras. Sombra solo en el panel y los diálogos ---- */
-  --gepp-borde:        #26292E;
-  --gepp-borde-suave:  #2E3238;
-  --gepp-borde-fuerte: #3A3F46;
+  /* ---- Bordes ---- */
+  --gepp-borde:        #E2E3DE;
+  --gepp-borde-suave:  #ECEDE8;
+  --gepp-borde-fuerte: #BDC4BF;
 
   /* ---- Texto, cinco niveles ---- */
-  --gepp-texto:       #E6E8EB;  /* cuerpo */
-  --gepp-texto-2:     #C3C9CF;  /* secundario */
-  --gepp-texto-3:     #A6ADB5;  /* metadatos, navegación en reposo */
-  --gepp-texto-4:     #7C838B;  /* zona/subtítulo dentro de una celda */
-  --gepp-texto-tenue: #6B7280;  /* etiquetas en mayúscula, unidades */
+  --gepp-texto:       #252E2B;
+  --gepp-texto-2:     #414D47;
+  --gepp-texto-3:     #58645E;
+  --gepp-texto-4:     #637069;
+  --gepp-texto-tenue: #637069;
 
   /* ---- Acento. UNO solo, y solo para lo interactivo ---- */
-  --gepp-acento:       #2F81F7;
-  --gepp-acento-claro: #4C8DF6;
-  --gepp-acento-hover: #7FB0FA;
-  --gepp-acento-fondo: #08111F;
+  --gepp-acento:       #B94308;
+  --gepp-acento-claro: #EB5B0B;
+  --gepp-acento-hover: #973706;
+  --gepp-acento-fondo: #FFF0E4;
 
   /* ---- Severidad — paleta Okabe-Ito, segura para daltonismo ----
    * El color NUNCA va solo: siempre con forma y palabra. Prohibido rojo/verde como
@@ -41,18 +47,18 @@
    * niveles se siguen separando. Y jamás colorees la fila entera: el color va en su
    * celda y en un filete de 3 px en el borde izquierdo.
    */
-  --gepp-critica:  #D55E00;   /* ◆ rombo relleno */
-  --gepp-alta:     #E69F00;   /* ▲ triángulo */
+  --gepp-critica:  #B44700;   /* ◆ rombo relleno */
+  --gepp-alta:     #8A6200;   /* ▲ triángulo */
   --gepp-media:    #0072B2;   /* ● círculo relleno */
-  --gepp-baja:     #8A9199;   /* ○ anillo hueco */
-  --gepp-conforme: #009E73;   /* ✓ visto */
+  --gepp-baja:     #637069;   /* ○ anillo hueco */
+  --gepp-conforme: #087B59;   /* ✓ visto */
 
   /* ---- Tipografía ----
    * Monoespaciada con cifras tabulares en horas, duraciones, hashes, identificadores
    * y toda columna numérica: sin `font-variant-numeric: tabular-nums` las cifras bailan
    * de fila en fila y la tabla deja de poder leerse en vertical.
    */
-  --gepp-fuente:      Inter, system-ui, -apple-system, "Segoe UI", sans-serif;
+  --gepp-fuente:      "Segoe UI", Inter, system-ui, -apple-system, sans-serif;
   --gepp-fuente-mono: "JetBrains Mono", ui-monospace, "SF Mono", Menlo, monospace;
 
   --gepp-texto-xs:  10px;  /* marcas de tiempo diminutas */
@@ -73,9 +79,9 @@
   --gepp-lateral:     232px;  /* barra lateral */
   --gepp-lateral-min:  56px;  /* colapsada */
   --gepp-cabecera:     56px;
-  --gepp-fila:         40px;  /* alto de fila de la tabla */
+  --gepp-fila:         64px;  /* sincronizado con estimateSize de HallazgosGrid */
   --gepp-filtros:      44px;
-  --gepp-control:      30px;  /* alto de un filtro o botón pequeño */
+  --gepp-control:      36px;  /* alto de un filtro o botón pequeño */
   --gepp-filete:        3px;  /* filete de severidad, borde izquierdo de la fila */
   --gepp-panel-ancho:   60%;  /* visor deslizante */
 
