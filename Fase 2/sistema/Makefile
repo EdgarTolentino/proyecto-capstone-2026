@@ -4,7 +4,7 @@
 # La base de docker/compose.yml. Si exportas GEPP_BD_URL (o la pones en .env y la cargas), manda esa.
 export GEPP_BD_URL ?= postgresql+psycopg://gepp:gepp_dev@localhost:5432/gepp
 
-.PHONY: ayuda setup lint fmt tipos test test-gpu cobertura contrato contrato-lint mock up down migrar semilla demo api limpiar
+.PHONY: ayuda setup lint fmt tipos test test-gpu cobertura contrato contrato-lint mock up down migrar semilla demo demo-api api limpiar
 
 ayuda:  ## Muestra esta ayuda
 	@grep -E '^[a-z-]+:.*?## .*$$' $(MAKEFILE_LIST) | awk 'BEGIN{FS=":.*?## "};{printf "  \033[36m%-12s\033[0m %s\n", $$1, $$2}'
@@ -60,6 +60,9 @@ semilla:  ## Carga el perfil de construcción (ADR-011); PERFIL=perfiles/otro.ya
 demo:  ## Demo de punta a punta con detector simulado: make demo VIDEO=ruta.mp4 [GUION=...]
 	@test -n "$(VIDEO)" || { echo "uso: make demo VIDEO=ruta/al/video.mp4 [GUION=demo/guion_cam03.json]"; exit 2; }
 	uv run python scripts/demo.py "$(VIDEO)" $(if $(GUION),--guion "$(GUION)")
+
+demo-api:  ## API sobre la base de la última `make demo`, para verla en la web
+	GEPP_BD_URL=$(GEPP_BD_URL)_demo uv run python -m gepp_api
 
 api:  ## Levanta la API real en :8000. La web: VITE_API_URL=http://localhost:8000/api/v1 npm run dev
 	uv run python -m gepp_api
