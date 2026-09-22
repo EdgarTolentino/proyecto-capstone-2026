@@ -16,7 +16,11 @@ gepp-vision = { workspace = true }
 gepp-worker = { workspace = true }
 
 [dependency-groups]
-dev  = [{ include-group = "test" }, { include-group = "lint" }]
+dev  = [
+    { include-group = "test" },
+    { include-group = "lint" },
+    "fakeredis>=2.38.0",
+]
 test = ["pytest>=8", "pytest-cov", "pytest-asyncio", "httpx"]
 lint = ["ruff>=0.16", "mypy>=1.11"]
 
