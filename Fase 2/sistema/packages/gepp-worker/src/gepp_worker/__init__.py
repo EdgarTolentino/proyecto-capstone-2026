@@ -10,10 +10,15 @@ from gepp_worker.fuente import (
     PropiedadesFuente,
     instante_de_captura,
 )
+from gepp_worker.fuente_archivo import FuenteArchivo, OrigenReloj
+from gepp_worker.muestreo import Muestreador
 
 __all__ = [
     "Cuadro",
+    "FuenteArchivo",
     "FuenteDeCuadros",
+    "Muestreador",
+    "OrigenReloj",
     "PoliticaBuffer",
     "PropiedadesFuente",
     "instante_de_captura",
