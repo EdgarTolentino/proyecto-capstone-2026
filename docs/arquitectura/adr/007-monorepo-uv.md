@@ -2,6 +2,9 @@
 
 **Estado:** aceptada · **Fecha:** 2026-09-02
 
+> **Anotación 2026-09-22:** el espacio de trabajo tiene **cinco** paquetes. El quinto, `gepp-bd`,
+> es el dueño del esquema ([ADR-012](012-persistencia-compartida.md)). La regla de oro no cambia.
+
 ## Contexto
 
 Solo una de las tres máquinas tiene GPU. Las otras dos no pueden descargar 3 GB de CUDA para

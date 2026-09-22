@@ -3,13 +3,14 @@ name = "guardian-epp"
 version = "0.1.0"
 description = "Guardian EPP - deteccion de uso de EPP y condiciones inseguras sobre video de faena"
 requires-python = ">=3.12,<3.14"
-dependencies = ["gepp-core", "gepp-api", "gepp-vision", "gepp-worker"]
+dependencies = ["gepp-core", "gepp-bd", "gepp-api", "gepp-vision", "gepp-worker"]
 
 [tool.uv.workspace]
 members = ["packages/*"]
 
 [tool.uv.sources]
 gepp-core   = { workspace = true }
+gepp-bd     = { workspace = true }
 gepp-api    = { workspace = true }
 gepp-vision = { workspace = true }
 gepp-worker = { workspace = true }

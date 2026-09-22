@@ -36,6 +36,7 @@ jobs:
               - 'Fase 2/sistema/packages/**'
               - 'Fase 2/sistema/tests/**'
               - 'Fase 2/sistema/scripts/**'
+              - 'Fase 2/sistema/perfiles/**'
               - 'Fase 2/sistema/pyproject.toml'
               - 'Fase 2/sistema/uv.lock'
               - '.github/workflows/ci.yml'
@@ -63,7 +64,7 @@ jobs:
       - name: ruff (formato)
         run: uv run ruff format --check .
       - name: mypy
-        run: uv run mypy packages/gepp-core/src packages/gepp-api/src packages/gepp-vision/src packages/gepp-worker/src
+        run: uv run mypy packages/gepp-core/src packages/gepp-bd/src packages/gepp-api/src packages/gepp-vision/src packages/gepp-worker/src
 
   pruebas:
     name: Pruebas (Python ${{ matrix.python }})
@@ -74,6 +75,23 @@ jobs:
       fail-fast: false
       matrix:
         python: ["3.12", "3.13"]
+    # PostgreSQL real para las pruebas de persistencia (ADR-012). Misma versión que docker/compose.yml.
+    services:
+      postgres:
+        image: postgres:17-alpine
+        env:
+          POSTGRES_USER: gepp
+          POSTGRES_PASSWORD: gepp_dev
+          POSTGRES_DB: gepp
+        ports: ["5432:5432"]
+        options: >-
+          --health-cmd "pg_isready -U gepp"
+          --health-interval 5s
+          --health-retries 10
+    env:
+      GEPP_BD_URL: postgresql+psycopg://gepp:gepp_dev@localhost:5432/gepp
+      # En CI una base caída es un fallo, no una prueba omitida en silencio.
+      GEPP_EXIGIR_BD: "1"
     defaults:
       run:
         working-directory: Fase 2/sistema

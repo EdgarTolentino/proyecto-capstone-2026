@@ -1,0 +1,76 @@
+# Perfil de dominio: obra de construcción. Es el que se EVALÚA (ADR-011).
+#
+# Lo que cambia entre dominios vive aquí, no en el código: áreas, fuentes, zonas y reglas.
+# `python -m gepp_bd.semilla perfiles/construccion.yaml` lo carga en la base.
+#
+# ESTADO: v1 de trabajo. Faltan dos insumos de terreno que lo ajustan sin tocar código:
+#   - #7  matriz de EPP exigido por área de la obra -> `reglas[].epp_exigido` por área
+#   - #3  píxeles sobre objetivo por cámara (V2)     -> `evaluable` por zona
+# Hasta entonces rige el compromiso de la v1: casco y chaleco (08-verificacion-v9-horas.md).
+#
+# Sin datos personales: ni nombres de trabajadores, ni RUT, ni correos reales.
+
+perfil: construccion
+version: 1
+evaluado: true
+
+faena:
+  nombre: Obra de referencia
+  zona_horaria: America/Santiago
+
+areas:
+  - nombre: Acceso y patio de materiales
+    criticidad: 2
+  - nombre: Frente de obra gruesa
+    criticidad: 3
+
+fuentes:
+  - nombre: Cámara 01 · acceso
+    area: Acceso y patio de materiales
+    tipo: carpeta
+    uri: /datos/videos/entrada/camara_01
+    fps_objetivo: 5.0
+  - nombre: Cámara 02 · obra gruesa
+    area: Frente de obra gruesa
+    tipo: carpeta
+    uri: /datos/videos/entrada/camara_02
+    fps_objetivo: 5.0
+
+# Polígonos normalizados 0..1 sobre el cuadro de referencia de cada cámara.
+# Se redibujan sobre el cuadro real cuando exista la grabación (#10).
+zonas:
+  - nombre: Todo el cuadro
+    fuente: Cámara 01 · acceso
+    area: Acceso y patio de materiales
+    tipo: interes
+    poligono: [[0, 0], [1, 0], [1, 1], [0, 1]]
+    # V2 (#3): pendiente de medir con la cámara real.
+    evaluable: [casco, chaleco]
+  - nombre: Todo el cuadro
+    fuente: Cámara 02 · obra gruesa
+    area: Frente de obra gruesa
+    tipo: interes
+    poligono: [[0, 0], [1, 0], [1, 1], [0, 1]]
+    evaluable: [casco, chaleco]
+
+reglas:
+  - nombre: Casco y chaleco en acceso
+    area: Acceso y patio de materiales
+    epp_exigido: [casco, chaleco]
+    severidad: 3
+    confirmacion_segundos: 2.0
+    cierre_segundos: 3.0
+    base_licitud: obligacion_legal
+    norma_fundante: DS 594 art. 53
+    finalidad_declarada: Verificar el uso del EPP obligatorio al ingresar a la obra
+    retencion_dias: 30
+  - nombre: Casco y chaleco en obra gruesa
+    area: Frente de obra gruesa
+    epp_exigido: [casco, chaleco]
+    severidad: 4
+    confirmacion_segundos: 2.0
+    cierre_segundos: 3.0
+    base_licitud: obligacion_legal
+    norma_fundante: DS 594 art. 53
+    finalidad_declarada: Verificar el uso del EPP obligatorio en el frente de trabajo
+    retencion_dias: 30

@@ -2,6 +2,12 @@
 
 > PostgreSQL. Migraciones versionadas con Alembic. **El video nunca entra a la base**: solo ruta,
 > hash y metadatos. Este documento es la evidencia "modelo de datos" que exige la Fase 2.
+>
+> **Implementado en `packages/gepp-bd`** (PT-01, [ADR-012](adr/012-persistencia-compartida.md)). La
+> fuente de verdad del esquema son las migraciones; el script completo y el diagrama ER generados
+> están en `Fase 2/Evidencias Proyecto/Evidencias de sistema/Base de datos/`. Los bloques SQL de
+> abajo explican el porqué de cada tabla; las diferencias con la implementación están en
+> [Diferencias con la implementación](#diferencias-con-la-implementación).
 
 ## Diagrama
 
@@ -114,7 +120,8 @@ CREATE TABLE deteccion (
     video_id     BIGINT NOT NULL REFERENCES video(id) ON DELETE CASCADE,
     cuadro_idx   INT NOT NULL,
     capture_ts   TIMESTAMPTZ NOT NULL,
-    track_id     INT NOT NULL,      -- EFÍMERO: único dentro del video, jamás entre videos
+    track_id     INT,               -- EFÍMERO: único dentro del video, jamás entre videos.
+                                    -- NULL en los EPP: solo la persona se sigue (ver abajo)
     clase        TEXT NOT NULL,     -- persona | casco | chaleco | lentes | guantes | arnes
     confianza    REAL NOT NULL,
     bbox         REAL[4] NOT NULL,  -- x1,y1,x2,y2 normalizado 0..1
@@ -318,3 +325,15 @@ impersonal. Ningún rol tiene descarga masiva de recortes.
 | 3 | Agregados estadísticos anonimizados | Indefinido | Ya no son datos personales |
 
 El purgado es una tarea programada con su propio registro, no una buena intención.
+
+## Diferencias con la implementación
+
+Registradas el 2026-09-22 al construir `gepp-bd` (PT-01). Mandan las migraciones.
+
+| Qué | Documento original | Implementación | Por qué |
+|---|---|---|---|
+| `deteccion.track_id` | `NOT NULL` | Admite `NULL` | En `gepp_core` solo la persona lleva `track_id`; casco y chaleco llegan sin él y se asocian a la persona al agregar. Con `NOT NULL` el recálculo sin GPU no tendría los EPP |
+| `regla` | Sin más restricciones | `CHECK cardinality(epp_exigido) > 0` y `CHECK confirmacion_segundos > 0 AND cierre_segundos > 0` | Una regla sin EPP o con umbral cero dispararía en cada cuadro |
+| Nombres de restricciones | Implícitos | Convención fija (`pk_`, `fk_`, `uq_`, `ck_`, `ix_`) | Sin nombres deterministas `alembic downgrade` no encuentra lo que tiene que borrar |
+| `REAL` | — | Se conserva `REAL` (4 bytes) | Las cajas vuelven con ~7 cifras significativas; sobra para coordenadas normalizadas |
+
