@@ -18,6 +18,7 @@ Reprocesar dos veces seguidas deja la base igual.
 
 from __future__ import annotations
 
+import time
 from collections.abc import Iterable, Sequence
 from dataclasses import dataclass
 
@@ -35,6 +36,8 @@ class Resultado:
     actualizados: int
     eliminados: int
     conservados: int
+    #: Duración del recálculo (reloj monotónico: tiempo de proceso, no de captura).
+    proceso_ms: int = 0
 
 
 def evaluar(bd: Session, video_id: int, reglas_dominio: Sequence[Regla]) -> list[Hallazgo]:
@@ -50,9 +53,10 @@ def _clave(regla_id: int, track_id: int, ts: object) -> tuple[int, int, object]:
 
 
 def recalcular_video(bd: Session, video: Video) -> Resultado:
+    inicio = time.monotonic()
     fuente = bd.get(Fuente, video.fuente_id)
     assert fuente is not None
-    vigentes = [reglas.a_dominio(r) for r in reglas.activas(bd, area_id=fuente.area_id)]
+    vigentes = reglas.para_fuente(bd, fuente)  # zona, horario y EPP evaluable de la cámara
     nuevos = evaluar(bd, video.id, vigentes)
     existentes = list(
         bd.execute(select(FilaHallazgo).where(FilaHallazgo.video_id == video.id)).scalars()
@@ -95,7 +99,8 @@ def recalcular_video(bd: Session, video: Video) -> Resultado:
     conservados += len(huerfanos) - len(obsoletos)
     _eliminar(bd, obsoletos)
     bd.flush()
-    return Resultado(insertados, actualizados, len(obsoletos), conservados)
+    ms = round((time.monotonic() - inicio) * 1000)
+    return Resultado(insertados, actualizados, len(obsoletos), conservados, ms)
 
 
 def _eliminar(bd: Session, ids: Iterable[int]) -> None:

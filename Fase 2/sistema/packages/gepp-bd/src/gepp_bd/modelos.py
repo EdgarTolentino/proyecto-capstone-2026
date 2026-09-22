@@ -131,6 +131,9 @@ class Zona(Base):
     poligono: Mapped[list[list[float]]] = mapped_column(JSONB)
     solape_minimo: Mapped[float] = mapped_column(REAL, server_default="0.5")
     color: Mapped[str | None] = mapped_column(Text)
+    #: EPP que la cámara resuelve en esta zona (tabla `zona x EPP x evaluable` de V2, #3).
+    #: NULL = sin medir: no restringe. El motor nunca exige lo que la cámara no ve.
+    evaluable: Mapped[list[str] | None] = mapped_column(ARRAY(Text))
 
 
 class Video(Base):

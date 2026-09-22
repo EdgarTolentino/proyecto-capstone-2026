@@ -4,8 +4,9 @@ from __future__ import annotations
 
 import os
 from dataclasses import dataclass, field
-from datetime import time
 from zoneinfo import ZoneInfo
+
+from gepp_bd.turnos import TURNOS as _TURNOS
 
 #: Prefijo de todas las rutas (`servers` del contrato). Las URL de evidencia lo llevan
 #: completo: el cliente web resuelve `/evidencias/…` desde la raíz del servidor.
@@ -14,25 +15,8 @@ PREFIJO = "/api/v1"
 AVISO_LEGAL = "Indicio automatizado. Requiere validación humana."
 
 
-@dataclass(frozen=True, slots=True)
-class Turno:
-    codigo: str
-    desde: time
-    hasta: time
-
-    @property
-    def etiqueta(self) -> str:
-        return f"Turno {self.codigo} ({self.desde:%H:%M}-{self.hasta:%H:%M})"
-
-    def contiene(self, hora: time) -> bool:
-        if self.desde <= self.hasta:
-            return self.desde <= hora < self.hasta
-        return hora >= self.desde or hora < self.hasta  # cruza la medianoche
-
-
-#: Dos turnos de 12 h, el mismo largo que el presupuesto de avisos (ADR-008). Provisional
-#: hasta que el turno sea un dato de la faena.
-TURNOS = (Turno("A", time(8), time(20)), Turno("B", time(20), time(8)))
+#: Los turnos se comparten con el trabajador: ver `gepp_bd.turnos`.
+TURNOS = _TURNOS
 
 
 def _tokens_desde_entorno() -> dict[str, str]:

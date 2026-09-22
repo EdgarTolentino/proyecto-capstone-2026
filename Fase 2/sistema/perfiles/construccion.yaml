@@ -44,7 +44,8 @@ zonas:
     area: Acceso y patio de materiales
     tipo: interes
     poligono: [[0, 0], [1, 0], [1, 1], [0, 1]]
-    # V2 (#3): pendiente de medir con la cámara real.
+    # V2 (#3): pendiente de medir con la cámara real. Se guarda en `zona.evaluable`: el motor
+    # no exige en esta cámara ningún EPP fuera de esta lista. Sin la clave, no restringe.
     evaluable: [casco, chaleco]
   - nombre: Todo el cuadro
     fuente: Cámara 02 · obra gruesa

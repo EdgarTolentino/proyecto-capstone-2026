@@ -193,3 +193,45 @@ def test_simular_fuera_del_rango_no_ve_nada(api: Cliente) -> None:
         },
     )
     assert r["hallazgos_estimados"] == 0 and r["contra_version_vigente"]["actuales"] == 0
+
+
+def test_simular_por_turno_usa_la_hora_local(api: Cliente) -> None:
+    """Los hallazgos sembrados son de las 22:10 en Santiago: turno B, no A."""
+    cuerpo = {"desde": "2026-09-01", "hasta": "2026-09-01"}
+    a = api.llamar(
+        "simularRegla",
+        "POST",
+        "/reglas/1/simular",
+        headers=ADMIN,
+        json=cuerpo | {"regla": _regla(turno="A")},
+    )
+    b = api.llamar(
+        "simularRegla",
+        "POST",
+        "/reglas/1/simular",
+        headers=ADMIN,
+        json=cuerpo | {"regla": _regla(turno="B")},
+    )
+    assert (a["hallazgos_estimados"], b["hallazgos_estimados"]) == (0, 2)
+
+
+def test_una_regla_que_la_camara_no_puede_ver_no_es_evaluable_ni_dispara(
+    api: Cliente, bd: Any
+) -> None:
+    from sqlalchemy import text
+
+    with bd.begin() as c:
+        c.execute(text("UPDATE zona SET evaluable = '{arnes}'"))
+    (r, *_) = api.llamar("listarReglas", "GET", "/reglas?area_id=1")
+    assert r["evaluable"] is False
+    # Reprocesar con la regla inaplicable borra lo que estaba por revisar en ese video.
+    v = api.llamar("reprocesarVideo", "POST", "/videos/1/reprocesar", headers=ADMIN, esperado=202)
+    assert v["hallazgos_generados"] == 0
+    sim = api.llamar(
+        "simularRegla",
+        "POST",
+        "/reglas/1/simular",
+        headers=ADMIN,
+        json={"desde": "2026-09-01", "hasta": "2026-09-01", "regla": _regla()},
+    )
+    assert sim["hallazgos_estimados"] == 0

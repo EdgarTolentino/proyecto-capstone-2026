@@ -33,7 +33,7 @@ from gepp_bd.modelos import Fuente, Zona
 from gepp_bd.modelos import Regla as FilaRegla
 from gepp_bd.repositorios import detecciones, evidencias, hallazgos, reglas, videos
 from gepp_bd.sesion import transaccion
-from gepp_core import ClaseDetectada, Deteccion, Hallazgo
+from gepp_core import ClaseDetectada, Deteccion, Hallazgo, Regla
 from gepp_vision.evidencia import EvidenciaEscrita, escribir_evidencia
 from gepp_vision.pipeline import PipelineEtapa1
 from gepp_vision.privacidad import MascaraPrivacidad
@@ -78,6 +78,8 @@ class _Contexto:
     area_id: int
     reglas: list[FilaRegla]
     privacidad: list[list[list[float]]]
+    #: Las mismas reglas, tal como se aplican en esta cámara (zona, horario, evaluable).
+    aplicables: list[Regla]
 
 
 def _propiedades(ruta: Path) -> PropiedadesFuente:
@@ -179,6 +181,14 @@ class Trabajador:
             activas = reglas.activas(s, area_id=fuente.area_id)
             if not activas:
                 raise LookupError(f"el área {fuente.area_id} no tiene reglas activas")
+            # Cada regla tal como se aplica en ESTA cámara: su zona, su horario y solo el EPP
+            # que la cámara resuelve (V2). Las que no se pueden aplicar aquí, no entran.
+            aplicables = reglas.para_fuente(s, fuente)
+            if not aplicables:
+                raise LookupError(
+                    f"ninguna regla se puede aplicar en la fuente {fuente.id}: "
+                    "el EPP que exigen no es evaluable en sus zonas"
+                )
             privacidad = list(
                 s.execute(
                     select(Zona.poligono).where(
@@ -187,7 +197,7 @@ class Trabajador:
                 ).scalars()
             )
             videos.cambiar_estado(s, video.id, "procesando")
-            return _Contexto(video.id, fuente.id, fuente.area_id, activas, privacidad)
+            return _Contexto(video.id, fuente.id, fuente.area_id, activas, privacidad, aplicables)
 
     def _analizar(
         self, ruta: Path, props: PropiedadesFuente, ctx: _Contexto, inicio: float
@@ -196,7 +206,7 @@ class Trabajador:
         pipeline = PipelineEtapa1(
             self._fabrica_detector(),
             self._fabrica_seguidor(),
-            [reglas.a_dominio(r) for r in ctx.reglas],
+            ctx.aplicables,
             mascara=mascara,
         )
         detector_version = pipeline.version_modelo

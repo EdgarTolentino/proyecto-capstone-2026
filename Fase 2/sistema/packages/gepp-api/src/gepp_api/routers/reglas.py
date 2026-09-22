@@ -13,7 +13,6 @@ from zoneinfo import ZoneInfo
 from fastapi import APIRouter, Request
 from gepp_bd.modelos import Area, Fuente, Hallazgo, Regla, Video
 from gepp_bd.repositorios import auditoria, reglas
-from gepp_core import Regla as ReglaDominio
 from gepp_core import Severidad, TipoEPP
 from sqlalchemy import func, select
 from sqlalchemy.exc import IntegrityError
@@ -72,8 +71,11 @@ def regla_a_json(bd: Session, r: Regla, tz: ZoneInfo) -> dict[str, Any]:
         "retencion_dias": r.retencion_dias,
         # Sin columnas todavía: llegan con las alertas (PT-13).
         "destinatarios": [],
-        # La tabla `zona x EPP x evaluable` de V2 (#3) aún no existe: todo se declara evaluable.
-        "evaluable": True,
+        # Falso si en NINGUNA cámara del área queda EPP que la cámara resuelva (V2, #3).
+        "evaluable": any(
+            reglas.en_fuente(bd, r, f) is not None
+            for f in bd.execute(select(Fuente).where(Fuente.area_id == r.area_id)).scalars()
+        ),
         "hallazgos_30d": bd.scalar(ultimos_30d) or 0,
         "creada_en": iso(r.creada_en, tz),
     }
@@ -203,34 +205,36 @@ def simular_regla(
     tz: ZoneInfo = request.app.state.config.zona_horaria
     desde = datetime.combine(cuerpo.desde, time(), tz)
     hasta = datetime.combine(cuerpo.hasta + timedelta(days=1), time(), tz)
-    videos = list(
-        bd.execute(
-            select(Video.id)
-            .join(Fuente, Fuente.id == Video.fuente_id)
-            .where(
-                Fuente.area_id == cuerpo.regla.area_id,
-                Video.estado == "listo",
-                Video.capture_ts_inicio >= desde,
-                Video.capture_ts_inicio < hasta,
-            )
-        ).scalars()
+    videos = bd.execute(
+        select(Video.id, Video.fuente_id)
+        .join(Fuente, Fuente.id == Video.fuente_id)
+        .where(
+            Fuente.area_id == cuerpo.regla.area_id,
+            Video.estado == "listo",
+            Video.capture_ts_inicio >= desde,
+            Video.capture_ts_inicio < hasta,
+        )
+    ).all()
+    # La candidata es una fila SIN guardar que pasa por el mismo camino que el trabajador:
+    # zona, horario y EPP evaluable de cada cámara.
+    candidata = reglas.fila_sin_guardar(
+        _definicion(cuerpo.regla, sesion.id), id=vigente.id, version=vigente.version + 1
     )
-    entrada = cuerpo.regla
-    candidata = ReglaDominio(
-        id=vigente.id,
-        version=vigente.version + 1,
-        nombre=entrada.nombre,
-        epp_exigido=frozenset(TipoEPP(e) for e in entrada.epp_exigido),
-        severidad=Severidad(entrada.severidad),
-        confirmacion_segundos=entrada.confirmacion_segundos,
-        cierre_segundos=entrada.cierre_segundos,
-        confianza_minima=entrada.confianza_minima,
-    )
-    estimados = [h for v in videos for h in evaluar(bd, v, [candidata])]
+    por_fuente = {}
+    for fuente_id in {v.fuente_id for v in videos}:
+        fuente = bd.get(Fuente, fuente_id)
+        por_fuente[fuente_id] = reglas.en_fuente(bd, candidata, fuente) if fuente else None
+    estimados = [
+        h
+        for v in videos
+        if (regla := por_fuente[v.fuente_id]) is not None
+        for h in evaluar(bd, v.id, [regla])
+    ]
+    ids_videos = [v.id for v in videos]
     actuales = (
         bd.scalar(
             select(func.count()).where(
-                Hallazgo.regla_id == vigente.id, Hallazgo.video_id.in_(videos)
+                Hallazgo.regla_id == vigente.id, Hallazgo.video_id.in_(ids_videos)
             )
         )
         or 0
