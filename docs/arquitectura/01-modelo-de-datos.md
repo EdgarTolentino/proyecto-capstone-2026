@@ -62,7 +62,8 @@ CREATE TABLE zona (
     tipo           TEXT NOT NULL CHECK (tipo IN ('interes','privacidad')),
     poligono       JSONB NOT NULL,             -- [[x,y],...] normalizado 0..1
     solape_minimo  REAL NOT NULL DEFAULT 0.50, -- fracción de la caja dentro de la zona
-    color          TEXT
+    color          TEXT,
+    evaluable      TEXT[]                      -- EPP que la cámara resuelve aquí (V2). NULL = sin medir
 );
 ```
 
@@ -336,4 +337,5 @@ Registradas el 2026-09-22 al construir `gepp-bd` (PT-01). Mandan las migraciones
 | `regla` | Sin más restricciones | `CHECK cardinality(epp_exigido) > 0` y `CHECK confirmacion_segundos > 0 AND cierre_segundos > 0` | Una regla sin EPP o con umbral cero dispararía en cada cuadro |
 | Nombres de restricciones | Implícitos | Convención fija (`pk_`, `fk_`, `uq_`, `ck_`, `ix_`) | Sin nombres deterministas `alembic downgrade` no encuentra lo que tiene que borrar |
 | `REAL` | — | Se conserva `REAL` (4 bytes) | Las cajas vuelven con ~7 cifras significativas; sobra para coordenadas normalizadas |
+| `zona.evaluable` | No existía | `TEXT[]` nullable (migración 0002, PT-12) | La tabla `zona × EPP × evaluable` de V2. El motor exige solo lo evaluable; si no queda nada, la regla no se aplica en esa cámara. NULL = sin medir, no restringe |
 

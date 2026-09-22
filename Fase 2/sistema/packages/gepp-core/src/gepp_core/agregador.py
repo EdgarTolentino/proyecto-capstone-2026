@@ -73,6 +73,9 @@ class AgregadorDeHallazgos:
             if d.clase is ClaseDetectada.PERSONA
             and d.track_id is not None
             and d.confianza >= self._regla.confianza_minima
+            # Fuera de la zona o del horario la regla no mira: la racha de esa persona se
+            # cierra por tiempo, igual que si hubiera salido del cuadro.
+            and self._regla.evalua(d)
         ]
         vistos: set[int] = set()
         cerrados: list[Hallazgo] = []

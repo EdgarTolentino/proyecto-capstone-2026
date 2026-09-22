@@ -64,3 +64,38 @@ class Caja:
         if not 0.0 <= desde < hasta <= 1.0:
             raise ValueError(f"franja inválida: {desde}-{hasta}")
         return Caja(self.x1, self.y1 + self.alto * desde, self.x2, self.y1 + self.alto * hasta)
+
+
+#: Polígono en coordenadas normalizadas 0..1, como lo guarda `zona.poligono`.
+Poligono = tuple[tuple[float, float], ...]
+
+
+def punto_en_poligono(punto: tuple[float, float], poligono: Poligono) -> bool:
+    """Trazado de rayos: cuántas aristas cruza una semirrecta horizontal desde el punto."""
+    x, y = punto
+    dentro = False
+    j = len(poligono) - 1
+    for i in range(len(poligono)):
+        xi, yi = poligono[i]
+        xj, yj = poligono[j]
+        if (yi > y) != (yj > y) and x < (xj - xi) * (y - yi) / (yj - yi) + xi:
+            dentro = not dentro
+        j = i
+    return dentro
+
+
+def fraccion_en_poligono(caja: Caja, poligono: Poligono, muestras: int = 8) -> float:
+    """Qué proporción de la caja cae dentro del polígono, por muestreo en rejilla.
+
+    Con 8 x 8 puntos el error es de ~1/64 por borde: sobra para decidir contra un umbral
+    de 0,50 y evita traer una biblioteca de geometría a un paquete que es Python puro.
+    """
+    if len(poligono) < 3:
+        raise ValueError("un polígono necesita al menos 3 vértices")
+    dentro = 0
+    for i in range(muestras):
+        for j in range(muestras):
+            px = caja.x1 + caja.ancho * (i + 0.5) / muestras
+            py = caja.y1 + caja.alto * (j + 0.5) / muestras
+            dentro += punto_en_poligono((px, py), poligono)
+    return dentro / (muestras * muestras)

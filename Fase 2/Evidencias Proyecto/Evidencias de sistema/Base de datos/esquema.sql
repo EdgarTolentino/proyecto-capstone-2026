@@ -274,5 +274,11 @@ CREATE RULE auditoria_no_delete AS ON DELETE TO auditoria DO INSTEAD NOTHING;
 
 INSERT INTO alembic_version (version_num) VALUES ('0001') RETURNING alembic_version.version_num;
 
+-- Running upgrade 0001 -> 0002
+
+ALTER TABLE zona ADD COLUMN evaluable TEXT[];
+
+UPDATE alembic_version SET version_num='0002' WHERE alembic_version.version_num = '0001';
+
 COMMIT;
 

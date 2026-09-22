@@ -91,7 +91,11 @@ def cargar(sesion: Session, perfil: dict[str, Any]) -> Faena:
         donde = f"zona {z['nombre']!r}"
         if z["fuente"] not in fuentes:
             raise PerfilInvalido(f"{donde}: la fuente {z['fuente']!r} no está en `fuentes`")
-        _epp(z.get("evaluable", []), donde)
+        # Sin la clave `evaluable` la zona queda sin medir (NULL): no restringe. Con la clave,
+        # el motor solo exige esos EPP en esa cámara (V2, #3).
+        evaluable = (
+            sorted(e.value for e in _epp(z["evaluable"], donde)) if "evaluable" in z else None
+        )
         sesion.add(
             Zona(
                 area_id=area_de(z["area"], donde).id,
@@ -100,6 +104,7 @@ def cargar(sesion: Session, perfil: dict[str, Any]) -> Faena:
                 tipo=z["tipo"],
                 poligono=z["poligono"],
                 solape_minimo=z.get("solape_minimo", 0.5),
+                evaluable=evaluable,
             )
         )
     sesion.flush()

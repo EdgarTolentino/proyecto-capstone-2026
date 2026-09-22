@@ -81,6 +81,7 @@ erDiagram
         JSONB poligono
         REAL solape_minimo
         TEXT color
+        ARRAY evaluable
     }
     deteccion {
         BIGINT id PK

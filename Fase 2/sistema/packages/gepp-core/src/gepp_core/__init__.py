@@ -12,8 +12,9 @@ from gepp_core.dominio import (
     Regla,
     Severidad,
     TipoEPP,
+    Ventana,
 )
-from gepp_core.geometria import Caja
+from gepp_core.geometria import Caja, Poligono, fraccion_en_poligono, punto_en_poligono
 
 __all__ = [
     "AgregadorDeHallazgos",
@@ -21,10 +22,14 @@ __all__ = [
     "ClaseDetectada",
     "Deteccion",
     "Hallazgo",
+    "Poligono",
     "Regla",
     "Severidad",
     "TipoEPP",
+    "Ventana",
     "agregar",
     "epp_faltante",
     "epp_puesto",
+    "fraccion_en_poligono",
+    "punto_en_poligono",
 ]

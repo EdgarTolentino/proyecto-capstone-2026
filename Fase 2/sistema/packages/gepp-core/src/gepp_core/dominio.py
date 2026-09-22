@@ -8,10 +8,11 @@ from __future__ import annotations
 
 import math
 from dataclasses import dataclass, field
-from datetime import datetime
+from datetime import datetime, time
 from enum import IntEnum, StrEnum
+from zoneinfo import ZoneInfo
 
-from gepp_core.geometria import Caja
+from gepp_core.geometria import Caja, Poligono, fraccion_en_poligono
 
 
 class Severidad(IntEnum):
@@ -75,6 +76,25 @@ class Deteccion:
 
 
 @dataclass(frozen=True, slots=True)
+class Ventana:
+    """Franja horaria en que una regla evalúa, en hora LOCAL de la faena.
+
+    El turno de noche cruza la medianoche (`desde > hasta`). Se compara con la hora local
+    de `capture_ts`, nunca con la UTC: un turno de 08 a 20 en Santiago no es de 08 a 20 UTC.
+    """
+
+    desde: time
+    hasta: time
+    zona_horaria: str = "America/Santiago"
+
+    def contiene(self, instante: datetime) -> bool:
+        hora = instante.astimezone(ZoneInfo(self.zona_horaria)).time()
+        if self.desde <= self.hasta:
+            return self.desde <= hora < self.hasta
+        return hora >= self.desde or hora < self.hasta
+
+
+@dataclass(frozen=True, slots=True)
 class Regla:
     """Regla de EPP por área. Vive en la base de datos, versionada.
 
@@ -92,6 +112,18 @@ class Regla:
     cierre_segundos: float = 3.0
     confianza_minima: float = 0.45
     solape_zona_minimo: float = 0.50
+    #: Zona de interés. `None` = todo el cuadro. Solo se evalúa a quien está dentro.
+    zona: Poligono | None = None
+    #: Franja horaria (turno u horario). `None` = siempre.
+    ventana: Ventana | None = None
+
+    def evalua(self, persona: Deteccion) -> bool:
+        """¿Esta regla mira a esta persona, en este lugar y a esta hora?"""
+        if self.ventana is not None and not self.ventana.contiene(persona.capture_ts):
+            return False
+        if self.zona is not None:
+            return fraccion_en_poligono(persona.caja, self.zona) >= self.solape_zona_minimo
+        return True
 
     def cuadros_de_confirmacion(self, fps: float) -> int:
         """Convierte el umbral temporal a cuadros, en tiempo de ejecución."""

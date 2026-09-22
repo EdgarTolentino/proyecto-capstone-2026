@@ -105,7 +105,8 @@ def reprocesar_video(id: int, request: Request, bd: Bd, sesion: Sesion) -> dict[
         entidad_id=v.id,
         motivo=(
             f"insertados={resultado.insertados} actualizados={resultado.actualizados} "
-            f"eliminados={resultado.eliminados} conservados={resultado.conservados}"
+            f"eliminados={resultado.eliminados} conservados={resultado.conservados} "
+            f"sin_gpu_ms={resultado.proceso_ms}"
         ),
     )
     return video_a_json(bd, v, request.app.state.config.zona_horaria)
