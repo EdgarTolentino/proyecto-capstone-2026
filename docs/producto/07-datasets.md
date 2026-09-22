@@ -80,6 +80,19 @@ en el cuadro— y el ***tiling***: partir el cuadro y correr el detector sobre c
 URL o banco de origen · fecha de descarga · duración o número de imágenes · clases presentes ·
 si la cámara es fija.
 
+### Lote 2 — 2026-09-22 · video generado por IA (sintético)
+
+| Archivo | Resolución | fps | seg | Cámara | Uso |
+|---|---|---|---|---|---|
+| `generativa.mp4` (CAM 03) | 1280×720 | 24 | 8,0 | fija, con cortes de escena | **Demostración del MVP** (`make demo`) |
+
+**Es video sintético, generado con IA, y se declara así** en toda presentación. No es
+grabación de obra ni reemplaza el video propio (#10). La marca `CAM 03` con fecha y hora está
+sobreimpresa y el sistema **no la lee**: el reloj sale de los metadatos o de la fecha del archivo
+(ADR-005). Los cortes de escena parten los tracks; para la demostración no importa, para el
+conjunto de prueba sí. El plan es unir estos clips en uno largo con la misma marca; los clips
+originales se conservan por separado, porque la partición es por video.
+
 ## 2.bis Datasets públicos de imágenes — para entrenar (PT-03)
 
 Revisados el **2026-09-22** en la fuente primaria de cada uno (el `LICENSE` del repositorio o la
