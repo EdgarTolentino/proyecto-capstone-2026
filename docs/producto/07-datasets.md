@@ -80,6 +80,46 @@ en el cuadro— y el ***tiling***: partir el cuadro y correr el detector sobre c
 URL o banco de origen · fecha de descarga · duración o número de imágenes · clases presentes ·
 si la cámara es fija.
 
+## 2.bis Datasets públicos de imágenes — para entrenar (PT-03)
+
+Revisados el **2026-09-22** en la fuente primaria de cada uno (el `LICENSE` del repositorio o la
+ficha oficial), no en blogs ni en copias subidas por terceros. Regla: se rechaza `-NC`, `-ND` y
+todo lo que **no declare licencia**. Una licencia que puso en Roboflow o Kaggle alguien que no es
+el autor **no cuenta**.
+
+### Aceptados
+
+| Dataset | Licencia (dónde se verificó) | Imágenes | Clases útiles | Formato | Nota |
+|---|---|---|---|---|---|
+| [Hard Hat Workers](https://public.roboflow.com/object-detection/hard-hat-workers) (Roboflow) | **CC0 1.0**, en la página oficial | ~7.041 | casco, cabeza, persona | COCO / YOLO / VOC | **Núcleo** de casco + persona |
+| [Construction Site Safety](https://universe.roboflow.com/roboflow-universe-projects/construction-site-safety) (Roboflow Universe Projects) | **CC BY 4.0**, en Roboflow y en la [copia de Kaggle](https://www.kaggle.com/datasets/snehilsanyal/construction-site-safety-image-dataset-roboflow) | 717 | casco / sin casco, **chaleco / sin chaleco**, persona | COCO / YOLO | El único aceptado con chaleco explícito. Exige atribución |
+| [SHWD](https://github.com/njvisionpower/Safety-Helmet-Wearing-Dataset) | **MIT**, archivo `LICENSE` del repositorio | 7.581 | casco, cabeza | Pascal VOC | Imágenes de buscadores; las negativas vienen en parte de SCUT-HEAD (aulas): **submuestrear** esa parte |
+| [Safety Vests](https://universe.roboflow.com/roboflow-universe-projects/safety-vests) (Roboflow Universe Projects) | **CC BY 4.0**, en Roboflow | sin confirmar | chaleco / sin chaleco | COCO / YOLO | Refuerzo de chaleco |
+| [Hard Hat Detection](https://www.kaggle.com/datasets/andrewmvd/hard-hat-detection) (Kaggle) | **CC0 1.0**, en la ficha de Kaggle | 5.001 | casco, cabeza, persona | Pascal VOC | Refuerzo |
+| [Helmet Detection](https://www.kaggle.com/datasets/andrewmvd/helmet-detection) (Kaggle) | **CC0**, en la ficha de Kaggle | 764 | con / sin casco | Pascal VOC | Aporte menor |
+
+> **Por confirmar al descargar:** las páginas de Roboflow Universe respondieron 403 a la consulta
+> automática; las licencias CC BY 4.0 de *Construction Site Safety* y *Safety Vests* se
+> confirmaron por dos fuentes concordantes, no leyendo la ficha completa. Quien descargue anota
+> aquí la licencia que muestra la página en ese momento.
+
+### Rechazados
+
+| Dataset | Motivo |
+|---|---|
+| [SH17](https://github.com/ahmadmughees/SH17dataset) | **-NC**: CC BY-NC-SA 4.0 en GitHub y CC BY-NC 4.0 en [Zenodo](https://zenodo.org/records/12659325). Las dos fuentes no coinciden entre sí, pero ambas son no comerciales |
+| [Pictor-PPE](https://github.com/ciber-lab/pictor-ppe) | No declara licencia |
+| [CHV](https://github.com/ZijianWang-ZW/PPE_detection) | Los autores no declaran licencia; la que figura en Roboflow la puso un tercero |
+| [SHEL5K](https://github.com/MoyoG/SHEL5K) | No declara licencia |
+| [GDUT-HWD](https://github.com/wujixiu/helmet-detection) | Dudoso: el Apache-2.0 del repositorio cubre el código, no los datos alojados en Baidu |
+| [SODA](https://arxiv.org/abs/2202.09554) | Dudoso: el mejor alineado (19.846 imágenes de obra con casco, chaleco y persona), pero ni el artículo ni un sitio oficial declaran licencia. Solo con confirmación escrita de los autores |
+| [Construction-PPE](https://docs.ultralytics.com/datasets/detect/construction-ppe) (Ultralytics) | **AGPL-3.0**, la misma licencia que ADR-002 deja fuera |
+| CPPE-5 | Dominio médico: no tiene casco de obra ni chaleco |
+
+**Decisión propuesta:** partir con **Hard Hat Workers + Construction Site Safety + SHWD**, y
+sumar *Safety Vests* y los dos de Kaggle si falta volumen de chaleco. Las atribuciones de los CC BY
+van en el README del repositorio y en el informe final.
+
 ## 3. El video propio
 
 Es el activo insustituible del proyecto. Protocolo mínimo:

@@ -282,11 +282,17 @@ dev = [
     { name = "pytest" },
     { name = "pytest-asyncio" },
     { name = "pytest-cov" },
+    { name = "pyyaml" },
     { name = "ruff" },
+    { name = "types-pyyaml" },
 ]
 lint = [
     { name = "mypy" },
     { name = "ruff" },
+]
+scripts = [
+    { name = "pyyaml" },
+    { name = "types-pyyaml" },
 ]
 test = [
     { name = "httpx" },
@@ -312,11 +318,17 @@ dev = [
     { name = "pytest", specifier = ">=8" },
     { name = "pytest-asyncio" },
     { name = "pytest-cov" },
+    { name = "pyyaml", specifier = ">=6.0" },
     { name = "ruff", specifier = ">=0.16" },
+    { name = "types-pyyaml" },
 ]
 lint = [
     { name = "mypy", specifier = ">=1.11" },
     { name = "ruff", specifier = ">=0.16" },
+]
+scripts = [
+    { name = "pyyaml", specifier = ">=6.0" },
+    { name = "types-pyyaml" },
 ]
 test = [
     { name = "httpx" },
