@@ -1,7 +1,10 @@
 # Seis verbos. Ni uno más: lo primero que mira alguien nuevo en el repositorio.
 # Encapsula la ruta con espacio para que nadie tenga que escribirla.
 
-.PHONY: ayuda setup lint fmt tipos test test-gpu cobertura contrato contrato-lint mock up down limpiar
+# La base de docker/compose.yml. Si exportas GEPP_BD_URL (o la pones en .env y la cargas), manda esa.
+export GEPP_BD_URL ?= postgresql+psycopg://gepp:gepp_dev@localhost:5432/gepp
+
+.PHONY: ayuda setup lint fmt tipos test test-gpu cobertura contrato contrato-lint mock up down migrar semilla limpiar
 
 ayuda:  ## Muestra esta ayuda
 	@grep -E '^[a-z-]+:.*?## .*$$' $(MAKEFILE_LIST) | awk 'BEGIN{FS=":.*?## "};{printf "  \033[36m%-12s\033[0m %s\n", $$1, $$2}'
@@ -21,7 +24,7 @@ fmt:  ## Corrige estilo y formatea
 	uv run ruff format .
 
 tipos:  ## Verifica tipos
-	uv run mypy packages/gepp-core/src packages/gepp-api/src packages/gepp-vision/src packages/gepp-worker/src
+	uv run mypy packages/gepp-core/src packages/gepp-bd/src packages/gepp-api/src packages/gepp-vision/src packages/gepp-worker/src
 
 test:  ## Ejecuta las pruebas (sin GPU)
 	uv run pytest -m "not gpu and not slow"
@@ -48,6 +51,12 @@ up:  ## Levanta PostgreSQL y Redis
 
 down:  ## Detiene los servicios
 	docker compose -f docker/compose.yml down
+
+migrar:  ## Aplica las migraciones a la base de GEPP_BD_URL (ver .env.example)
+	uv run python -m gepp_bd.migrar subir
+
+semilla:  ## Carga el perfil de construcción (ADR-011); PERFIL=perfiles/otro.yaml para cambiarlo
+	uv run python -m gepp_bd.semilla $(or $(PERFIL),perfiles/construccion.yaml)
 
 limpiar:  ## Borra cachés
 	rm -rf .pytest_cache .ruff_cache .mypy_cache htmlcov .coverage

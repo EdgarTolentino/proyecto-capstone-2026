@@ -136,6 +136,13 @@ FastAPI + SQLAlchemy sobre PostgreSQL. **Regla dura: `gepp-api` no importa `gepp
 comunican por la base de datos y la cola. Eso es lo que permite levantar la API completa en un
 portátil sin GPU y sin descargar 3 GB de CUDA.
 
+### 4.3 bis `gepp-bd` — la persistencia
+
+Modelos SQLAlchemy, migraciones Alembic y repositorios ([ADR-012](adr/012-persistencia-compartida.md)).
+Es el único dueño del esquema: `gepp-api` y `gepp-worker` lo importan y ninguno de los dos
+declara tablas. Depende solo de `gepp-core`. `make migrar` aplica las migraciones y
+`make semilla` carga el perfil de dominio ([ADR-011](adr/011-dominio-configurable.md)).
+
 ### 4.4 `gepp-worker` — la ingesta
 
 Vigila la carpeta (v1) o consume RTSP (v2). Es el **único** paquete que cambia entre v1 y v2.

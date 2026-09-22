@@ -1,6 +1,6 @@
 # ADR-012 — Persistencia compartida en un quinto paquete: `gepp-bd`
 
-**Estado:** propuesta · **Fecha:** 2026-09-07 · Se acepta al fusionar el PR que la introduce
+**Estado:** aceptada · **Fecha:** 2026-09-07 · Aceptada el 2026-09-22 con PT-01 (#25), que construye el paquete
 
 ## Contexto
 
