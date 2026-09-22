@@ -207,3 +207,18 @@ def test_yo_catalogos_y_estado(api: Cliente) -> None:
     assert estado["pendientes_por_revisar"] == 2
     # La cámara 02 nunca entregó video: el hueco tiene que verse.
     assert [c["fuente"]["id"] for c in estado["cobertura"]["sin_cobertura"]] == [2]
+
+
+def test_un_hallazgo_sin_video_sigue_cumpliendo_el_contrato(
+    api: Cliente, datos: dict[str, Any], bd: Any
+) -> None:
+    """`video_id` es ON DELETE SET NULL: el visor no manda nulos que el contrato no admite."""
+    from sqlalchemy import text
+
+    with bd.begin() as c:
+        c.execute(
+            text("UPDATE hallazgo SET video_id = NULL WHERE id = :id"),
+            {"id": datos["hallazgos"][0]},
+        )
+    d = api.llamar("obtenerHallazgo", "GET", f"/hallazgos/{datos['hallazgos'][0]}")
+    assert "video_archivo" not in d["tecnicos"] and d["tecnicos"]["track_id"] == 1

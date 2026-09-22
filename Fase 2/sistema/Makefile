@@ -35,9 +35,8 @@ test-gpu:  ## Ejecuta también las pruebas que necesitan GPU
 cobertura:  ## Pruebas con informe de cobertura
 	uv run pytest --cov --cov-report=term-missing --cov-report=html
 
-contrato:  ## Exporta el OpenAPI y falla si cambió sin actualizar el contrato
+contrato:  ## Falla si la API sirve operaciones distintas de contracts/openapi.yaml
 	uv run python scripts/exportar_openapi.py
-	git diff --exit-code contracts/openapi.json
 
 contrato-lint:  ## Valida el contrato OpenAPI
 	npx --yes @redocly/cli@latest lint contracts/openapi.yaml

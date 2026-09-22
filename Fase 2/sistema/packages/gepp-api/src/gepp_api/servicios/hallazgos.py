@@ -319,6 +319,10 @@ def detalle(bd: Session, h: Hallazgo, sesion: SesionActual, tz: ZoneInfo) -> dic
             "acciones": [accion_a_json(a, tz) for a in acciones],
         }
     )
+    # Campos opcionales que el contrato NO admite nulos: sin dato (p. ej. un hallazgo cuyo
+    # video se borró), se omiten en vez de mandar null.
+    for bloque in ("por_que_se_disparo", "tecnicos"):
+        base[bloque] = {k: v for k, v in base[bloque].items() if v is not None}
     return base
 
 
