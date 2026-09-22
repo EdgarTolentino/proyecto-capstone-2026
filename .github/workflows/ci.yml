@@ -103,6 +103,9 @@ jobs:
           cache-dependency-glob: Fase 2/sistema/uv.lock
           python-version: ${{ matrix.python }}
       - run: uv sync --all-packages --frozen
+      # ffprobe: sin él se salta la prueba que fecha el video desde sus metadatos (ADR-005).
+      - name: ffmpeg
+        run: sudo apt-get update -qq && sudo apt-get install -y -qq ffmpeg
       # Sin GPU en los ejecutores de GitHub: los tests marcados 'gpu' se omiten.
       # El dominio es Python puro justo para que esto sea posible (ADR-007).
       - name: pytest
