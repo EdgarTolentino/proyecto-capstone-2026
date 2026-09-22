@@ -17,7 +17,7 @@ from gepp_core import Severidad, TipoEPP
 from sqlalchemy import select
 from sqlalchemy.orm import Session
 
-from gepp_bd.modelos import Area, Faena, Fuente, Zona
+from gepp_bd.modelos import ROLES, Area, Faena, Fuente, Usuario, Zona
 from gepp_bd.repositorios import reglas
 from gepp_bd.sesion import crear_motor, transaccion
 
@@ -44,7 +44,7 @@ def _epp(nombres: list[str], donde: str) -> frozenset[TipoEPP]:
 
 
 def cargar(sesion: Session, perfil: dict[str, Any]) -> Faena:
-    """Inserta faena, áreas, fuentes, zonas y reglas. Devuelve la faena.
+    """Inserta faena, áreas, fuentes, zonas, usuarios de demostración y reglas. Devuelve la faena.
 
     Todas las referencias entre secciones son por nombre y se validan: un área o una
     fuente mal escrita falla con el nombre, no con un error de clave foránea.
@@ -100,6 +100,21 @@ def cargar(sesion: Session, perfil: dict[str, Any]) -> Faena:
                 tipo=z["tipo"],
                 poligono=z["poligono"],
                 solape_minimo=z.get("solape_minimo", 0.5),
+            )
+        )
+    sesion.flush()
+
+    for u in perfil.get("usuarios", []):
+        donde = f"usuario {u['email']!r}"
+        if u["rol"] not in ROLES:
+            raise PerfilInvalido(f"{donde}: rol {u['rol']!r} inválido")
+        area = area_de(u["area"], donde) if u.get("area") else None
+        sesion.add(
+            Usuario(
+                email=u["email"],
+                nombre=u["nombre"],
+                rol=u["rol"],
+                area_id=area.id if area else None,
             )
         )
     sesion.flush()

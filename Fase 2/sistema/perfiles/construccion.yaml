@@ -74,3 +74,20 @@ reglas:
     norma_fundante: DS 594 art. 53
     finalidad_declarada: Verificar el uso del EPP obligatorio en el frente de trabajo
     retencion_dias: 30
+
+# Usuarios de DEMOSTRACIÓN: roles, no personas. Correos en el dominio reservado `.invalid`
+# (RFC 2606): no pueden pertenecer a nadie. `Authorization: Bearer demo` entra como el primero.
+usuarios:
+  - email: prevencionista@obra.invalid
+    nombre: Prevencionista de turno
+    rol: prevencionista
+  - email: supervisor.acceso@obra.invalid
+    nombre: Supervisor de acceso
+    rol: supervisor
+    area: Acceso y patio de materiales
+  - email: administrador@obra.invalid
+    nombre: Administrador del sistema
+    rol: administrador
+  - email: auditor@obra.invalid
+    nombre: Auditor externo
+    rol: auditor

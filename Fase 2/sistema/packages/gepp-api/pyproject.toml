@@ -3,7 +3,13 @@ name = "gepp-api"
 version = "0.1.0"
 description = "API HTTP y persistencia. NO importa gepp-vision (ver ADR-007)"
 requires-python = ">=3.12,<3.14"
-dependencies = ["gepp-core"]
+dependencies = [
+    "fastapi>=0.115",
+    "gepp-bd",
+    "gepp-core",
+    "prometheus-client>=0.20",
+    "uvicorn>=0.30",
+]
 
 [build-system]
 requires = ["uv_build>=0.9,<0.13"]
@@ -15,3 +21,4 @@ module-root = "src"
 
 [tool.uv.sources]
 gepp-core = { workspace = true }
+gepp-bd = { workspace = true }
