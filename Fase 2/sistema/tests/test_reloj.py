@@ -16,6 +16,18 @@ from gepp_core import Caja, ClaseDetectada, Deteccion
 
 PAQUETES = Path(__file__).resolve().parents[1] / "packages"
 
+#: El reloj nace en `FuenteArchivo` leyendo metadatos o mtime, nunca la hora de proceso:
+#: por eso la ingesta y la visión entran en la vigilancia igual que el dominio.
+PAQUETES_VIGILADOS = ("gepp-core", "gepp-worker", "gepp-vision")
+
+
+def _modulos_vigilados() -> list[Path]:
+    return [
+        archivo
+        for paquete in PAQUETES_VIGILADOS
+        for archivo in sorted((PAQUETES / paquete / "src").rglob("*.py"))
+    ]
+
 
 def test_una_deteccion_sin_zona_horaria_no_se_construye() -> None:
     with pytest.raises(ValueError, match="zona horaria"):
@@ -28,14 +40,19 @@ def test_una_deteccion_sin_zona_horaria_no_se_construye() -> None:
         )
 
 
+def test_la_vigilancia_cubre_ingesta_y_vision() -> None:
+    nombres = {archivo.name for archivo in _modulos_vigilados()}
+    assert {"dominio.py", "fuente_archivo.py", "muestreo.py", "privacidad.py"} <= nombres
+
+
 def test_ningun_modulo_de_dominio_llama_al_reloj_del_sistema() -> None:
-    """Prohibido `datetime.now()` fuera del ingestor.
+    """Prohibido `datetime.now()` en el dominio, la ingesta y la visión.
 
     Se comprueba sobre el árbol sintáctico, no con una búsqueda de texto: así no
     lo saltan ni un alias ni un comentario.
     """
     infractores: list[str] = []
-    for archivo in (PAQUETES / "gepp-core" / "src").rglob("*.py"):
+    for archivo in _modulos_vigilados():
         arbol = ast.parse(archivo.read_text(encoding="utf-8"), filename=str(archivo))
         for nodo in ast.walk(arbol):
             es_llamada_al_reloj = (
@@ -44,7 +61,7 @@ def test_ningun_modulo_de_dominio_llama_al_reloj_del_sistema() -> None:
                 and nodo.func.attr in {"now", "utcnow", "today"}
             )
             if es_llamada_al_reloj:
-                infractores.append(f"{archivo.name}:{nodo.lineno}")
+                infractores.append(f"{archivo.relative_to(PAQUETES)}:{nodo.lineno}")
 
     assert not infractores, (
         "El dominio no puede leer el reloj del sistema; el timestamp viene del "
