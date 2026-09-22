@@ -7,6 +7,7 @@ ONNX en las que no la tienen, y (c) usar un detector falso en las pruebas.
 
 from __future__ import annotations
 
+from datetime import datetime
 from typing import Protocol, runtime_checkable
 
 import numpy as np
@@ -17,7 +18,16 @@ from gepp_core import Deteccion
 class Detector(Protocol):
     """Cualquier cosa que mire una imagen y devuelva detecciones."""
 
-    def detectar(self, imagen: np.ndarray) -> list[Deteccion]: ...
+    def detectar(
+        self, imagen: np.ndarray, *, cuadro_idx: int, capture_ts: datetime
+    ) -> list[Deteccion]:
+        """Detecta sobre `imagen`. El índice y el instante los pone quien llama.
+
+        `Deteccion` exige `capture_ts` con zona horaria y el detector no puede inventarlo
+        (ADR-005): lo recibe del cuadro. Devuelve `track_id=None`; dar identidad a lo
+        largo del tiempo es trabajo del `Seguidor`.
+        """
+        ...
 
     @property
     def version(self) -> str:
