@@ -12,7 +12,7 @@ from sqlalchemy import Engine
 
 from gepp_api import errores
 from gepp_api.config import PREFIJO, Configuracion
-from gepp_api.routers import catalogos, hallazgos, reglas, videos
+from gepp_api.routers import catalogos, hallazgos, metricas, panel, reglas, reportes, videos
 
 
 def crear_app(motor: Engine | None = None, config: Configuracion | None = None) -> FastAPI:
@@ -33,10 +33,11 @@ def crear_app(motor: Engine | None = None, config: Configuracion | None = None) 
     )
     errores.registrar(app)
     incluir_routers(app)
+    metricas.montar(app)
     return app
 
 
 def incluir_routers(app: FastAPI) -> None:
     """Separado de `crear_app` para que `make contrato` inspeccione las rutas sin base."""
-    for modulo in (hallazgos, catalogos, videos, reglas):
+    for modulo in (hallazgos, catalogos, videos, reglas, panel, reportes):
         app.include_router(modulo.router, prefix=PREFIJO)
