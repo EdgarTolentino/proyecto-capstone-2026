@@ -4,10 +4,12 @@ version = "0.1.0"
 description = "Ingesta: carpeta vigilada (v1) y RTSP (v2)"
 requires-python = ">=3.12,<3.14"
 dependencies = [
+    "gepp-bd",
     "gepp-core",
     "gepp-vision",
     "numpy>=2.0",
     "opencv-python-headless>=4.10",
+    "redis>=5",
 ]
 
 [build-system]
@@ -21,3 +23,4 @@ module-root = "src"
 [tool.uv.sources]
 gepp-core = { workspace = true }
 gepp-vision = { workspace = true }
+gepp-bd = { workspace = true }

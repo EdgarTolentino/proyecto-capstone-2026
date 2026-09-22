@@ -42,7 +42,16 @@ def test_una_deteccion_sin_zona_horaria_no_se_construye() -> None:
 
 def test_la_vigilancia_cubre_ingesta_y_vision() -> None:
     nombres = {archivo.name for archivo in _modulos_vigilados()}
-    assert {"dominio.py", "fuente_archivo.py", "muestreo.py", "privacidad.py"} <= nombres
+    assert {
+        "dominio.py",
+        "fuente_archivo.py",
+        "muestreo.py",
+        "privacidad.py",
+        "vigilante.py",
+        "cola.py",
+        "trabajador.py",
+        "evidencia.py",
+    } <= nombres
 
 
 def test_ningun_modulo_de_dominio_llama_al_reloj_del_sistema() -> None:
