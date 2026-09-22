@@ -23,6 +23,19 @@ entrenado lo reemplaza en PT-08 sin tocar nada más. Así se dice en la demostra
 En Windows todo se corre dentro de WSL2 y el repositorio se clona en el disco de Linux
 (`~/`), **no** en `/mnt/c/`: la ingesta rechaza rutas bajo `/mnt/` (ADR-005).
 
+## Todo con un comando
+
+```bash
+cd "Fase 2/sistema"
+make setup                                        # solo la primera vez
+make demo-todo VIDEO=~/videos/generativa.mp4      # base, demo, API y web; abre el navegador
+make demo-apagar                                  # al terminar
+```
+
+`FUENTE=1` usa la cámara de acceso (regla alta: el aviso va al resumen); por defecto es la 2
+(regla crítica: aviso inmediato). Si el `.env` tiene el bot de Telegram, arranca también el
+despachador. Los pasos de abajo son lo mismo, uno por uno.
+
 ## Pasos
 
 Desde `Fase 2/sistema`:
@@ -40,7 +53,7 @@ imprime lo que quedó en la base. Lo esperado:
 | Bloque | Esperado |
 |---|---|
 | Video | `listo` · 40 cuadros (8 s a 5 fps) · reloj `mtime` |
-| Hallazgos | **1**: sin casco ni chaleco, ~3,4 s, "Casco y chaleco en acceso" |
+| Hallazgos | **1**: sin casco ni chaleco, ~2 s (con `FUENTE=2`, "Casco y chaleco en obra gruesa", crítico) |
 | Evidencia | 1 recorte |
 | Avisos (outbox) | 1 pendiente |
 
@@ -63,7 +76,7 @@ recorte pixelado, la línea de tiempo (primera detección → umbral → fin) y 
 |---|---|---|
 | 0:00 | La carpeta con el video | "Este es un video de cámara fija de obra. Es sintético, generado con IA: no hay personas reales" |
 | 0:20 | `make demo` corriendo | "Lo dejo en la carpeta que vigila el sistema. Se lee a 5 cuadros por segundo; el detector hoy es simulado y en la semana 8 entra el modelo" |
-| 0:50 | La tabla de hallazgos | "Un hallazgo: sin casco ni chaleco, 3,4 segundos. El que estuvo 1,5 s sin casco no cuenta: la regla pide 2 s" |
+| 0:50 | La tabla de hallazgos | "Un hallazgo: sin casco ni chaleco, unos 2 segundos: lleva gorra, no casco. El que estuvo 1,5 s sin casco no cuenta: la regla pide 2 s" |
 | 1:10 | La segunda copia sin duplicar | "Si el mismo video llega dos veces, no se duplica nada: la clave es el hash del archivo" |
 | 1:30 | La bandeja | "El prevencionista ve la bandeja; cada hallazgo dice que es un indicio y requiere validación humana" |
 | 1:50 | El visor | "La evidencia se guarda ya pixelada: no existe una versión con rostro. Y aquí se explica qué regla, qué versión y qué umbral" |

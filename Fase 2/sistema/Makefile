@@ -11,7 +11,7 @@ endif
 # La base de docker/compose.yml. Si exportas GEPP_BD_URL (o la pones en .env y la cargas), manda esa.
 export GEPP_BD_URL ?= postgresql+psycopg://gepp:gepp_dev@localhost:5432/gepp
 
-.PHONY: ayuda setup lint fmt tipos test test-gpu cobertura contrato contrato-lint mock up down migrar semilla demo demo-api api despachador telegram-chat-id limpiar
+.PHONY: ayuda setup lint fmt tipos test test-gpu cobertura contrato contrato-lint mock up down migrar semilla demo demo-todo demo-apagar demo-api api despachador telegram-chat-id limpiar
 
 ayuda:  ## Muestra esta ayuda
 	@grep -E '^[a-z-]+:.*?## .*$$' $(MAKEFILE_LIST) | awk 'BEGIN{FS=":.*?## "};{printf "  \033[36m%-12s\033[0m %s\n", $$1, $$2}'
@@ -67,6 +67,13 @@ semilla:  ## Carga el perfil de construcción (ADR-011); PERFIL=perfiles/otro.ya
 demo:  ## Demo de punta a punta con detector simulado: make demo VIDEO=ruta.mp4 [GUION=...] [FUENTE=2]
 	@test -n "$(VIDEO)" || { echo "uso: make demo VIDEO=ruta/al/video.mp4 [GUION=demo/guion_cam03.json]"; exit 2; }
 	uv run python scripts/demo.py "$(VIDEO)" $(if $(GUION),--guion "$(GUION)") $(if $(FUENTE),--fuente $(FUENTE))
+
+demo-todo:  ## TODO de una vez (base, demo, API, web): make demo-todo VIDEO=ruta.mp4 [FUENTE=1]
+	@test -n "$(VIDEO)" || { echo "uso: make demo-todo VIDEO=ruta/al/video.mp4 [FUENTE=1]"; exit 2; }
+	./scripts/demo_todo.sh "$(VIDEO)" $(or $(FUENTE),2)
+
+demo-apagar:  ## Apaga la API, la web y el despachador de demo-todo
+	./scripts/demo_apagar.sh
 
 demo-api:  ## API sobre la base de la última `make demo`, para verla en la web
 	GEPP_BD_URL=$(GEPP_BD_URL)_demo uv run python -m gepp_api
