@@ -1,0 +1,13 @@
+{
+  "version": "sin-casco-3s",
+  "segmentos": [
+    {
+      "desde_s": 0.0,
+      "hasta_s": 3.0,
+      "detecciones": [
+        {"clase": "persona", "caja": [0.40, 0.20, 0.52, 0.80], "confianza": 0.90},
+        {"clase": "chaleco", "caja": [0.43, 0.40, 0.49, 0.51], "confianza": 0.85}
+      ]
+    }
+  ]
+}
