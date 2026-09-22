@@ -22,7 +22,13 @@ dev  = [
     { include-group = "scripts" },
     "fakeredis>=2.38.0",
 ]
-test = ["pytest>=8", "pytest-cov", "pytest-asyncio", "httpx"]
+test = [
+    "pytest>=8",
+    "pytest-cov",
+    "pytest-asyncio",
+    "httpx",
+    "jsonschema>=4.23",
+]
 lint = ["ruff>=0.16", "mypy>=1.11"]
 scripts = ["pyyaml>=6.0", "types-pyyaml"]
 

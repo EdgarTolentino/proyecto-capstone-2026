@@ -1,7 +1,7 @@
 """PostgreSQL real para las pruebas de persistencia (ADR-012).
 
-Se usa una base aparte, `<base>_pruebas`, creada desde cero en cada corrida: las pruebas
-nunca tocan los datos de desarrollo. Sin PostgreSQL disponible se omiten, salvo que
+Se usa una base aparte, `<base>_pruebas_<pid>`, creada en cada corrida y borrada al final:
+las pruebas nunca tocan los datos de desarrollo. Sin PostgreSQL disponible se omiten, salvo que
 `GEPP_EXIGIR_BD=1` (así corre CI): ahí una base caída es un fallo, no un salto silencioso.
 """
 
@@ -37,7 +37,9 @@ TABLAS = (
 
 def _url_de_pruebas() -> str:
     base = make_url(os.environ.get("GEPP_BD_URL", URL_POR_DEFECTO))
-    return base.set(database=f"{base.database}_pruebas").render_as_string(hide_password=False)
+    # Una base por proceso: dos corridas a la vez (dos terminales, un agente) no se pisan.
+    nombre = f"{base.database}_pruebas_{os.getpid()}"
+    return base.set(database=nombre).render_as_string(hide_password=False)
 
 
 @pytest.fixture(scope="session")
@@ -57,6 +59,10 @@ def url_bd() -> Iterator[str]:
         admin.dispose()
     subir(url)
     yield url
+    admin = create_engine(make_url(url).set(database="postgres"), isolation_level="AUTOCOMMIT")
+    with admin.connect() as c:
+        c.execute(text(f'DROP DATABASE IF EXISTS "{nombre}" WITH (FORCE)'))
+    admin.dispose()
 
 
 @pytest.fixture(scope="session")

@@ -4,7 +4,7 @@
 # La base de docker/compose.yml. Si exportas GEPP_BD_URL (o la pones en .env y la cargas), manda esa.
 export GEPP_BD_URL ?= postgresql+psycopg://gepp:gepp_dev@localhost:5432/gepp
 
-.PHONY: ayuda setup lint fmt tipos test test-gpu cobertura contrato contrato-lint mock up down migrar semilla demo limpiar
+.PHONY: ayuda setup lint fmt tipos test test-gpu cobertura contrato contrato-lint mock up down migrar semilla demo api limpiar
 
 ayuda:  ## Muestra esta ayuda
 	@grep -E '^[a-z-]+:.*?## .*$$' $(MAKEFILE_LIST) | awk 'BEGIN{FS=":.*?## "};{printf "  \033[36m%-12s\033[0m %s\n", $$1, $$2}'
@@ -35,9 +35,8 @@ test-gpu:  ## Ejecuta también las pruebas que necesitan GPU
 cobertura:  ## Pruebas con informe de cobertura
 	uv run pytest --cov --cov-report=term-missing --cov-report=html
 
-contrato:  ## Exporta el OpenAPI y falla si cambió sin actualizar el contrato
+contrato:  ## Falla si la API sirve operaciones distintas de contracts/openapi.yaml
 	uv run python scripts/exportar_openapi.py
-	git diff --exit-code contracts/openapi.json
 
 contrato-lint:  ## Valida el contrato OpenAPI
 	npx --yes @redocly/cli@latest lint contracts/openapi.yaml
@@ -61,6 +60,9 @@ semilla:  ## Carga el perfil de construcción (ADR-011); PERFIL=perfiles/otro.ya
 demo:  ## Demo de punta a punta con detector simulado: make demo VIDEO=ruta.mp4 [GUION=...]
 	@test -n "$(VIDEO)" || { echo "uso: make demo VIDEO=ruta/al/video.mp4 [GUION=demo/guion_cam03.json]"; exit 2; }
 	uv run python scripts/demo.py "$(VIDEO)" $(if $(GUION),--guion "$(GUION)")
+
+api:  ## Levanta la API real en :8000. La web: VITE_API_URL=http://localhost:8000/api/v1 npm run dev
+	uv run python -m gepp_api
 
 limpiar:  ## Borra cachés
 	rm -rf .pytest_cache .ruff_cache .mypy_cache htmlcov .coverage
