@@ -108,13 +108,13 @@ def cargar(sesion: Session, perfil: dict[str, Any]) -> Faena:
         donde = f"usuario {u['email']!r}"
         if u["rol"] not in ROLES:
             raise PerfilInvalido(f"{donde}: rol {u['rol']!r} inválido")
-        area = area_de(u["area"], donde) if u.get("area") else None
+        area_usuario = area_de(u["area"], donde) if u.get("area") else None
         sesion.add(
             Usuario(
                 email=u["email"],
                 nombre=u["nombre"],
                 rol=u["rol"],
-                area_id=area.id if area else None,
+                area_id=area_usuario.id if area_usuario else None,
             )
         )
     sesion.flush()

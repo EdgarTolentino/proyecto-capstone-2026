@@ -12,7 +12,7 @@ from sqlalchemy import Engine
 
 from gepp_api import errores
 from gepp_api.config import PREFIJO, Configuracion
-from gepp_api.routers import catalogos, hallazgos
+from gepp_api.routers import catalogos, hallazgos, metricas, panel, reportes
 
 
 def crear_app(motor: Engine | None = None, config: Configuracion | None = None) -> FastAPI:
@@ -32,6 +32,7 @@ def crear_app(motor: Engine | None = None, config: Configuracion | None = None) 
         allow_headers=["Authorization", "Content-Type"],
     )
     errores.registrar(app)
-    for modulo in (hallazgos, catalogos):
+    for modulo in (hallazgos, catalogos, panel, reportes):
         app.include_router(modulo.router, prefix=PREFIJO)
+    metricas.montar(app)
     return app
