@@ -11,12 +11,15 @@ from collections.abc import Iterator
 
 from fastapi import FastAPI
 from fastapi.responses import Response
-from gepp_bd.modelos import Fuente, Hallazgo, Video
+from gepp_bd.modelos import AccionCorrectiva, Faena, Fuente, Hallazgo, Notificacion, Video
+from gepp_bd.turnos import turno_en_curso
 from prometheus_client import CONTENT_TYPE_LATEST, CollectorRegistry, generate_latest
 from prometheus_client.core import CounterMetricFamily, GaugeMetricFamily, Metric
 from prometheus_client.registry import Collector
 from sqlalchemy import func, select
 from sqlalchemy.orm import Session, sessionmaker
+
+from gepp_api.notificaciones.politica import PRESUPUESTO_POR_TURNO
 
 
 class ColectorFuentes(Collector):
@@ -79,11 +82,67 @@ class ColectorFuentes(Collector):
         yield from (videos, cuadros, proceso, hallazgos, ultima)
 
 
+class ColectorAlertas(Collector):
+    """El presupuesto de avisos, MEDIDO, y la tasa de alertas accionables (ADR-008)."""
+
+    def __init__(self, fabrica: sessionmaker[Session]) -> None:
+        self._fabrica = fabrica
+
+    def collect(self) -> Iterator[Metric]:
+        avisos = GaugeMetricFamily(
+            "gepp_avisos", "Notificaciones por tipo y estado", labels=["tipo", "estado"]
+        )
+        turno = GaugeMetricFamily(
+            "gepp_avisos_inmediatos_turno",
+            "Avisos inmediatos enviados en el turno en curso (un aviso agrupado cuenta una vez)",
+            labels=["turno"],
+        )
+        presupuesto = GaugeMetricFamily(
+            "gepp_presupuesto_avisos_turno", "Presupuesto de avisos inmediatos por turno de 12 h"
+        )
+        presupuesto.add_metric([], PRESUPUESTO_POR_TURNO)
+        accionables = GaugeMetricFamily(
+            "gepp_alertas_accionables_ratio",
+            "Hallazgos avisados que terminaron en acción correctiva / hallazgos avisados",
+        )
+        with self._fabrica() as s:
+            for tipo, estado, n in s.execute(
+                select(Notificacion.tipo, Notificacion.estado, func.count()).group_by(
+                    Notificacion.tipo, Notificacion.estado
+                )
+            ):
+                avisos.add_metric([tipo, estado], n)
+            zona = s.scalar(select(Faena.zona_horaria).limit(1)) or "America/Santiago"
+            t, inicio = turno_en_curso(s.execute(select(func.now())).scalar_one(), zona)
+            enviados = s.scalar(
+                select(func.count(func.distinct(Notificacion.id_externo))).where(
+                    Notificacion.tipo == "inmediata",
+                    Notificacion.estado.in_(("enviada", "acusada")),
+                    Notificacion.enviada_en >= inicio,
+                )
+            )
+            turno.add_metric([t.codigo], enviados or 0)
+            avisados = select(Notificacion.hallazgo_id).where(
+                Notificacion.estado.in_(("enviada", "acusada")),
+                Notificacion.hallazgo_id.isnot(None),
+            )
+            emitidos = s.scalar(select(func.count(func.distinct(avisados.c.hallazgo_id))))
+            if emitidos:
+                con_accion = s.scalar(
+                    select(func.count(func.distinct(AccionCorrectiva.hallazgo_id))).where(
+                        AccionCorrectiva.hallazgo_id.in_(avisados)
+                    )
+                )
+                accionables.add_metric([], (con_accion or 0) / emitidos)
+        yield from (avisos, turno, presupuesto, accionables)
+
+
 def montar(app: FastAPI) -> None:
     """Registro propio por aplicación: el global de prometheus_client duplicaría métricas
     entre instancias (y entre pruebas)."""
     registro = CollectorRegistry()
     registro.register(ColectorFuentes(app.state.fabrica))
+    registro.register(ColectorAlertas(app.state.fabrica))
 
     @app.get("/metrics", include_in_schema=False)
     def metricas() -> Response:

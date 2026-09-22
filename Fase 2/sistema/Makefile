@@ -1,10 +1,17 @@
 # Seis verbos. Ni uno más: lo primero que mira alguien nuevo en el repositorio.
 # Encapsula la ruta con espacio para que nadie tenga que escribirla.
 
+# El .env (nunca versionado) se carga si existe: así el token de Telegram no se escribe en la
+# terminal ni queda en el historial.
+ifneq (,$(wildcard .env))
+include .env
+export
+endif
+
 # La base de docker/compose.yml. Si exportas GEPP_BD_URL (o la pones en .env y la cargas), manda esa.
 export GEPP_BD_URL ?= postgresql+psycopg://gepp:gepp_dev@localhost:5432/gepp
 
-.PHONY: ayuda setup lint fmt tipos test test-gpu cobertura contrato contrato-lint mock up down migrar semilla demo demo-api api limpiar
+.PHONY: ayuda setup lint fmt tipos test test-gpu cobertura contrato contrato-lint mock up down migrar semilla demo demo-api api despachador telegram-chat-id limpiar
 
 ayuda:  ## Muestra esta ayuda
 	@grep -E '^[a-z-]+:.*?## .*$$' $(MAKEFILE_LIST) | awk 'BEGIN{FS=":.*?## "};{printf "  \033[36m%-12s\033[0m %s\n", $$1, $$2}'
@@ -57,15 +64,21 @@ migrar:  ## Aplica las migraciones a la base de GEPP_BD_URL (ver .env.example)
 semilla:  ## Carga el perfil de construcción (ADR-011); PERFIL=perfiles/otro.yaml para cambiarlo
 	uv run python -m gepp_bd.semilla $(or $(PERFIL),perfiles/construccion.yaml)
 
-demo:  ## Demo de punta a punta con detector simulado: make demo VIDEO=ruta.mp4 [GUION=...]
+demo:  ## Demo de punta a punta con detector simulado: make demo VIDEO=ruta.mp4 [GUION=...] [FUENTE=2]
 	@test -n "$(VIDEO)" || { echo "uso: make demo VIDEO=ruta/al/video.mp4 [GUION=demo/guion_cam03.json]"; exit 2; }
-	uv run python scripts/demo.py "$(VIDEO)" $(if $(GUION),--guion "$(GUION)")
+	uv run python scripts/demo.py "$(VIDEO)" $(if $(GUION),--guion "$(GUION)") $(if $(FUENTE),--fuente $(FUENTE))
 
 demo-api:  ## API sobre la base de la última `make demo`, para verla en la web
 	GEPP_BD_URL=$(GEPP_BD_URL)_demo uv run python -m gepp_api
 
 api:  ## Levanta la API real en :8000. La web: VITE_API_URL=http://localhost:8000/api/v1 npm run dev
 	uv run python -m gepp_api
+
+despachador:  ## Envía los avisos del outbox por Telegram (GEPP_TELEGRAM_TOKEN en .env)
+	uv run python -m gepp_api.notificaciones
+
+telegram-chat-id:  ## Muestra el chat_id de quien le escribió al bot (GEPP_AVISO_DESTINATARIO)
+	uv run python scripts/telegram_chat_id.py
 
 limpiar:  ## Borra cachés
 	rm -rf .pytest_cache .ruff_cache .mypy_cache htmlcov .coverage
