@@ -31,6 +31,27 @@ GEPP_UMBRAL_CONFIANZA=0.25
 
 Si el archivo no existe, el trabajador se detiene al arrancar y lo dice.
 
+## Probar un video propio
+
+```
+make demo-todo VIDEO=ruta/al/video.mp4 MODELO=ruta/rfdetr-nano.onnx
+```
+
+Recrea la base de demo, procesa el video con el modelo y deja la API y la web arriba
+(`http://localhost:5173`). Para apagar: `make demo-apagar`. Sin la web: `make demo VIDEO=... MODELO=...`.
+
+Si el video falla, igual se levantan la API y la web. El motivo queda en la cola de videos
+(`error_motivo`), y también en la salida de la demo:
+
+| Motivo | Qué significa | Qué hacer |
+|---|---|---|
+| `No se pudo leer el video: ...` | El archivo no es un video o está dañado | Probar con otro archivo, o convertirlo a MP4 (H.264) |
+| `... no tiene reglas activas` / `ninguna regla se puede aplicar` | La cámara no tiene reglas que evaluar | Revisar las reglas del área y usar "Reprocesar" |
+| `falta el mapa de clases junto al modelo` | Falta el `.clases.json` al lado del `.onnx` | Copiarlo junto al modelo |
+
+Un video queda en `error` después de 3 intentos. Corregida la causa, "Reprocesar" lo
+devuelve a la cola.
+
 ## Exportar un modelo (solo en la máquina con GPU)
 
 ```

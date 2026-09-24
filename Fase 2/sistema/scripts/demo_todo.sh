@@ -1,14 +1,15 @@
 #!/usr/bin/env bash
 # Levanta TODO para mostrar el sistema: base y cola, demo sobre un video, API y web.
 #
-#   make demo-todo VIDEO=ruta.mp4 [FUENTE=2]     ·     make demo-apagar
+#   make demo-todo VIDEO=ruta.mp4 [MODELO=ruta.onnx] [FUENTE=2]     ·     make demo-apagar
 #
 # La API y la web quedan corriendo en segundo plano; sus registros y PID van a
 # $TMPDIR/gepp-demo. Si el .env tiene el bot de Telegram, también arranca el despachador.
 set -euo pipefail
 
-VIDEO="${1:?uso: demo_todo.sh VIDEO [FUENTE]}"
+VIDEO="${1:?uso: demo_todo.sh VIDEO [FUENTE] [MODELO]}"
 FUENTE="${2:-2}"
+MODELO="${3:-}"
 DIR="${TMPDIR:-/tmp}/gepp-demo"
 BASE_DEMO="${GEPP_BD_URL:-postgresql+psycopg://gepp:gepp_dev@localhost:5432/gepp}_demo"
 mkdir -p "$DIR"
@@ -28,8 +29,13 @@ esperar() { for _ in $(seq 60); do curl -s -o /dev/null "$1" && return 0; sleep 
 echo "1/4  PostgreSQL y Redis"
 docker compose -f docker/compose.yml up -d --wait postgres redis >/dev/null
 
-echo "2/4  Demo sobre $(basename "$VIDEO") (cámara $FUENTE)"
-uv run python scripts/demo.py "$VIDEO" --fuente "$FUENTE" | sed -n '/== Hallazgos/,/== Evidencia/p' | head -4
+echo "2/4  Demo sobre $(basename "$VIDEO") (cámara $FUENTE)${MODELO:+, modelo $(basename "$MODELO")}"
+# Si el video falla, igual se levantan la API y la web: el motivo se ve en la cola de videos.
+# La salida va a un archivo: filtrarla en una tubería con `head` puede cortarla y, con
+# pipefail, confundir un corte con un fallo del video.
+uv run python scripts/demo.py "$VIDEO" --fuente "$FUENTE" ${MODELO:+--modelo "$MODELO"} \
+  >"$DIR/demo.log" 2>&1 || echo "     el video no terminó listo: revisa error_motivo en la cola de videos"
+sed -n '/== Video/,/^$/p;/== Hallazgos/,/^$/p' "$DIR/demo.log" | head -12 || true
 
 echo "3/4  API en :8000"
 puerto_libre 8000 || { echo "el puerto 8000 está ocupado: $(quien 8000)" >&2; exit 1; }
