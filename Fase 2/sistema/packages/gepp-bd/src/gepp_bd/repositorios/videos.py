@@ -87,6 +87,22 @@ def cambiar_estado(
     sesion.execute(update(Video).where(Video.id == video_id).values(**valores))
 
 
+def completar_lectura(sesion: Session, video_id: int, leido: NuevoVideo) -> None:
+    """Reemplaza los datos de respaldo de un video que un intento anterior no pudo leer."""
+    sesion.execute(
+        update(Video)
+        .where(Video.id == video_id)
+        .values(
+            duracion_s=leido.duracion_s,
+            fps_declarado=leido.fps_declarado,
+            ancho=leido.ancho,
+            alto=leido.alto,
+            capture_ts_inicio=leido.capture_ts_inicio,
+            origen_capture_ts=leido.origen_capture_ts,
+        )
+    )
+
+
 def anotar_fallo(sesion: Session, video_id: int, motivo: str, *, definitivo: bool) -> None:
     """Un intento fallido: `reintentando` si vuelve a la cola, `error` si ya no."""
     sesion.execute(

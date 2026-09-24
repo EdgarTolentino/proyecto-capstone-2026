@@ -23,6 +23,7 @@ from gepp_bd.repositorios import evidencias
 from gepp_bd.semilla import cargar, leer
 from gepp_vision.detectores import DetectorFalso, Guion
 from gepp_worker.cola import MAXIMO_INTENTOS, ColaTrabajos, EstadoTrabajo
+from gepp_worker import trabajador as modulo_trabajador
 from gepp_worker.trabajador import Aviso, Configuracion, Trabajador
 from gepp_worker.vigilante import Vigilante
 from sqlalchemy import Engine, func, select, update
@@ -225,3 +226,42 @@ def test_una_camara_sin_reglas_deja_el_video_visible_con_su_motivo(entorno) -> N
     assert "no tiene reglas activas" in (video.error_motivo or "")
     assert video.duracion_s == SEGUNDOS
     assert video.capture_ts_inicio == MTIME - timedelta(seconds=SEGUNDOS)
+
+
+def test_si_el_archivo_se_lee_en_el_reintento_el_video_queda_con_sus_datos_reales(
+    entorno, monkeypatch: pytest.MonkeyPatch
+) -> None:  # type: ignore[no-untyped-def]
+    motor, entrada, _cola, vigilante, trabajador, _tmp = entorno
+    original = modulo_trabajador._propiedades
+    fallas = iter([OSError("Input/output error")])
+
+    def lee_a_la_segunda(ruta: Path):  # type: ignore[no-untyped-def]
+        if (e := next(fallas, None)) is not None:
+            raise modulo_trabajador.VideoIlegible(f"No se pudo leer el video: {e}")
+        return original(ruta)
+
+    monkeypatch.setattr(modulo_trabajador, "_propiedades", lee_a_la_segunda)
+    escribir_video_ruido(entrada / "clip.mp4")
+    vigilante.sondear()
+    vigilante.sondear()
+    assert trabajador.atender_uno() is None  # primer intento: registro de respaldo
+    assert trabajador.atender_uno() is not None
+
+    with transaccion(motor) as s:
+        (video,) = s.execute(select(Video)).scalars()
+    # Sin completar la lectura quedaría el reloj de respaldo (el FIN de la grabación).
+    assert (video.estado, video.intentos) == ("listo", 1)
+    assert video.capture_ts_inicio == MTIME - timedelta(seconds=SEGUNDOS)
+    assert (video.duracion_s, video.fps_declarado, video.ancho) == (SEGUNDOS, FPS, ANCHO)
+
+
+def test_si_no_se_puede_anotar_el_fallo_el_trabajador_sigue_vivo(entorno) -> None:  # type: ignore[no-untyped-def]
+    motor, entrada, cola, _vigilante, trabajador, _tmp = entorno
+    # Una fuente que no existe: ni el registro ni la anotación pasan la FK.
+    vigilante = Vigilante(entrada, cola, fuente_id=999)
+    escribir_video_ruido(entrada / "clip.mp4")
+    vigilante.sondear()
+    (trabajo,) = vigilante.sondear()
+    assert trabajador.atender_uno() is None  # no lanza: el bucle `correr` sigue
+    assert cola.estado(trabajo.hash_sha256) is EstadoTrabajo.PENDIENTE
+    assert contar(motor, Video) == 0

@@ -26,6 +26,7 @@ instante. Ningún instante de este módulo sale del reloj del sistema (ADR-005).
 
 from __future__ import annotations
 
+import sys
 import time
 from collections.abc import Callable, Iterator
 from dataclasses import dataclass
@@ -150,7 +151,14 @@ class Trabajador:
         except Exception as e:
             motivo = str(e) if isinstance(e, VideoIlegible) else f"{type(e).__name__}: {e}"
             estado = self._cola.reintentar(trabajo, motivo)
-            self._anotar_fallo(trabajo, motivo, definitivo=estado is EstadoTrabajo.ERROR)
+            try:
+                self._anotar_fallo(trabajo, motivo, definitivo=estado is EstadoTrabajo.ERROR)
+            except Exception as e2:
+                # El trabajo ya volvió a la cola con su motivo: anotar en la base no puede
+                # tumbar al trabajador (fuente inexistente, base caída, archivo borrado).
+                print(
+                    f"[trabajador] no se pudo anotar el fallo en la base: {e2!r}", file=sys.stderr
+                )
             return None
         self._cola.confirmar(trabajo)
         return resultado
@@ -160,8 +168,6 @@ class Trabajador:
         with transaccion(self._motor) as s:
             video = videos.por_hash(s, trabajo.hash_sha256)
             if video is None:
-                if not Path(trabajo.ruta).is_file():
-                    return  # el archivo ya no está: el motivo queda solo en la cola
                 video, _ = videos.registrar(s, _sin_leer(trabajo))
             videos.anotar_fallo(s, video.id, motivo, definitivo=definitivo)
 
@@ -186,24 +192,26 @@ class Trabajador:
 
     def _registrar(self, trabajo: Trabajo, props: PropiedadesFuente) -> _Contexto | None:
         duracion = props.cuadros_totales / props.fps if props.cuadros_totales is not None else None
+        nuevo = videos.NuevoVideo(
+            fuente_id=trabajo.fuente_id,
+            ruta=trabajo.ruta,
+            hash_sha256=trabajo.hash_sha256,
+            bytes=trabajo.bytes,
+            capture_ts_inicio=props.inicio_captura,
+            origen_capture_ts=props.origen_reloj,
+            duracion_s=duracion,
+            fps_declarado=props.fps,
+            ancho=props.ancho,
+            alto=props.alto,
+        )
         with transaccion(self._motor) as s:
-            video, _ = videos.registrar(
-                s,
-                videos.NuevoVideo(
-                    fuente_id=trabajo.fuente_id,
-                    ruta=trabajo.ruta,
-                    hash_sha256=trabajo.hash_sha256,
-                    bytes=trabajo.bytes,
-                    capture_ts_inicio=props.inicio_captura,
-                    origen_capture_ts=props.origen_reloj,
-                    duracion_s=duracion,
-                    fps_declarado=props.fps,
-                    ancho=props.ancho,
-                    alto=props.alto,
-                ),
-            )
+            video, _ = videos.registrar(s, nuevo)
             if video.estado == "listo":
                 return None
+            if video.fps_declarado is None:
+                # Un intento anterior no pudo leer el archivo y dejó datos de respaldo: el
+                # reloj era el FIN de la grabación. Ahora que se leyó, van los reales.
+                videos.completar_lectura(s, video.id, nuevo)
             video_id, fuente_id = video.id, video.fuente_id
         with transaccion(self._motor) as s:
             fuente = s.get(Fuente, fuente_id)
