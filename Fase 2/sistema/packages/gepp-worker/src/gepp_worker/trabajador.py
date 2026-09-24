@@ -42,7 +42,7 @@ from gepp_vision.evidencia import EvidenciaEscrita, escribir_evidencia
 from gepp_vision.pipeline import PipelineEtapa1
 from gepp_vision.privacidad import MascaraPrivacidad
 from gepp_vision.puertos import Detector, Seguidor
-from gepp_vision.seguimiento import SeguidorIoU
+from gepp_vision.seguimiento import SeguidorByteTrack
 from sqlalchemy import Engine, select
 
 from gepp_worker.cola import ColaTrabajos, EstadoTrabajo, Trabajo
@@ -131,7 +131,7 @@ class Trabajador:
         cola: ColaTrabajos,
         fabrica_detector: Callable[[], Detector],
         config: Configuracion,
-        fabrica_seguidor: Callable[[], Seguidor] = SeguidorIoU,
+        fabrica_seguidor: Callable[[], Seguidor] = SeguidorByteTrack,
     ) -> None:
         self._motor = motor
         self._cola = cola

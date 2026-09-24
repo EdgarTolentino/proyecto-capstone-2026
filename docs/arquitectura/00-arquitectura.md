@@ -121,7 +121,7 @@ corazón evaluable del proyecto— se pruebe en CI en segundos, sin GPU y sin vi
 | Pieza | Elección | Licencia | Por qué |
 |---|---|---|---|
 | Detector | **RF-DETR-N** → **RF-DETR-S** | Apache-2.0 | Permisiva de verdad; documenta 8 GB VRAM para *fine-tuning*; sin NMS; exporta a ONNX limpio |
-| Seguidor | **ByteTrack** vía `roboflow/trackers` | Apache-2.0 | El paquete cómodo (`boxmot`) es AGPL-3.0 |
+| Seguidor | **ByteTrack**, implementación propia (enmienda del ADR-002, 24-sep) | propia + `scipy` (BSD-3) | El paquete cómodo (`boxmot`) es AGPL-3.0; `roboflow/trackers` choca con `opencv-python-headless` |
 | VLM | **Qwen3-VL-4B** local, respaldo por API | Apache-2.0 | Solo describe hallazgos ya confirmados |
 | Runtime | PyTorch → ONNX Runtime (~S10) | — | ONNX es lo que permite a los compañeros correr el pipeline sin GPU |
 

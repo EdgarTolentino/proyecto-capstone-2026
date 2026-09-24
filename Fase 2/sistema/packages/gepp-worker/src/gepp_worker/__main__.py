@@ -8,10 +8,12 @@ Configuración desde el entorno (ver `.env.example`):
     GEPP_BD_URL · GEPP_REDIS_URL · GEPP_CARPETA_VIGILADA · GEPP_CARPETA_EVIDENCIA
     GEPP_FPS_OBJETIVO · GEPP_FUENTE_ID (fuente a la que pertenece la carpeta, 1 por defecto)
     GEPP_GUION_FALSO   ruta a un guion JSON: usa el detector falso (demostración sin modelo)
+    GEPP_MODELO_RUTA   si no hay guion: RF-DETR exportado a ONNX, con su `.clases.json` al lado
+    GEPP_UMBRAL_CONFIANZA  corte del detector ONNX (0.25 por defecto; ver `rfdetr_comun`)
     GEPP_AVISO_CANAL + GEPP_AVISO_DESTINATARIO: si están, cada hallazgo escribe su aviso
     GEPP_MAXIMO_INTENTOS: intentos antes de dejar un video en `error` (3 por defecto)
 
-El detector real (RF-DETR u ONNX) llega con PT-08; hasta entonces solo existe el falso.
+Sin `GEPP_GUION_FALSO`, el detector es RF-DETR exportado a ONNX (`docs/operacion/modelo-onnx.md`).
 """
 
 from __future__ import annotations
@@ -24,6 +26,10 @@ from pathlib import Path
 from typing import TYPE_CHECKING
 
 if TYPE_CHECKING:
+    from collections.abc import Callable
+
+    from gepp_vision import Detector
+
     from gepp_worker.cola import ColaTrabajos
 
 VARIABLES_OBLIGATORIAS = ("GEPP_BD_URL", "GEPP_REDIS_URL", "GEPP_CARPETA_VIGILADA")
@@ -58,17 +64,34 @@ def correr_vigilante() -> None:
     vigilante.correr(seguir=lambda: not parar.is_set())
 
 
+def _fabrica_detector() -> Callable[[], Detector]:
+    """El guion simulado si hay uno (demostración, CI); si no, el modelo ONNX."""
+    from gepp_vision.detectores import DetectorFalso, DetectorOnnx, Guion
+    from gepp_vision.detectores.rfdetr_comun import UMBRAL_CONFIANZA
+
+    if guion := os.environ.get("GEPP_GUION_FALSO"):
+        cargado = Guion.desde_json(Path(guion))
+        return lambda: DetectorFalso(cargado)
+    modelo = os.environ.get("GEPP_MODELO_RUTA")
+    if not modelo or not Path(modelo).is_file():
+        sys.exit(f"Falta el modelo: GEPP_MODELO_RUTA={modelo!r} no existe (o use GEPP_GUION_FALSO)")
+    texto = os.environ.get("GEPP_UMBRAL_CONFIANZA", str(UMBRAL_CONFIANZA))
+    try:
+        umbral = float(texto)
+    except ValueError:
+        sys.exit(f"GEPP_UMBRAL_CONFIANZA={texto!r} no es un número (use punto: 0.25)")
+    # Una sola sesión de ONNX Runtime para todos los videos: cargarla cuesta segundos.
+    detector = DetectorOnnx(Path(modelo), umbral=umbral)
+    return lambda: detector
+
+
 def correr_trabajador() -> None:
     from gepp_bd.sesion import crear_motor
-    from gepp_vision.detectores import DetectorFalso, Guion
 
     from gepp_worker.muestreo import fps_objetivo_configurado
     from gepp_worker.trabajador import Aviso, Configuracion, Trabajador
 
-    guion = os.environ.get("GEPP_GUION_FALSO")
-    if not guion:
-        sys.exit("Falta GEPP_GUION_FALSO: el detector real llega con PT-08")
-    guion_cargado = Guion.desde_json(Path(guion))
+    fabrica_detector = _fabrica_detector()
     canal, destino = os.environ.get("GEPP_AVISO_CANAL"), os.environ.get("GEPP_AVISO_DESTINATARIO")
     config = Configuracion(
         carpeta_evidencia=Path(os.environ.get("GEPP_CARPETA_EVIDENCIA", "/datos/evidencia")),
@@ -76,7 +99,7 @@ def correr_trabajador() -> None:
         aviso=Aviso(canal, destino) if canal and destino else None,
     )
     parar = _detenible()
-    trabajador = Trabajador(crear_motor(), _cola(), lambda: DetectorFalso(guion_cargado), config)
+    trabajador = Trabajador(crear_motor(), _cola(), fabrica_detector, config)
     print("[trabajador] esperando videos", flush=True)
     trabajador.correr(seguir=lambda: not parar.is_set())
 
