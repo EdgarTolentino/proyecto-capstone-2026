@@ -8,7 +8,7 @@ from zoneinfo import ZoneInfo
 
 from fastapi import APIRouter, Query, Request
 from gepp_bd.modelos import Fuente, Hallazgo, Video
-from gepp_bd.repositorios import auditoria
+from gepp_bd.repositorios import auditoria, videos
 from sqlalchemy import func, select
 
 from gepp_api.auth import Bd, Sesion
@@ -87,15 +87,32 @@ def listar_videos(
 
 @router.post("/videos/{id}/reprocesar", operation_id="reprocesarVideo", status_code=202)
 def reprocesar_video(id: int, request: Request, bd: Bd, sesion: Sesion) -> dict[str, Any]:
-    """Recalcula las reglas vigentes sobre las detecciones guardadas. Sin GPU ni video."""
+    """Un video `listo` se recalcula con las reglas vigentes sobre las detecciones guardadas,
+    sin GPU ni video. Uno que falló (`error` o `reintentando`) vuelve a la cola con los
+    intentos en cero: el trabajador lo encola en su próxima vuelta (#74)."""
     sesion.exigir("editar_reglas")
     v = bd.get(Video, id)
     if v is None:
         raise no_encontrado("video", id)
-    if v.estado != "listo":
-        raise ErrorApi(
-            409, "video_no_listo", f"El video {id} está {v.estado}: aún no hay detecciones"
+    tz = request.app.state.config.zona_horaria
+    if v.estado in ("error", "reintentando"):
+        previo = f"estaba {v.estado}: {v.error_motivo}"
+        if not videos.pedir_reintento(bd, v.id):
+            # El trabajador lo tomó entre la lectura y el UPDATE: ya se está procesando.
+            raise ErrorApi(409, "video_no_listo", f"El video {id} ya va a procesarse")
+        auditoria.registrar(
+            bd,
+            usuario_id=sesion.id,
+            rol=sesion.rol,
+            accion="video:reintentar",
+            entidad="video",
+            entidad_id=v.id,
+            motivo=previo,
         )
+        bd.refresh(v)
+        return video_a_json(bd, v, tz)
+    if v.estado != "listo":
+        raise ErrorApi(409, "video_no_listo", f"El video {id} está {v.estado}: ya va a procesarse")
     resultado = recalcular_video(bd, v)
     auditoria.registrar(
         bd,
@@ -110,4 +127,4 @@ def reprocesar_video(id: int, request: Request, bd: Bd, sesion: Sesion) -> dict[
             f"sin_gpu_ms={resultado.proceso_ms}"
         ),
     )
-    return video_a_json(bd, v, request.app.state.config.zona_horaria)
+    return video_a_json(bd, v, tz)

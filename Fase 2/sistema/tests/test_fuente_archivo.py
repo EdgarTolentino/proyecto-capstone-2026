@@ -13,6 +13,7 @@ from gepp_worker import FuenteArchivo, FuenteDeCuadros, OrigenReloj
 from gepp_worker.fuente_archivo import (
     MetadatosContenedor,
     parsear_ffprobe,
+    reloj_de_respaldo,
     resolver_inicio_captura,
     validar_ruta,
 )
@@ -165,3 +166,11 @@ def test_inicio_sale_de_los_metadatos_reales(video_25: Path, tmp_path: Path) -> 
     fuente.cerrar()
     assert props.origen_reloj == "metadatos"
     assert props.inicio_captura == datetime(2026, 9, 2, 2, 10, tzinfo=UTC)
+
+
+def test_el_reloj_de_respaldo_es_la_fecha_del_archivo(tmp_path: Path) -> None:
+    # Sin poder leer el video no hay duración: el mtime (fin de la grabación) es lo único.
+    roto = tmp_path / "roto.mp4"
+    roto.write_bytes(b"no es un video")
+    os.utime(roto, (T0.timestamp(), T0.timestamp()))
+    assert reloj_de_respaldo(roto) == (T0, OrigenReloj.MTIME)

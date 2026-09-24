@@ -66,6 +66,10 @@ class ColaTrabajos:
         self._pendientes = f"{PREFIJO}:trabajos:pendientes"
         self._procesando = f"{PREFIJO}:trabajos:procesando"
 
+    @property
+    def maximo_intentos(self) -> int:
+        return self._maximo
+
     def _clave(self, hash_sha256: str) -> str:
         return f"{PREFIJO}:video:{hash_sha256}"
 
@@ -94,6 +98,18 @@ class ColaTrabajos:
         self._r.lpush(self._pendientes, trabajo.a_json())
         return True
 
+    def reencolar(self, trabajo: Trabajo) -> None:
+        """Vuelve a encolar un video que ya pasó por la cola (alguien pidió reintentarlo),
+        con los intentos en cero. A diferencia de `encolar`, no mira si el hash ya estaba."""
+        limpio = replace(trabajo, intentos=0)
+        clave = self._clave(trabajo.hash_sha256)
+        self._r.hdel(clave, "motivo")
+        self._r.hset(
+            clave,
+            mapping={"estado": EstadoTrabajo.PENDIENTE.value, "ruta": trabajo.ruta, "intentos": 0},
+        )
+        self._r.lpush(self._pendientes, limpio.a_json())
+
     def tomar(self, espera_s: float = 0) -> Trabajo | None:
         """Mueve el trabajo más antiguo a `procesando`. Con `espera_s > 0` bloquea hasta ese
         tiempo esperando uno."""
@@ -111,13 +127,21 @@ class ColaTrabajos:
         self._r.lrem(self._procesando, 1, trabajo.a_json())
         self._r.hset(self._clave(trabajo.hash_sha256), "estado", EstadoTrabajo.LISTO.value)
 
-    def reintentar(self, trabajo: Trabajo, motivo: str) -> EstadoTrabajo:
-        """Cuenta un intento fallido: vuelve a la cola o, al llegar al máximo, queda en error."""
+    def reintentar(
+        self, trabajo: Trabajo, motivo: str, *, definitivo: bool | None = None
+    ) -> EstadoTrabajo:
+        """Cuenta un intento fallido: vuelve a la cola o queda en error.
+
+        `definitivo` lo decide quien lleva la cuenta de verdad (la base, #74). Sin él, manda
+        la cuenta propia de Redis: es el respaldo si la base no responde.
+        """
         self._r.lrem(self._procesando, 1, trabajo.a_json())
         siguiente = replace(trabajo, intentos=trabajo.intentos + 1)
         clave = self._clave(trabajo.hash_sha256)
         self._r.hset(clave, mapping={"intentos": siguiente.intentos, "motivo": motivo})
-        if siguiente.intentos >= self._maximo:
+        if definitivo is None:
+            definitivo = siguiente.intentos >= self._maximo
+        if definitivo:
             self._r.hset(clave, "estado", EstadoTrabajo.ERROR.value)
             return EstadoTrabajo.ERROR
         self._r.hset(clave, "estado", EstadoTrabajo.PENDIENTE.value)

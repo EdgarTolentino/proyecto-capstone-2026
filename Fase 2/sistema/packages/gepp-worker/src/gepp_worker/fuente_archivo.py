@@ -7,6 +7,9 @@ orden, de:
 2. los metadatos del contenedor (`creation_time` según `ffprobe`) → `"metadatos"`;
 3. la fecha de modificación del archivo menos su duración → `"mtime"`.
 
+Si el archivo ni siquiera se puede abrir, no hay duración que restar: `reloj_de_respaldo` da
+solo su fecha de modificación (el fin de la grabación), también como `"mtime"`.
+
 Nunca de la hora en que se procesa. Los valores de `origen_reloj` son los mismos que admite
 la columna `video.origen_capture_ts` (ver `docs/arquitectura/01-modelo-de-datos.md`).
 """
@@ -118,9 +121,16 @@ def resolver_inicio_captura(
         return manual.astimezone(UTC), OrigenReloj.MANUAL
     if metadatos.creation_time is not None:
         return metadatos.creation_time.astimezone(UTC), OrigenReloj.METADATOS
-    # El mtime marca el FIN de la grabación: la cámara cierra el archivo al terminar.
-    fin = datetime.fromtimestamp(ruta.stat().st_mtime, tz=UTC)
-    return fin - timedelta(seconds=duracion_s), OrigenReloj.MTIME
+    fin, origen = reloj_de_respaldo(ruta)
+    return fin - timedelta(seconds=duracion_s), origen
+
+
+def reloj_de_respaldo(ruta: Path) -> tuple[datetime, OrigenReloj]:
+    """El mtime, que marca el FIN de la grabación: la cámara cierra el archivo al terminar.
+
+    Solo, sin restarle la duración, es el reloj de un archivo que no se pudo leer (#29).
+    """
+    return datetime.fromtimestamp(ruta.stat().st_mtime, tz=UTC), OrigenReloj.MTIME
 
 
 class FuenteArchivo:

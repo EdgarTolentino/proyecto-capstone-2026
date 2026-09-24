@@ -91,7 +91,7 @@ repositorio: se sube a la carpeta del equipo y aquí se deja el enlace.
 |---|---|---|
 | `connection refused` en el 5432 | PostgreSQL no está arriba | `make up` y esperar 5 s |
 | El video queda `en_cola` | El trabajador no arrancó | Ver la salida de `make demo`; `docker ps` debe mostrar Redis |
-| El video queda `reintentando` o `error` | El trabajador lo intentó y falló; en `error` agotó los 3 intentos | Leer `error_motivo` en `GET /videos`: "No se pudo leer el video" es el archivo; "no tiene reglas activas" es la configuración de la cámara |
+| El video queda `reintentando` o `error` | El trabajador lo intentó y falló; en `error` agotó los 3 intentos | Leer `error_motivo` en `GET /videos`: "No se pudo leer el video" es el archivo; "no tiene reglas activas" es la configuración de la cámara. Corregida la causa, `POST /videos/{id}/reprocesar` lo devuelve a la cola |
 | `ruta bajo /mnt/ rechazada` | El repositorio o el video están en el disco de Windows | Copiarlos a `~/` |
 | La web dice "No pudimos comunicarnos con la API" | Falta `VITE_API_URL` o la API no está arriba | Revisar la terminal de `make demo-api` |
 | La bandeja sale vacía | La API apunta a otra base | Usar `make demo-api`, no `make api` |
