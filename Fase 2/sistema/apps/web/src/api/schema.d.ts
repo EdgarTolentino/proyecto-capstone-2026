@@ -657,14 +657,22 @@ export interface components {
              * @enum {string}
              */
             origen_capture_ts?: "metadatos" | "mtime" | "manual" | "ocr";
-            /** @enum {string} */
-            estado: "en_cola" | "procesando" | "listo" | "error";
+            /**
+             * @description `reintentando`: falló y volvió a la cola; `error_motivo` dice por qué. `error`: agotó los intentos. Un archivo que no se pudo leer también aparece, con su motivo.
+             * @enum {string}
+             */
+            estado: "en_cola" | "procesando" | "reintentando" | "listo" | "error";
             /**
              * Format: float
              * @example 0.42
              */
             progreso?: number | null;
             error_motivo?: string | null;
+            /**
+             * @description Intentos fallidos hasta ahora (el máximo es 3).
+             * @example 0
+             */
+            intentos?: number;
             /**
              * Format: float
              * @example 5
@@ -1704,7 +1712,7 @@ export interface operations {
     listarVideos: {
         parameters: {
             query?: {
-                estado?: "en_cola" | "procesando" | "listo" | "error";
+                estado?: "en_cola" | "procesando" | "reintentando" | "listo" | "error";
                 fuente_id?: components["parameters"]["FuenteId"];
                 limite?: components["parameters"]["Limite"];
                 cursor?: components["parameters"]["Cursor"];

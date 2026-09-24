@@ -294,5 +294,15 @@ CREATE INDEX ix_notificacion_token_acuse ON notificacion (token_acuse);
 
 UPDATE alembic_version SET version_num='0003' WHERE alembic_version.version_num = '0002';
 
+-- Running upgrade 0003 -> 0004
+
+ALTER TABLE video ADD COLUMN intentos INTEGER DEFAULT '0' NOT NULL;
+
+ALTER TABLE video DROP CONSTRAINT ck_video_estado;
+
+ALTER TABLE video ADD CONSTRAINT ck_video_estado CHECK (estado IN ('en_cola','procesando','reintentando','listo','error'));
+
+UPDATE alembic_version SET version_num='0004' WHERE alembic_version.version_num = '0003';
+
 COMMIT;
 

@@ -68,6 +68,7 @@ erDiagram
         TEXT origen_capture_ts
         TEXT estado
         TEXT error_motivo
+        INTEGER intentos
         INTEGER cuadros_analizados
         BIGINT proceso_ms
         DATETIME creado_en

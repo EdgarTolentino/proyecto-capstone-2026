@@ -18,13 +18,14 @@ import numpy as np
 import pytest
 from gepp_bd import transaccion
 from gepp_bd.modelos import Deteccion, Evidencia, Hallazgo, Notificacion, Video
+from gepp_bd.modelos import Regla as FilaRegla
 from gepp_bd.repositorios import evidencias
 from gepp_bd.semilla import cargar, leer
 from gepp_vision.detectores import DetectorFalso, Guion
-from gepp_worker.cola import ColaTrabajos, EstadoTrabajo
+from gepp_worker.cola import MAXIMO_INTENTOS, ColaTrabajos, EstadoTrabajo
 from gepp_worker.trabajador import Aviso, Configuracion, Trabajador
 from gepp_worker.vigilante import Vigilante
-from sqlalchemy import Engine, func, select
+from sqlalchemy import Engine, func, select, update
 
 from ..test_evidencia import rugosidad
 
@@ -167,8 +168,10 @@ def test_si_falla_la_evidencia_no_queda_ni_hallazgo_ni_aviso(
     assert contar(motor, Deteccion) == 0
     with transaccion(motor) as s:
         (video,) = s.execute(select(Video)).scalars()
-    assert video.estado == "error" and "disco lleno" in (video.error_motivo or "")
-    assert cola.estado(trabajo.hash_sha256) is EstadoTrabajo.PENDIENTE  # se reintentará
+    # Vuelve a la cola, y la base lo dice: no es un error definitivo todavía.
+    assert (video.estado, video.intentos) == ("reintentando", 1)
+    assert "disco lleno" in (video.error_motivo or "")
+    assert cola.estado(trabajo.hash_sha256) is EstadoTrabajo.PENDIENTE
     assert not list((tmp / "evidencia").glob("*.jpg"))  # sin recortes huérfanos
 
     # El reintento, ya sin la falla, procesa el video completo una sola vez.
@@ -176,3 +179,49 @@ def test_si_falla_la_evidencia_no_queda_ni_hallazgo_ni_aviso(
     resultado = trabajador.atender_uno()
     assert resultado is not None and resultado.hallazgos == 1
     assert contar(motor, Hallazgo) == 1 and contar(motor, Evidencia) == 1
+    with transaccion(motor) as s:
+        (video,) = s.execute(select(Video)).scalars()
+    assert (video.estado, video.intentos, video.error_motivo) == ("listo", 1, None)
+
+
+def test_un_archivo_que_no_es_video_queda_visible_con_su_motivo(entorno) -> None:  # type: ignore[no-untyped-def]
+    motor, entrada, cola, vigilante, trabajador, _tmp = entorno
+    roto = entrada / "roto.mp4"
+    roto.write_bytes(b"esto no es un video" * 100)
+    marca = MTIME.timestamp()
+    os.utime(roto, (marca, marca))
+    vigilante.sondear()
+    (trabajo,) = vigilante.sondear()
+
+    estados = []
+    for _ in range(MAXIMO_INTENTOS):
+        assert trabajador.atender_uno() is None
+        with transaccion(motor) as s:
+            (video,) = s.execute(select(Video)).scalars()
+            estados.append((video.estado, video.intentos))
+
+    # Sin leerlo no hay duración: el reloj es la fecha del archivo, marcado como de origen dudoso.
+    assert estados == [("reintentando", 1), ("reintentando", 2), ("error", MAXIMO_INTENTOS)]
+    assert video.error_motivo and video.error_motivo.startswith("No se pudo leer el video")
+    assert (video.origen_capture_ts, video.capture_ts_inicio) == ("mtime", MTIME)
+    assert video.duracion_s is None and video.bytes == roto.stat().st_size
+    assert cola.estado(trabajo.hash_sha256) is EstadoTrabajo.ERROR
+    assert contar(motor, Deteccion) == 0
+
+
+def test_una_camara_sin_reglas_deja_el_video_visible_con_su_motivo(entorno) -> None:  # type: ignore[no-untyped-def]
+    motor, entrada, _cola, vigilante, trabajador, _tmp = entorno
+    with transaccion(motor) as s:
+        s.execute(update(FilaRegla).values(activa=False))
+    escribir_video_ruido(entrada / "clip.mp4")
+    vigilante.sondear()
+    vigilante.sondear()
+    assert trabajador.atender_uno() is None
+
+    with transaccion(motor) as s:
+        (video,) = s.execute(select(Video)).scalars()
+    # El archivo sí se leyó: quedan sus datos reales, no los de respaldo.
+    assert (video.estado, video.intentos) == ("reintentando", 1)
+    assert "no tiene reglas activas" in (video.error_motivo or "")
+    assert video.duracion_s == SEGUNDOS
+    assert video.capture_ts_inicio == MTIME - timedelta(seconds=SEGUNDOS)

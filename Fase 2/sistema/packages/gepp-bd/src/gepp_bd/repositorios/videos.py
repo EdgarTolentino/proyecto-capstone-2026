@@ -85,3 +85,16 @@ def cambiar_estado(
     if proceso_ms is not None:
         valores["proceso_ms"] = proceso_ms
     sesion.execute(update(Video).where(Video.id == video_id).values(**valores))
+
+
+def anotar_fallo(sesion: Session, video_id: int, motivo: str, *, definitivo: bool) -> None:
+    """Un intento fallido: `reintentando` si vuelve a la cola, `error` si ya no."""
+    sesion.execute(
+        update(Video)
+        .where(Video.id == video_id)
+        .values(
+            estado="error" if definitivo else "reintentando",
+            error_motivo=motivo,
+            intentos=Video.intentos + 1,
+        )
+    )

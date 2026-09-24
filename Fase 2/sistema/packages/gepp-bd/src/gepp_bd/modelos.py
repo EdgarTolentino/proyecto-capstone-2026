@@ -55,7 +55,7 @@ CONVENCION_DE_NOMBRES = {
 TIPOS_ZONA = ("interes", "privacidad")
 TIPOS_FUENTE = ("carpeta", "rtsp")
 ORIGENES_CAPTURE_TS = ("metadatos", "mtime", "manual", "ocr")
-ESTADOS_VIDEO = ("en_cola", "procesando", "listo", "error")
+ESTADOS_VIDEO = ("en_cola", "procesando", "reintentando", "listo", "error")
 BASES_LICITUD = ("obligacion_legal", "interes_legitimo", "contrato")
 ESTADOS_HALLAZGO = ("por_revisar", "confirmado", "falso_positivo", "duplicado", "pospuesto")
 ESTADOS_ACCION = ("abierta", "en_curso", "cerrada", "vencida")
@@ -160,6 +160,8 @@ class Video(Base):
     origen_capture_ts: Mapped[str] = mapped_column(Text)
     estado: Mapped[str] = mapped_column(Text, server_default="en_cola")
     error_motivo: Mapped[str | None] = mapped_column(Text)
+    #: Intentos fallidos. Con `reintentando` vuelve a la cola; al llegar al máximo, `error`.
+    intentos: Mapped[int] = mapped_column(Integer, server_default="0")
     cuadros_analizados: Mapped[int | None] = mapped_column(Integer)
     proceso_ms: Mapped[int | None] = mapped_column(BigInteger)
     creado_en: Mapped[datetime] = mapped_column(TSTZ, server_default=func.now())
