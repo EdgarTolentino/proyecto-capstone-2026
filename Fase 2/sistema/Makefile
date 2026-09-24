@@ -64,13 +64,13 @@ migrar:  ## Aplica las migraciones a la base de GEPP_BD_URL (ver .env.example)
 semilla:  ## Carga el perfil de construcción (ADR-011); PERFIL=perfiles/otro.yaml para cambiarlo
 	uv run python -m gepp_bd.semilla $(or $(PERFIL),perfiles/construccion.yaml)
 
-demo:  ## Demo de punta a punta con detector simulado: make demo VIDEO=ruta.mp4 [GUION=...] [FUENTE=2]
-	@test -n "$(VIDEO)" || { echo "uso: make demo VIDEO=ruta/al/video.mp4 [GUION=demo/guion_cam03.json]"; exit 2; }
-	uv run python scripts/demo.py "$(VIDEO)" $(if $(GUION),--guion "$(GUION)") $(if $(FUENTE),--fuente $(FUENTE))
+demo:  ## Demo de punta a punta: make demo VIDEO=ruta.mp4 [GUION=... | MODELO=ruta.onnx] [FUENTE=2]
+	@test -n "$(VIDEO)" || { echo "uso: make demo VIDEO=ruta/al/video.mp4 [GUION=demo/guion_cam03.json | MODELO=ruta.onnx]"; exit 2; }
+	uv run python scripts/demo.py "$(VIDEO)" $(if $(GUION),--guion "$(GUION)") $(if $(MODELO),--modelo "$(MODELO)") $(if $(FUENTE),--fuente $(FUENTE))
 
-demo-todo:  ## TODO de una vez (base, demo, API, web): make demo-todo VIDEO=ruta.mp4 [FUENTE=1]
-	@test -n "$(VIDEO)" || { echo "uso: make demo-todo VIDEO=ruta/al/video.mp4 [FUENTE=1]"; exit 2; }
-	./scripts/demo_todo.sh "$(VIDEO)" $(or $(FUENTE),2)
+demo-todo:  ## TODO de una vez (base, demo, API, web): make demo-todo VIDEO=ruta.mp4 [MODELO=ruta.onnx] [FUENTE=1]
+	@test -n "$(VIDEO)" || { echo "uso: make demo-todo VIDEO=ruta/al/video.mp4 [MODELO=ruta.onnx] [FUENTE=1]"; exit 2; }
+	./scripts/demo_todo.sh "$(VIDEO)" $(or $(FUENTE),2) "$(MODELO)"
 
 demo-apagar:  ## Apaga la API, la web y el despachador de demo-todo
 	./scripts/demo_apagar.sh
