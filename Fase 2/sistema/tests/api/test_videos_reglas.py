@@ -98,6 +98,22 @@ def test_reprocesar_un_video_que_fallo_lo_devuelve_a_la_cola(
     api.llamar("reprocesarVideo", "POST", "/videos/2/reprocesar", headers=ADMIN, esperado=409)
 
 
+def test_si_el_video_cambio_de_estado_antes_del_pedido_no_se_audita_nada(
+    api: Cliente, bd: Any, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    from gepp_bd.repositorios import videos
+    from sqlalchemy import text
+
+    with bd.begin() as c:
+        c.execute(text("UPDATE video SET estado = 'reintentando', intentos = 1 WHERE id = 2"))
+    # El trabajador lo toma justo entre la lectura de la API y su UPDATE.
+    monkeypatch.setattr(videos, "pedir_reintento", lambda *_a, **_k: False)
+    api.llamar("reprocesarVideo", "POST", "/videos/2/reprocesar", headers=ADMIN, esperado=409)
+    with bd.begin() as c:
+        n = c.execute(text("SELECT count(*) FROM auditoria WHERE entidad = 'video'")).scalar_one()
+    assert n == 0
+
+
 def test_reprocesar_dos_veces_no_duplica_ni_cambia_nada(api: Cliente) -> None:
     antes = _ids(api)
     for _ in range(2):

@@ -97,7 +97,9 @@ def reprocesar_video(id: int, request: Request, bd: Bd, sesion: Sesion) -> dict[
     tz = request.app.state.config.zona_horaria
     if v.estado in ("error", "reintentando"):
         previo = f"estaba {v.estado}: {v.error_motivo}"
-        videos.pedir_reintento(bd, v.id)
+        if not videos.pedir_reintento(bd, v.id):
+            # El trabajador lo tomó entre la lectura y el UPDATE: ya se está procesando.
+            raise ErrorApi(409, "video_no_listo", f"El video {id} ya va a procesarse")
         auditoria.registrar(
             bd,
             usuario_id=sesion.id,

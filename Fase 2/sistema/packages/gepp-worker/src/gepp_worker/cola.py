@@ -127,13 +127,21 @@ class ColaTrabajos:
         self._r.lrem(self._procesando, 1, trabajo.a_json())
         self._r.hset(self._clave(trabajo.hash_sha256), "estado", EstadoTrabajo.LISTO.value)
 
-    def reintentar(self, trabajo: Trabajo, motivo: str) -> EstadoTrabajo:
-        """Cuenta un intento fallido: vuelve a la cola o, al llegar al máximo, queda en error."""
+    def reintentar(
+        self, trabajo: Trabajo, motivo: str, *, definitivo: bool | None = None
+    ) -> EstadoTrabajo:
+        """Cuenta un intento fallido: vuelve a la cola o queda en error.
+
+        `definitivo` lo decide quien lleva la cuenta de verdad (la base, #74). Sin él, manda
+        la cuenta propia de Redis: es el respaldo si la base no responde.
+        """
         self._r.lrem(self._procesando, 1, trabajo.a_json())
         siguiente = replace(trabajo, intentos=trabajo.intentos + 1)
         clave = self._clave(trabajo.hash_sha256)
         self._r.hset(clave, mapping={"intentos": siguiente.intentos, "motivo": motivo})
-        if siguiente.intentos >= self._maximo:
+        if definitivo is None:
+            definitivo = siguiente.intentos >= self._maximo
+        if definitivo:
             self._r.hset(clave, "estado", EstadoTrabajo.ERROR.value)
             return EstadoTrabajo.ERROR
         self._r.hset(clave, "estado", EstadoTrabajo.PENDIENTE.value)

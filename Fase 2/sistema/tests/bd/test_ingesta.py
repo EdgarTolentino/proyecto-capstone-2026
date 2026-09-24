@@ -27,6 +27,7 @@ from gepp_worker.cola import MAXIMO_INTENTOS, ColaTrabajos, EstadoTrabajo
 from gepp_worker.trabajador import Aviso, Configuracion, Trabajador
 from gepp_worker.vigilante import Vigilante
 from sqlalchemy import Engine, func, select, update
+from sqlalchemy.exc import OperationalError
 
 from ..test_evidencia import rugosidad
 
@@ -350,3 +351,40 @@ def test_si_redis_se_reinicia_a_mitad_la_base_corta_igual_en_el_maximo(entorno) 
     with transaccion(motor) as s:
         (video,) = s.execute(select(Video)).scalars()
     assert (video.estado, video.intentos) == ("error", MAXIMO_INTENTOS)
+
+
+def test_pedir_reintento_con_el_trabajo_aun_en_redis_da_los_intentos_completos(entorno) -> None:  # type: ignore[no-untyped-def]
+    motor, entrada, cola, vigilante, trabajador, _tmp = entorno
+    with transaccion(motor) as s:
+        s.execute(update(FilaRegla).values(activa=False))
+    escribir_video_ruido(entrada / "clip.mp4")
+    vigilante.sondear()
+    (trabajo,) = vigilante.sondear()
+    trabajador.atender_uno()  # reintentando, y Redis lo tiene pendiente con 1 intento
+    with transaccion(motor) as s:
+        (video,) = s.execute(select(Video)).scalars()
+        assert videos.pedir_reintento(s, video.id)
+    assert trabajador.reencolar_pedidos() == 0  # ya estaba en la cola de Redis
+
+    intentos = 0
+    while cola.estado(trabajo.hash_sha256) is EstadoTrabajo.PENDIENTE and intentos < 10:
+        trabajador.atender_uno()
+        intentos += 1
+    with transaccion(motor) as s:
+        (video,) = s.execute(select(Video)).scalars()
+    # La cuenta de Redis (que venía en 1) no puede cortar antes: manda la base.
+    assert (video.estado, video.intentos, intentos) == ("error", MAXIMO_INTENTOS, MAXIMO_INTENTOS)
+
+
+def test_si_la_base_no_responde_el_bucle_del_trabajador_sigue(
+    entorno, monkeypatch: pytest.MonkeyPatch
+) -> None:  # type: ignore[no-untyped-def]
+    _motor, _entrada, _cola, _vigilante, trabajador, _tmp = entorno
+
+    def base_caida() -> int:
+        raise OperationalError("SELECT", {}, Exception("connection refused"))
+
+    monkeypatch.setattr(trabajador, "reencolar_pedidos", base_caida)
+    vueltas = iter([True, True, False])
+    trabajador.correr(seguir=lambda: next(vueltas), espera_s=0)  # no lanza
+    assert next(vueltas, "fin") == "fin"

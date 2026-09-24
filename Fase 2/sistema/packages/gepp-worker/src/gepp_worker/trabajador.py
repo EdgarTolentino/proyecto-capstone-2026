@@ -150,31 +150,37 @@ class Trabajador:
             resultado = self.procesar(trabajo)
         except Exception as e:
             motivo = str(e) if isinstance(e, VideoIlegible) else f"{type(e).__name__}: {e}"
-            estado = self._cola.reintentar(trabajo, motivo)
+            definitivo: bool | None = None
             try:
-                self._anotar_fallo(trabajo, motivo, agotado_en_cola=estado is EstadoTrabajo.ERROR)
+                definitivo = self._anotar_fallo(trabajo, motivo)
             except Exception as e2:
-                # El trabajo ya volvió a la cola con su motivo: anotar en la base no puede
-                # tumbar al trabajador (fuente inexistente, base caída, archivo borrado).
+                # Anotar en la base no puede tumbar al trabajador (fuente inexistente, base
+                # caída, archivo borrado): el trabajo vuelve igual a la cola con su motivo, y
+                # entonces decide la cuenta de Redis.
                 print(
                     f"[trabajador] no se pudo anotar el fallo en la base: {e2!r}", file=sys.stderr
                 )
+            self._cola.reintentar(trabajo, motivo, definitivo=definitivo)
             return None
         self._cola.confirmar(trabajo)
         return resultado
 
-    def _anotar_fallo(self, trabajo: Trabajo, motivo: str, *, agotado_en_cola: bool) -> None:
-        """Que el fallo se vea en `GET /videos`, y no solo en Redis (#29).
+    def _anotar_fallo(self, trabajo: Trabajo, motivo: str) -> bool:
+        """Que el fallo se vea en `GET /videos`, y no solo en Redis (#29). Devuelve si ya
+        agotó sus intentos.
 
         Los intentos los cuenta la base, no Redis: Redis corre sin volumen y, si se reinicia,
-        el vigilante vuelve a encolar el archivo con la cuenta en cero (#74).
+        el vigilante vuelve a encolar el archivo con la cuenta en cero; y un reintento pedido
+        desde la API pone la base en cero aunque Redis tenga el trabajo con su cuenta vieja
+        (#74).
         """
         with transaccion(self._motor) as s:
             video = videos.por_hash(s, trabajo.hash_sha256)
             if video is None:
                 video, _ = videos.registrar(s, _sin_leer(trabajo))
             agotado = video.intentos + 1 >= self._cola.maximo_intentos
-            videos.anotar_fallo(s, video.id, motivo, definitivo=agotado or agotado_en_cola)
+            videos.anotar_fallo(s, video.id, motivo, definitivo=agotado)
+        return agotado
 
     def reencolar_pedidos(self) -> int:
         """Encola lo que alguien pidió reintentar desde la API (`pedir_reintento`) y Redis no
@@ -195,7 +201,12 @@ class Trabajador:
     def correr(self, seguir: Callable[[], bool] = lambda: True, espera_s: float = 2.0) -> None:
         self._cola.recuperar_huerfanos()
         while seguir():
-            self.reencolar_pedidos()
+            try:
+                self.reencolar_pedidos()
+            except Exception as e:
+                # Un corte de la base no puede detener la ingesta: se reintenta en la vuelta
+                # siguiente, y mientras tanto la cola de Redis sigue avanzando.
+                print(f"[trabajador] no se pudieron leer los reintentos: {e!r}", file=sys.stderr)
             self.atender_uno(espera_s)
 
     # ── Proceso de un video ────────────────────────────────────────────────────
