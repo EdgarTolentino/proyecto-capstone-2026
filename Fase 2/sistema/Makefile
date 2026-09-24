@@ -20,7 +20,7 @@ setup:  ## Instala el entorno (máquinas SIN GPU y CI)
 	uv sync --all-packages
 
 setup-gpu:  ## Instala el entorno en la máquina CON GPU
-	uv sync --all-packages --extra cu126
+	uv sync --all-packages --extra gpu
 
 lint:  ## Revisa estilo y errores
 	uv run ruff check .

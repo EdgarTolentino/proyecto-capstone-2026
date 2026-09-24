@@ -12,6 +12,12 @@ en tres líneas. Es lo que haría cualquier equipo sin mirar la licencia.
 **Detector:** RF-DETR (Apache-2.0), variantes N/S. **Seguidor:** ByteTrack vía `roboflow/trackers`
 (Apache-2.0). Plan B del detector: D-FINE con receta DEIM **v1**.
 
+> **Enmienda del 24-sep-2026 (PT-08, decisión de Edgar):** el seguidor es una **implementación
+> propia de ByteTrack** (`gepp_vision/seguimiento/bytetrack.py`), no `roboflow/trackers`. Esa
+> biblioteca exige `opencv-python`, que choca con el `opencv-python-headless` del proyecto (los
+> dos instalan `cv2`), y arrastra `matplotlib`, `supervision`, `rich`, `requests` y `av`. El
+> algoritmo es el del artículo original; la única dependencia nueva es `scipy` (BSD-3).
+
 Prohibidos en el repositorio: `ultralytics`, `boxmot`, `deimv2`. Un test de CI falla si aparecen
 en el *lockfile*.
 

@@ -7,7 +7,14 @@ dependencies = [
     "gepp-core",
     "numpy>=2.0",
     "opencv-python-headless>=4.10",
+    "onnxruntime>=1.20",
+    "scipy>=1.13",
 ]
+
+[project.optional-dependencies]
+# RF-DETR con PyTorch: solo la máquina con GPU (`make setup-gpu`). Arrastra torch y CUDA.
+# Variantes N/S/M/L, Apache-2.0; las XL y 2XL no lo son (ADR-002).
+gpu = ["rfdetr>=1.3"]
 
 [build-system]
 requires = ["uv_build>=0.9,<0.13"]

@@ -58,7 +58,7 @@ packages/gepp-vision/src/gepp_vision/       visión: detectar, seguir, evaluar
                               corre en CI y en los portátiles sin modelo
   detectores/rfdetr.py PT-07  adaptador PyTorch de RF-DETR (máquina con GPU; entrenamiento y evaluación)
   detectores/onnx.py   PT-07  adaptador ONNX Runtime (CPU): los compañeros corren el pipeline sin GPU
-  seguimiento/bytetrack.py PT-07 adaptador de roboflow/trackers con los umbrales de 5 fps: IoU
+  seguimiento/bytetrack.py PT-07 ByteTrack propio (ADR-002, enmienda) con los umbrales de 5 fps: IoU
                               0,15-0,20, track_buffer en segundos, sin compensación de cámara
   pipeline.py          PT-07  Etapa 1 completa: cuadro -> detecciones con track_id -> asociación y
                               agregador de gepp-core -> hallazgos. Sin E/S: recibe cuadros, devuelve objetos

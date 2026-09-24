@@ -28,8 +28,9 @@ test = [
     "pytest-asyncio",
     "httpx",
     "jsonschema>=4.23",
+    "onnx>=1.17",
 ]
-lint = ["ruff>=0.16", "mypy>=1.11"]
+lint = ["ruff>=0.16", "mypy>=1.11", "scipy-stubs"]
 scripts = ["pyyaml>=6.0", "types-pyyaml"]
 
 [tool.uv]
@@ -50,7 +51,7 @@ strict = true
 warn_unused_ignores = true
 
 [[tool.mypy.overrides]]
-module = ["cv2.*", "rfdetr.*", "trackers.*", "onnxruntime.*"]
+module = ["cv2.*", "rfdetr.*", "PIL.*", "onnxruntime.*"]
 ignore_missing_imports = true
 
 [tool.pytest.ini_options]

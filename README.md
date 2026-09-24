@@ -68,7 +68,7 @@ que debe actuar y un registro de que actuó.
 | Capa | Elección | Por qué esta y no la obvia |
 |---|---|---|
 | Detector | **RF-DETR** (Apache-2.0) | La opción obvia es AGPL-3.0 y **alcanza a los pesos que uno mismo entrena** |
-| Seguidor | Por solapamiento de cajas (IoU), propio | ByteTrack vía `roboflow/trackers` choca con OpenCV sin interfaz; se decide en PT-08. El paquete cómodo del ecosistema es AGPL |
+| Seguidor | **ByteTrack**, implementación propia | `roboflow/trackers` choca con OpenCV sin interfaz y el paquete cómodo del ecosistema es AGPL (ADR-002, enmienda del 24-sep) |
 | Etapa 2 | VLM local, **solo describe** | Un VLM decidiendo hace el sistema no auditable |
 | Backend | **FastAPI + PostgreSQL** | Contrato OpenAPI verificado en CI: el frontend nunca espera al backend |
 | Frontend | **React + Vite** | Dos personas dedicadas necesitan trabajar en paralelo |
