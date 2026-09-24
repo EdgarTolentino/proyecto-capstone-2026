@@ -26,7 +26,7 @@ En `Fase 2/sistema/.env`, **sin** `GEPP_GUION_FALSO`:
 
 ```
 GEPP_MODELO_RUTA=/ruta/a/rfdetr-n-epp-v1.onnx
-GEPP_UMBRAL_CONFIANZA=0.5
+GEPP_UMBRAL_CONFIANZA=0.25
 ```
 
 Si el archivo no existe, el trabajador se detiene al arrancar y lo dice.

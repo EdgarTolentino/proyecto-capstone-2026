@@ -39,13 +39,22 @@ from scipy.optimize import linear_sum_assignment
 
 IOU_MINIMO = 0.15
 IOU_MINIMO_BAJA = 0.5
-UMBRAL_ALTO = 0.5
-UMBRAL_BAJO = 0.1
-UMBRAL_NUEVO = 0.6
+#: Umbrales alineados (decisión de Edgar, revisión del #76): la banda baja empieza donde corta
+#: el detector (`rfdetr_comun.UMBRAL_CONFIANZA`, 0,25) y la alta —la que crea identidades—
+#: en el mínimo por defecto de la regla (`gepp_core.Regla.confianza_minima`, 0,45). Así toda
+#: persona que la regla cuenta recibe identidad, y las más débiles solo mantienen una viva.
+#: `test_bytetrack_crea_identidades_desde_el_minimo_de_la_regla` los mantiene amarrados.
+UMBRAL_ALTO = 0.45
+UMBRAL_BAJO = 0.25
+UMBRAL_NUEVO = 0.45
 TRACK_BUFFER_SEGUNDOS = 1.5
+#: Costo de un par bajo el umbral: el húngaro no lo elige mientras exista otro válido.
+_PROHIBIDO = 1e6
 
-# Ruido del filtro, proporcional al alto de la caja como en el original. Por segundo, no
-# por cuadro: los del original (1/20 y 1/160 por cuadro a 30 fps) llevados a segundos.
+# Ruido del filtro, proporcional al alto de la caja como en el original. Ajuste propio, no
+# una conversión exacta: la desviación de posición es la del original y la de velocidad la
+# lleva de "por cuadro a 30 fps" a "por segundo"; la varianza del proceso crece con `dt`.
+# Resulta más confiado en su modelo que el original; calibrar con el video propio (#10).
 _RUIDO_POSICION = 1 / 20
 _RUIDO_VELOCIDAD = 30 / 160
 
@@ -113,8 +122,8 @@ class SeguidorByteTrack:
     ) -> None:
         if not (0 < iou_minimo < 1 and 0 < iou_minimo_baja < 1):
             raise ValueError("los umbrales de IoU deben estar entre 0 y 1")
-        if not 0 <= umbral_bajo < umbral_alto <= 1:
-            raise ValueError("debe cumplirse 0 <= umbral_bajo < umbral_alto <= 1")
+        if not 0 <= umbral_bajo < umbral_alto <= umbral_nuevo <= 1:
+            raise ValueError("debe cumplirse 0 <= umbral_bajo < umbral_alto <= umbral_nuevo <= 1")
         if track_buffer_segundos < 0:
             raise ValueError("track_buffer_segundos no puede ser negativo")
         self._iou_minimo = iou_minimo
@@ -125,10 +134,12 @@ class SeguidorByteTrack:
         self._buffer = track_buffer_segundos
         self._tracks: list[_Track] = []
         self._siguiente = 1
+        self._cuadro_anterior: datetime | None = None
 
     def reiniciar(self) -> None:
         self._tracks.clear()
         self._siguiente = 1
+        self._cuadro_anterior = None
 
     def actualizar(self, detecciones: list[Deteccion]) -> list[Deteccion]:
         if not detecciones:
@@ -151,12 +162,22 @@ class SeguidorByteTrack:
 
         asignado: dict[int, _Track] = {}
         libres = list(self._tracks)
-        for grupo, umbral in ((altas, self._iou_minimo), (bajas, self._iou_minimo_baja)):
-            pares = self._emparejar([detecciones[i] for i in grupo], libres, umbral)
-            for fila, columna in pares:
-                asignado[grupo[fila]] = libres[columna]
-            usados = {columna for _, columna in pares}
-            libres = [t for k, t in enumerate(libres) if k not in usados]
+        # Primera pasada: las altas contra todos los tracks vivos, también los perdidos.
+        pares = self._emparejar([detecciones[i] for i in altas], libres, self._iou_minimo)
+        for fila, columna in pares:
+            asignado[altas[fila]] = libres[columna]
+        usados = {columna for _, columna in pares}
+        # Segunda pasada: las bajas solo contra los que se vieron en el cuadro anterior, como
+        # en el original: una detección débil no alcanza para revivir un track perdido.
+        activos = [
+            t
+            for k, t in enumerate(libres)
+            if k not in usados and t.visto_en == self._cuadro_anterior
+        ]
+        pares = self._emparejar([detecciones[i] for i in bajas], activos, self._iou_minimo_baja)
+        for fila, columna in pares:
+            asignado[bajas[fila]] = activos[columna]
+        self._cuadro_anterior = ahora
 
         salida = [replace(d, track_id=None) for d in detecciones]
         for i, track in asignado.items():
@@ -180,7 +201,15 @@ class SeguidorByteTrack:
             return []
         predichas = [t.kalman.caja() for t in tracks]
         iou = np.array([[d.caja.iou(p) if p is not None else 0.0 for p in predichas] for d in dets])
-        filas, columnas = linear_sum_assignment(1.0 - iou)
+        return SeguidorByteTrack._emparejar_por_iou(iou, iou_minimo)
+
+    @staticmethod
+    def _emparejar_por_iou(iou: np.ndarray, iou_minimo: float) -> list[tuple[int, int]]:
+        """Los pares bajo el umbral se prohíben ANTES de resolver: filtrarlos después deja
+        que el húngaro sacrifique un par válido por dos inválidos (el `cost_limit` de
+        `lapjv` en el original)."""
+        costo = np.where(iou >= iou_minimo, 1.0 - iou, _PROHIBIDO)
+        filas, columnas = linear_sum_assignment(costo)
         return [
             (int(f), int(c))
             for f, c in zip(filas, columnas, strict=True)

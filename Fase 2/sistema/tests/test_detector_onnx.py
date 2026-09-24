@@ -11,13 +11,14 @@ from __future__ import annotations
 import json
 from pathlib import Path
 
+import cv2
 import numpy as np
 import onnx
 import pytest
 from gepp_core import ClaseDetectada
 from gepp_vision import Detector
 from gepp_vision.detectores import DetectorOnnx
-from gepp_vision.detectores.rfdetr_comun import MapaDeClases, preprocesar
+from gepp_vision.detectores.rfdetr_comun import DESVIACION, MEDIA, MapaDeClases, preprocesar
 from onnx import TensorProto, helper, numpy_helper
 
 from .conftest import T0
@@ -34,6 +35,11 @@ CONSULTAS = [
     ([0.98, 0.50, 0.10, 0.40], [-9, 2.0, -9, -9, -9]),  # persona en el borde: se recorta
     # "Sin objeto" alto no cuenta: RF-DETR la descarta antes de la sigmoide. Persona 0,73.
     ([0.30, 0.50, 0.10, 0.50], [-9, 1.0, -9, -9, 6.0]),
+    # Persona 0,30: bajo el 0,45 de la regla, pero sale: ByteTrack la usa para no perderla.
+    ([0.60, 0.50, 0.10, 0.50], [-9, -0.847, -9, -9, -9]),
+    # Una consulta que supera el umbral en dos clases da las dos (top-k de RF-DETR), y una
+    # clase fuera del mapa más probable no tapa a la mapeada.
+    ([0.70, 0.50, 0.10, 0.50], [-9, 2.0, 1.0, 4.0, -9]),
 ]
 
 
@@ -78,8 +84,15 @@ class TestDetectorOnnx(ContratoDetector):
 def test_decodifica_las_salidas_de_rfdetr(modelo: Path) -> None:
     dets = DetectorOnnx(modelo).detectar(IMAGEN, cuadro_idx=7, capture_ts=T0)
     clases = [d.clase for d in dets]
-    assert clases == [ClaseDetectada.PERSONA, ClaseDetectada.CASCO] + [ClaseDetectada.PERSONA] * 2
-    persona, casco, borde, sin_objeto_alto = dets
+    persona, casco, borde, sin_objeto_alto, debil, doble_p, doble_c = dets
+    assert clases == [
+        ClaseDetectada.PERSONA,
+        ClaseDetectada.CASCO,
+        *[ClaseDetectada.PERSONA] * 4,
+        ClaseDetectada.CASCO,
+    ]
+    assert debil.confianza == pytest.approx(0.30, abs=1e-3)
+    assert doble_p.caja == doble_c.caja
     assert persona.confianza == pytest.approx(1 / (1 + np.exp(-3.0)))
     assert (persona.caja.x1, persona.caja.y1) == pytest.approx((0.40, 0.20))
     assert (persona.caja.x2, persona.caja.y2) == pytest.approx((0.52, 0.80))
@@ -91,6 +104,7 @@ def test_decodifica_las_salidas_de_rfdetr(modelo: Path) -> None:
 def test_el_umbral_se_puede_ajustar(modelo: Path) -> None:
     dets = DetectorOnnx(modelo, umbral=0.9).detectar(IMAGEN, cuadro_idx=0, capture_ts=T0)
     assert [d.clase for d in dets] == [ClaseDetectada.PERSONA]
+    assert DetectorOnnx(modelo).detectar(IMAGEN, cuadro_idx=0, capture_ts=T0)[4].confianza < 0.45
 
 
 def test_la_version_cambia_si_cambia_el_modelo(tmp_path: Path) -> None:
@@ -113,6 +127,18 @@ def test_sin_mapa_de_clases_no_arranca(modelo: Path) -> None:
     MapaDeClases.junto_a(modelo).unlink()
     with pytest.raises(FileNotFoundError):
         DetectorOnnx(modelo)
+
+
+def test_preprocesar_redimensiona_en_flotante_como_rfdetr() -> None:
+    """RF-DETR redimensiona el tensor ya en flotante. Redimensionar los uint8 y convertir
+    después redondea distinto y mueve la confianza hasta 0,045 (revisión del #76)."""
+    rng = np.random.default_rng(1)
+    imagen = rng.integers(0, 256, (37, 53, 3), dtype=np.uint8)
+    rgb = imagen[..., ::-1].astype(np.float32) / 255.0
+    esperado = (cv2.resize(rgb, (16, 16), interpolation=cv2.INTER_LINEAR) - MEDIA) / DESVIACION
+    np.testing.assert_allclose(
+        preprocesar(imagen, 16, 16)[0].transpose(1, 2, 0), esperado, atol=1e-5
+    )
 
 
 def test_preprocesar_pasa_de_bgr_a_rgb_y_normaliza() -> None:
@@ -142,6 +168,10 @@ def test_el_trabajador_elige_el_detector_por_el_entorno(
     assert isinstance(detector, DetectorOnnx)
     dets = detector.detectar(IMAGEN, cuadro_idx=0, capture_ts=T0)
     assert [d.clase for d in dets] == [ClaseDetectada.PERSONA]  # tomó el umbral 0,9
+
+    monkeypatch.setenv("GEPP_UMBRAL_CONFIANZA", "0,5")  # coma decimal: mensaje claro
+    with pytest.raises(SystemExit, match="GEPP_UMBRAL_CONFIANZA"):
+        _fabrica_detector()
 
     monkeypatch.setenv("GEPP_MODELO_RUTA", str(modelo.with_name("no-existe.onnx")))
     with pytest.raises(SystemExit, match="Falta el modelo"):

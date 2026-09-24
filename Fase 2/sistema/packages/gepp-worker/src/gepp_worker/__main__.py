@@ -9,11 +9,11 @@ Configuración desde el entorno (ver `.env.example`):
     GEPP_FPS_OBJETIVO · GEPP_FUENTE_ID (fuente a la que pertenece la carpeta, 1 por defecto)
     GEPP_GUION_FALSO   ruta a un guion JSON: usa el detector falso (demostración sin modelo)
     GEPP_MODELO_RUTA   si no hay guion: RF-DETR exportado a ONNX, con su `.clases.json` al lado
-    GEPP_UMBRAL_CONFIANZA  confianza mínima del detector ONNX (0,5 por defecto)
+    GEPP_UMBRAL_CONFIANZA  corte del detector ONNX (0.25 por defecto; ver `rfdetr_comun`)
     GEPP_AVISO_CANAL + GEPP_AVISO_DESTINATARIO: si están, cada hallazgo escribe su aviso
     GEPP_MAXIMO_INTENTOS: intentos antes de dejar un video en `error` (3 por defecto)
 
-El detector real (RF-DETR u ONNX) llega con PT-08; hasta entonces solo existe el falso.
+Sin `GEPP_GUION_FALSO`, el detector es RF-DETR exportado a ONNX (`docs/operacion/modelo-onnx.md`).
 """
 
 from __future__ import annotations
@@ -67,6 +67,7 @@ def correr_vigilante() -> None:
 def _fabrica_detector() -> Callable[[], Detector]:
     """El guion simulado si hay uno (demostración, CI); si no, el modelo ONNX."""
     from gepp_vision.detectores import DetectorFalso, DetectorOnnx, Guion
+    from gepp_vision.detectores.rfdetr_comun import UMBRAL_CONFIANZA
 
     if guion := os.environ.get("GEPP_GUION_FALSO"):
         cargado = Guion.desde_json(Path(guion))
@@ -74,7 +75,11 @@ def _fabrica_detector() -> Callable[[], Detector]:
     modelo = os.environ.get("GEPP_MODELO_RUTA")
     if not modelo or not Path(modelo).is_file():
         sys.exit(f"Falta el modelo: GEPP_MODELO_RUTA={modelo!r} no existe (o use GEPP_GUION_FALSO)")
-    umbral = float(os.environ.get("GEPP_UMBRAL_CONFIANZA", "0.5"))
+    texto = os.environ.get("GEPP_UMBRAL_CONFIANZA", str(UMBRAL_CONFIANZA))
+    try:
+        umbral = float(texto)
+    except ValueError:
+        sys.exit(f"GEPP_UMBRAL_CONFIANZA={texto!r} no es un número (use punto: 0.25)")
     # Una sola sesión de ONNX Runtime para todos los videos: cargarla cuesta segundos.
     detector = DetectorOnnx(Path(modelo), umbral=umbral)
     return lambda: detector

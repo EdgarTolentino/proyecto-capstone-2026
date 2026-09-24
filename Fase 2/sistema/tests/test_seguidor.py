@@ -7,13 +7,15 @@ seguidor no cambia lo que ven el agregador y la base. Al final, lo propio de Byt
 from __future__ import annotations
 
 from collections.abc import Callable
-from dataclasses import replace
+from dataclasses import fields, replace
 from datetime import timedelta
 
+import numpy as np
 import pytest
-from gepp_core import Caja, ClaseDetectada, Deteccion
+from gepp_core import Caja, ClaseDetectada, Deteccion, Regla
 from gepp_vision import Seguidor
-from gepp_vision.seguimiento import SeguidorByteTrack, SeguidorIoU
+from gepp_vision.detectores.rfdetr_comun import UMBRAL_CONFIANZA
+from gepp_vision.seguimiento import SeguidorByteTrack, SeguidorIoU, bytetrack
 
 from .conftest import PERSONA, T0
 
@@ -104,6 +106,16 @@ def test_reiniciar_vuelve_a_contar_desde_uno(fabrica: Callable[..., Seguidor]) -
     assert seguidor.actualizar([_det(10)])[0].track_id == 1
 
 
+def test_una_persona_con_la_confianza_minima_de_la_regla_recibe_identidad(
+    fabrica: Callable[..., Seguidor],
+) -> None:
+    """Sin identidad, el agregador la descarta: una persona a 0,47 que la regla sí cuenta
+    (mínimo 0,45) nunca abriría hallazgo. Con ByteTrack creando desde 0,6, pasaba."""
+    seguidor = fabrica()
+    ids = {seguidor.actualizar([_det(n * 0.2, confianza=0.47)])[0].track_id for n in range(5)}
+    assert ids == {1}
+
+
 def test_el_iou_valida_sus_parametros() -> None:
     with pytest.raises(ValueError):
         SeguidorIoU(iou_minimo=0)
@@ -122,7 +134,38 @@ def test_bytetrack_valida_sus_parametros() -> None:
         SeguidorByteTrack(umbral_bajo=0.6, umbral_alto=0.5)
     with pytest.raises(ValueError):
         SeguidorByteTrack(track_buffer_segundos=-1)
+    with pytest.raises(ValueError):
+        SeguidorByteTrack(umbral_nuevo=1.5)
+    with pytest.raises(ValueError):
+        SeguidorByteTrack(umbral_alto=0.5, umbral_nuevo=0.4)
     assert SeguidorByteTrack().actualizar([]) == []
+
+
+def test_bytetrack_crea_identidades_desde_el_minimo_de_la_regla() -> None:
+    """Si alguien cambia uno, esta prueba obliga a mirar el otro (revisión del #76)."""
+    minimo_regla = next(f.default for f in fields(Regla) if f.name == "confianza_minima")
+    assert bytetrack.UMBRAL_NUEVO == bytetrack.UMBRAL_ALTO == minimo_regla
+    assert (
+        bytetrack.UMBRAL_BAJO == UMBRAL_CONFIANZA
+    )  # la banda baja empieza donde corta el detector
+
+
+def test_un_par_bajo_el_umbral_no_le_quita_la_pareja_a_uno_valido() -> None:
+    """Dos personas y dos tracks: A-1 con IoU 0,16 es el único par válido. Sin descartar
+    antes los pares bajo 0,15, el húngaro prefiere A-2 y B-1 (0,149 cada uno) y A pierde
+    su identidad."""
+    iou = np.array([[0.16, 0.149], [0.149, 0.0]])  # filas: A, B · columnas: tracks 1, 2
+    assert SeguidorByteTrack._emparejar_por_iou(iou, 0.15) == [(0, 0)]
+
+
+def test_la_confianza_baja_no_revive_un_track_perdido() -> None:
+    """Como en el original: la segunda pasada solo mira los tracks vistos en el cuadro
+    anterior. Una detección débil tras una ausencia no alcanza para devolver la identidad."""
+    seguidor = SeguidorByteTrack()
+    seguidor.actualizar([_det(0.0)])
+    seguidor.actualizar([_det(0.2, _mover(PERSONA, 0.5))])  # otra persona, lejos: el 1 se pierde
+    (d,) = seguidor.actualizar([_det(0.4, confianza=0.3)])
+    assert d.track_id is None
 
 
 @pytest.mark.parametrize("fps", [5, 10])
