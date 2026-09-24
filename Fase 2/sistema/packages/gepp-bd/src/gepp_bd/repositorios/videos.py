@@ -114,3 +114,25 @@ def anotar_fallo(sesion: Session, video_id: int, motivo: str, *, definitivo: boo
             intentos=Video.intentos + 1,
         )
     )
+
+
+def pedir_reintento(sesion: Session, video_id: int) -> bool:
+    """Devuelve a la cola un video que falló, con los intentos en cero. El trabajador lo ve
+    en `pedidos_de_reintento` y lo encola en Redis: la API no habla con Redis.
+
+    Devuelve False si el video no estaba en `error` ni en `reintentando`.
+    """
+    fila = sesion.execute(
+        update(Video)
+        .where(Video.id == video_id, Video.estado.in_(("error", "reintentando")))
+        .values(estado="en_cola", intentos=0, error_motivo=None)
+        .returning(Video.id)
+    ).scalar_one_or_none()
+    return fila is not None
+
+
+def pedidos_de_reintento(sesion: Session) -> list[Video]:
+    """Los videos `en_cola` en la base. El trabajador encola los que Redis no tiene ya."""
+    return list(
+        sesion.execute(select(Video).where(Video.estado == "en_cola").order_by(Video.id)).scalars()
+    )

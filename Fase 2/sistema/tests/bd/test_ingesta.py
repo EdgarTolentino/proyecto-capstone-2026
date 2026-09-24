@@ -19,7 +19,7 @@ import pytest
 from gepp_bd import transaccion
 from gepp_bd.modelos import Deteccion, Evidencia, Hallazgo, Notificacion, Video
 from gepp_bd.modelos import Regla as FilaRegla
-from gepp_bd.repositorios import evidencias
+from gepp_bd.repositorios import evidencias, videos
 from gepp_bd.semilla import cargar, leer
 from gepp_vision.detectores import DetectorFalso, Guion
 from gepp_worker import trabajador as modulo_trabajador
@@ -265,3 +265,88 @@ def test_si_no_se_puede_anotar_el_fallo_el_trabajador_sigue_vivo(entorno) -> Non
     assert trabajador.atender_uno() is None  # no lanza: el bucle `correr` sigue
     assert cola.estado(trabajo.hash_sha256) is EstadoTrabajo.PENDIENTE
     assert contar(motor, Video) == 0
+
+
+def _agotar_intentos(trabajador: Trabajador, motor: Engine) -> Video:
+    for _ in range(MAXIMO_INTENTOS):
+        assert trabajador.atender_uno() is None
+    with transaccion(motor) as s:
+        (video,) = s.execute(select(Video)).scalars()
+    assert (video.estado, video.intentos) == ("error", MAXIMO_INTENTOS)
+    return video
+
+
+def test_un_video_en_error_se_reintenta_cuando_alguien_lo_pide(entorno) -> None:  # type: ignore[no-untyped-def]
+    motor, entrada, cola, vigilante, trabajador, _tmp = entorno
+    with transaccion(motor) as s:
+        s.execute(update(FilaRegla).values(activa=False))
+    escribir_video_ruido(entrada / "clip.mp4")
+    vigilante.sondear()
+    (trabajo,) = vigilante.sondear()
+    video = _agotar_intentos(trabajador, motor)
+    assert trabajador.reencolar_pedidos() == 0  # nadie lo pidió: queda en error
+
+    # Se corrige la causa y alguien pide reintentar (lo que hace la API).
+    with transaccion(motor) as s:
+        s.execute(update(FilaRegla).values(activa=True))
+        assert videos.pedir_reintento(s, video.id)
+    assert trabajador.reencolar_pedidos() == 1
+    assert trabajador.reencolar_pedidos() == 0  # ya está en la cola: no se duplica
+    assert cola.estado(trabajo.hash_sha256) is EstadoTrabajo.PENDIENTE
+
+    resultado = trabajador.atender_uno()
+    assert resultado is not None and resultado.hallazgos == 1
+    with transaccion(motor) as s:
+        (video,) = s.execute(select(Video)).scalars()
+    assert (video.estado, video.intentos, video.error_motivo) == ("listo", 0, None)
+
+
+def test_pedir_reintento_solo_vale_para_lo_que_fallo(entorno) -> None:  # type: ignore[no-untyped-def]
+    motor, entrada, _cola, vigilante, trabajador, _tmp = entorno
+    escribir_video_ruido(entrada / "clip.mp4")
+    vigilante.sondear()
+    vigilante.sondear()
+    trabajador.atender_uno()
+    with transaccion(motor) as s:
+        (video,) = s.execute(select(Video)).scalars()
+        assert not videos.pedir_reintento(s, video.id)  # listo: eso es reprocesar sin GPU
+    assert trabajador.reencolar_pedidos() == 0
+
+
+def test_si_redis_se_reinicia_los_intentos_no_pasan_del_maximo(entorno) -> None:  # type: ignore[no-untyped-def]
+    motor, entrada, cola, _vigilante, trabajador, _tmp = entorno
+    roto = entrada / "roto.mp4"
+    roto.write_bytes(b"esto no es un video" * 100)
+    vigilante = Vigilante(entrada, cola, fuente_id=1)
+    vigilante.sondear()
+    vigilante.sondear()
+    _agotar_intentos(trabajador, motor)
+
+    # Redis corre sin volumen: al reiniciarse olvida todo y el vigilante vuelve a encolar.
+    cola._r.flushall()
+    otro = Vigilante(entrada, cola, fuente_id=1)
+    otro.sondear()
+    assert len(otro.sondear()) == 1
+    resultado = trabajador.atender_uno()
+    assert resultado is not None and resultado.omitido  # la base manda: ya estaba en error
+    with transaccion(motor) as s:
+        (video,) = s.execute(select(Video)).scalars()
+    assert (video.estado, video.intentos) == ("error", MAXIMO_INTENTOS)
+
+
+def test_si_redis_se_reinicia_a_mitad_la_base_corta_igual_en_el_maximo(entorno) -> None:  # type: ignore[no-untyped-def]
+    motor, entrada, cola, vigilante, trabajador, _tmp = entorno
+    (entrada / "roto.mp4").write_bytes(b"esto no es un video" * 100)
+    vigilante.sondear()
+    vigilante.sondear()
+    for _ in range(MAXIMO_INTENTOS - 1):
+        trabajador.atender_uno()
+
+    cola._r.flushall()  # Redis olvida la cuenta: para él, el próximo es el primer intento
+    otro = Vigilante(entrada, cola, fuente_id=1)
+    otro.sondear()
+    otro.sondear()
+    trabajador.atender_uno()
+    with transaccion(motor) as s:
+        (video,) = s.execute(select(Video)).scalars()
+    assert (video.estado, video.intentos) == ("error", MAXIMO_INTENTOS)

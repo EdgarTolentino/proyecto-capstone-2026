@@ -14,7 +14,8 @@ Transacciones separadas por video, a propósito:
    `reintentando` con su motivo y sus intentos; al agotarlos, en `error` (#29).
 
 Un video que ya está `listo` no se reprocesa: registrar el mismo hash devuelve la fila
-existente y el trabajador la salta.
+existente y el trabajador la salta. Uno en `error` tampoco: agotó sus intentos y solo vuelve
+si alguien lo pide desde la API (`pedir_reintento` → `reencolar_pedidos`, #74).
 
 La evidencia sale de una **segunda pasada** por el video que decodifica solo los cuadros
 elegidos. Guardar los cuadros de la primera pasada costaría gigas de memoria en un video de
@@ -30,7 +31,6 @@ import sys
 import time
 from collections.abc import Callable, Iterator
 from dataclasses import dataclass
-from datetime import UTC, datetime
 from pathlib import Path
 
 from gepp_bd.modelos import Fuente, Zona
@@ -47,7 +47,7 @@ from sqlalchemy import Engine, select
 
 from gepp_worker.cola import ColaTrabajos, EstadoTrabajo, Trabajo
 from gepp_worker.fuente import Cuadro, PropiedadesFuente
-from gepp_worker.fuente_archivo import FuenteArchivo
+from gepp_worker.fuente_archivo import FuenteArchivo, reloj_de_respaldo
 from gepp_worker.muestreo import Muestreador
 
 
@@ -105,14 +105,14 @@ def _propiedades(ruta: Path) -> PropiedadesFuente:
 def _sin_leer(trabajo: Trabajo) -> videos.NuevoVideo:
     """El registro de un archivo que no se pudo leer: sin duración, el reloj es su fecha de
     modificación y queda marcado `mtime`, que la interfaz muestra como origen dudoso."""
-    fin = datetime.fromtimestamp(Path(trabajo.ruta).stat().st_mtime, tz=UTC)
+    fin, origen = reloj_de_respaldo(Path(trabajo.ruta))
     return videos.NuevoVideo(
         fuente_id=trabajo.fuente_id,
         ruta=trabajo.ruta,
         hash_sha256=trabajo.hash_sha256,
         bytes=trabajo.bytes,
         capture_ts_inicio=fin,
-        origen_capture_ts="mtime",
+        origen_capture_ts=origen.value,
     )
 
 
@@ -152,7 +152,7 @@ class Trabajador:
             motivo = str(e) if isinstance(e, VideoIlegible) else f"{type(e).__name__}: {e}"
             estado = self._cola.reintentar(trabajo, motivo)
             try:
-                self._anotar_fallo(trabajo, motivo, definitivo=estado is EstadoTrabajo.ERROR)
+                self._anotar_fallo(trabajo, motivo, agotado_en_cola=estado is EstadoTrabajo.ERROR)
             except Exception as e2:
                 # El trabajo ya volvió a la cola con su motivo: anotar en la base no puede
                 # tumbar al trabajador (fuente inexistente, base caída, archivo borrado).
@@ -163,22 +163,49 @@ class Trabajador:
         self._cola.confirmar(trabajo)
         return resultado
 
-    def _anotar_fallo(self, trabajo: Trabajo, motivo: str, *, definitivo: bool) -> None:
-        """Que el fallo se vea en `GET /videos`, y no solo en Redis (#29)."""
+    def _anotar_fallo(self, trabajo: Trabajo, motivo: str, *, agotado_en_cola: bool) -> None:
+        """Que el fallo se vea en `GET /videos`, y no solo en Redis (#29).
+
+        Los intentos los cuenta la base, no Redis: Redis corre sin volumen y, si se reinicia,
+        el vigilante vuelve a encolar el archivo con la cuenta en cero (#74).
+        """
         with transaccion(self._motor) as s:
             video = videos.por_hash(s, trabajo.hash_sha256)
             if video is None:
                 video, _ = videos.registrar(s, _sin_leer(trabajo))
-            videos.anotar_fallo(s, video.id, motivo, definitivo=definitivo)
+            agotado = video.intentos + 1 >= self._cola.maximo_intentos
+            videos.anotar_fallo(s, video.id, motivo, definitivo=agotado or agotado_en_cola)
+
+    def reencolar_pedidos(self) -> int:
+        """Encola lo que alguien pidió reintentar desde la API (`pedir_reintento`) y Redis no
+        tiene ya pendiente o en proceso. Devuelve cuántos encoló."""
+        with transaccion(self._motor) as s:
+            pedidos = [
+                Trabajo(v.ruta, v.hash_sha256, v.bytes, v.fuente_id)
+                for v in videos.pedidos_de_reintento(s)
+            ]
+        en_marcha = (EstadoTrabajo.PENDIENTE, EstadoTrabajo.PROCESANDO)
+        n = 0
+        for trabajo in pedidos:
+            if self._cola.estado(trabajo.hash_sha256) not in en_marcha:
+                self._cola.reencolar(trabajo)
+                n += 1
+        return n
 
     def correr(self, seguir: Callable[[], bool] = lambda: True, espera_s: float = 2.0) -> None:
         self._cola.recuperar_huerfanos()
         while seguir():
+            self.reencolar_pedidos()
             self.atender_uno(espera_s)
 
     # ── Proceso de un video ────────────────────────────────────────────────────
 
     def procesar(self, trabajo: Trabajo) -> Resultado:
+        with transaccion(self._motor) as s:
+            previo = videos.por_hash(s, trabajo.hash_sha256)
+            # `error` también se salta: agotó sus intentos y solo vuelve si alguien lo pide.
+            if previo is not None and previo.estado in ("listo", "error"):
+                return Resultado(video_id=previo.id, omitido=True)
         inicio = time.monotonic()
         ruta = Path(trabajo.ruta)
         props = _propiedades(ruta)

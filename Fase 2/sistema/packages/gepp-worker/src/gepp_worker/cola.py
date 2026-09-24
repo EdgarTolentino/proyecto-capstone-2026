@@ -66,6 +66,10 @@ class ColaTrabajos:
         self._pendientes = f"{PREFIJO}:trabajos:pendientes"
         self._procesando = f"{PREFIJO}:trabajos:procesando"
 
+    @property
+    def maximo_intentos(self) -> int:
+        return self._maximo
+
     def _clave(self, hash_sha256: str) -> str:
         return f"{PREFIJO}:video:{hash_sha256}"
 
@@ -93,6 +97,18 @@ class ColaTrabajos:
         self._r.hset(clave, mapping={"ruta": trabajo.ruta, "intentos": trabajo.intentos})
         self._r.lpush(self._pendientes, trabajo.a_json())
         return True
+
+    def reencolar(self, trabajo: Trabajo) -> None:
+        """Vuelve a encolar un video que ya pasó por la cola (alguien pidió reintentarlo),
+        con los intentos en cero. A diferencia de `encolar`, no mira si el hash ya estaba."""
+        limpio = replace(trabajo, intentos=0)
+        clave = self._clave(trabajo.hash_sha256)
+        self._r.hdel(clave, "motivo")
+        self._r.hset(
+            clave,
+            mapping={"estado": EstadoTrabajo.PENDIENTE.value, "ruta": trabajo.ruta, "intentos": 0},
+        )
+        self._r.lpush(self._pendientes, limpio.a_json())
 
     def tomar(self, espera_s: float = 0) -> Trabajo | None:
         """Mueve el trabajo más antiguo a `procesando`. Con `espera_s > 0` bloquea hasta ese

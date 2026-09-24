@@ -152,8 +152,13 @@ export interface paths {
         put?: never;
         /**
          * Reprocesar un video
-         * @description Idempotente por `hash_sha256`: reprocesar no duplica hallazgos, los reemplaza. Es lo que
-         *     permite recalcular reglas sin volver a tocar la GPU.
+         * @description Según el estado del video:
+         *
+         *     - `listo`: recalcula las reglas vigentes sobre las detecciones guardadas, sin volver a
+         *       tocar la GPU. Idempotente por `hash_sha256`: no duplica hallazgos, los reemplaza.
+         *     - `error` o `reintentando`: lo devuelve a la cola (`en_cola`, `intentos` en 0, sin
+         *       `error_motivo`) para procesarlo de nuevo, una vez corregida la causa.
+         *     - `en_cola` o `procesando`: 409 `video_no_listo`, porque ya va a procesarse.
          */
         post: operations["reprocesarVideo"];
         delete?: never;
@@ -669,7 +674,7 @@ export interface components {
             progreso?: number | null;
             error_motivo?: string | null;
             /**
-             * @description Intentos fallidos hasta ahora (el máximo es 3).
+             * @description Intentos fallidos hasta ahora. Al llegar al máximo configurado en el trabajador (`GEPP_MAXIMO_INTENTOS`, 3 por defecto) el video pasa a `error`; reprocesarlo lo devuelve a 0.
              * @example 0
              */
             intentos?: number;

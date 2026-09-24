@@ -9,6 +9,7 @@ Configuración desde el entorno (ver `.env.example`):
     GEPP_FPS_OBJETIVO · GEPP_FUENTE_ID (fuente a la que pertenece la carpeta, 1 por defecto)
     GEPP_GUION_FALSO   ruta a un guion JSON: usa el detector falso (demostración sin modelo)
     GEPP_AVISO_CANAL + GEPP_AVISO_DESTINATARIO: si están, cada hallazgo escribe su aviso
+    GEPP_MAXIMO_INTENTOS: intentos antes de dejar un video en `error` (3 por defecto)
 
 El detector real (RF-DETR u ONNX) llega con PT-08; hasta entonces solo existe el falso.
 """
@@ -31,9 +32,12 @@ VARIABLES_OBLIGATORIAS = ("GEPP_BD_URL", "GEPP_REDIS_URL", "GEPP_CARPETA_VIGILAD
 def _cola() -> ColaTrabajos:
     import redis
 
-    from gepp_worker.cola import ColaTrabajos
+    from gepp_worker.cola import MAXIMO_INTENTOS, ColaTrabajos
 
-    return ColaTrabajos(redis.Redis.from_url(os.environ["GEPP_REDIS_URL"]))
+    return ColaTrabajos(
+        redis.Redis.from_url(os.environ["GEPP_REDIS_URL"]),
+        maximo_intentos=int(os.environ.get("GEPP_MAXIMO_INTENTOS", MAXIMO_INTENTOS)),
+    )
 
 
 def _detenible() -> mp.synchronize.Event:

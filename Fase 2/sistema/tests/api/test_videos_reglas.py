@@ -73,6 +73,31 @@ def test_reprocesar_exige_permiso_y_video_listo(api: Cliente) -> None:
     api.llamar("reprocesarVideo", "POST", "/videos/99/reprocesar", headers=ADMIN, esperado=404)
 
 
+@pytest.mark.parametrize("estado", ["error", "reintentando"])
+def test_reprocesar_un_video_que_fallo_lo_devuelve_a_la_cola(
+    api: Cliente, bd: Any, estado: str
+) -> None:
+    from sqlalchemy import text
+
+    with bd.begin() as c:
+        c.execute(
+            text(
+                "UPDATE video SET estado = :e, intentos = 3,"
+                " error_motivo = 'LookupError: el área 1 no tiene reglas activas' WHERE id = 2"
+            ),
+            {"e": estado},
+        )
+    v = api.llamar("reprocesarVideo", "POST", "/videos/2/reprocesar", headers=ADMIN, esperado=202)
+    assert (v["estado"], v["intentos"], v["error_motivo"]) == ("en_cola", 0, None)
+    with bd.begin() as c:
+        accion = c.execute(
+            text("SELECT accion FROM auditoria WHERE entidad = 'video' AND entidad_id = 2")
+        ).scalar_one()
+    assert accion == "video:reintentar"
+    # Ya está en la cola: pedirlo otra vez no tiene sentido.
+    api.llamar("reprocesarVideo", "POST", "/videos/2/reprocesar", headers=ADMIN, esperado=409)
+
+
 def test_reprocesar_dos_veces_no_duplica_ni_cambia_nada(api: Cliente) -> None:
     antes = _ids(api)
     for _ in range(2):

@@ -4,7 +4,7 @@ from __future__ import annotations
 
 import fakeredis
 import pytest
-from gepp_worker.cola import ColaTrabajos, EstadoTrabajo, Trabajo
+from gepp_worker.cola import MAXIMO_INTENTOS, ColaTrabajos, EstadoTrabajo, Trabajo
 
 
 def _trabajo(n: int = 1) -> Trabajo:
@@ -71,3 +71,33 @@ def test_lo_que_quedo_procesando_vuelve_a_la_cola(cola: ColaTrabajos) -> None:
     assert cola.estado(_trabajo(1).hash_sha256) is EstadoTrabajo.PENDIENTE
     assert cola.pendientes() == 2
     assert cola.recuperar_huerfanos() == 0
+
+
+@pytest.mark.parametrize(("valor", "esperado"), [(None, MAXIMO_INTENTOS), ("5", 5)])
+def test_el_maximo_de_intentos_sale_del_entorno(
+    monkeypatch: pytest.MonkeyPatch, valor: str | None, esperado: int
+) -> None:
+    from gepp_worker.__main__ import _cola
+
+    monkeypatch.setenv("GEPP_REDIS_URL", "redis://localhost:6379/0")  # no conecta al crearse
+    if valor is None:
+        monkeypatch.delenv("GEPP_MAXIMO_INTENTOS", raising=False)
+    else:
+        monkeypatch.setenv("GEPP_MAXIMO_INTENTOS", valor)
+    assert _cola().maximo_intentos == esperado
+
+
+def test_reencolar_deja_la_cuenta_en_cero_aunque_el_hash_ya_estuviera() -> None:
+    cola = ColaTrabajos(fakeredis.FakeRedis())
+    trabajo = Trabajo("/v/a.mp4", "a" * 64, 10, 1)
+    assert cola.encolar(trabajo)
+    for _ in range(MAXIMO_INTENTOS):
+        cola.reintentar(cola.tomar() or trabajo, "falla")
+    assert cola.estado(trabajo.hash_sha256) is EstadoTrabajo.ERROR
+    assert not cola.encolar(trabajo)  # encolar respeta el hash: no vuelve solo
+
+    cola.reencolar(trabajo)
+    assert cola.estado(trabajo.hash_sha256) is EstadoTrabajo.PENDIENTE
+    assert "motivo" not in cola.detalle(trabajo.hash_sha256)
+    tomado = cola.tomar()
+    assert tomado is not None and tomado.intentos == 0
