@@ -3,8 +3,9 @@
 from __future__ import annotations
 
 from dataclasses import dataclass, field, replace
-from datetime import timedelta
+from datetime import datetime, timedelta
 from pathlib import Path
+from zoneinfo import ZoneInfo
 
 import pytest
 from gepp_api.notificaciones.canal import Aviso, Estado, ResultadoEnvio
@@ -21,6 +22,7 @@ from ..conftest import T0
 
 pytestmark = pytest.mark.integration
 
+SANTIAGO = ZoneInfo("America/Santiago")
 PERFIL = Path(__file__).resolve().parents[2] / "perfiles" / "construccion.yaml"
 
 
@@ -121,7 +123,20 @@ def test_el_acuse_cierra_el_grupo_y_el_token_es_de_un_solo_uso(sembrada: Engine)
     assert all(n.acusada_en is not None for n in filas(sembrada))
 
 
-def test_el_presupuesto_de_seis_por_turno_se_cumple_y_queda_registrado(sembrada: Engine) -> None:
+# Un instante fijo a media tarde del turno A y otro de madrugada del turno B, que empezó la
+# víspera: con `now()` la prueba fallaba si corría en los 11 minutos que siguen a un cambio de
+# turno, porque los seis avisos "de este turno" quedaban en el anterior.
+@pytest.mark.parametrize(
+    "ahora",
+    [
+        datetime(2026, 9, 2, 14, 0, tzinfo=SANTIAGO),
+        datetime(2026, 9, 3, 2, 0, tzinfo=SANTIAGO),
+    ],
+    ids=["turno_A", "turno_B_tras_medianoche"],
+)
+def test_el_presupuesto_de_seis_por_turno_se_cumple_y_queda_registrado(
+    sembrada: Engine, ahora: datetime
+) -> None:
     # Seis avisos ya enviados en este turno (ids externos distintos, hace más de 10 min).
     sembrar(
         sembrada, *(replace(BASE, track_id=i) for i in range(PRESUPUESTO_POR_TURNO)), fuente_id=2
@@ -130,12 +145,18 @@ def test_el_presupuesto_de_seis_por_turno_se_cumple_y_queda_registrado(sembrada:
         c.execute(
             text(
                 "UPDATE notificacion SET estado='enviada', id_externo=id::text,"
-                " enviada_en = now() - interval '11 minutes'"
-            )
+                " enviada_en = :en, creada_en = :en"
+            ),
+            {"en": ahora - timedelta(minutes=11)},
         )
     sembrar(sembrada, replace(BASE, track_id=99))  # el séptimo, en otra cámara
+    with sembrada.begin() as c:
+        c.execute(
+            text("UPDATE notificacion SET creada_en = :en WHERE estado = 'pendiente'"),
+            {"en": ahora - timedelta(minutes=1)},
+        )
     canal = CanalFalso()
-    r = Despachador(sembrada, canal).ciclo()
+    r = Despachador(sembrada, canal, reloj=lambda: ahora).ciclo()
     assert canal.enviados == [] and r.motivos == ["presupuesto_agotado"]
     septima = filas(sembrada)[-1]
     assert (septima.tipo, septima.motivo) == ("resumen_turno", "presupuesto_agotado")

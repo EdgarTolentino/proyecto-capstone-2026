@@ -16,6 +16,7 @@ from __future__ import annotations
 
 import secrets
 from collections import defaultdict
+from collections.abc import Callable
 from dataclasses import dataclass, field
 from datetime import datetime, timedelta
 from zoneinfo import ZoneInfo
@@ -60,11 +61,18 @@ class ResultadoCiclo:
 
 class Despachador:
     def __init__(
-        self, motor: Engine, canal: CanalNotificacion, zona_horaria: str = "America/Santiago"
+        self,
+        motor: Engine,
+        canal: CanalNotificacion,
+        zona_horaria: str = "America/Santiago",
+        reloj: Callable[[], datetime] | None = None,
     ) -> None:
         self._motor = motor
         self._canal = canal
         self._tz = zona_horaria
+        # Sin reloj manda la hora de PostgreSQL, la misma que marca `enviada_en`. Las pruebas
+        # lo fijan para no depender de si corren cerca de un cambio de turno.
+        self._reloj = reloj
 
     def ciclo(self) -> ResultadoCiclo:
         r = ResultadoCiclo()
@@ -73,7 +81,7 @@ class Despachador:
             for token in tokens:
                 r.acusados += repo.acusar_por_token(s, token)
         with transaccion(self._motor) as s:
-            ahora = s.execute(select(func.now())).scalar_one()
+            ahora = self._reloj() if self._reloj else s.execute(select(func.now())).scalar_one()
             turno, inicio = turno_en_curso(ahora, self._tz)
             self._inmediatos(s, ahora, turno.codigo, inicio, r)
         with transaccion(self._motor) as s:
