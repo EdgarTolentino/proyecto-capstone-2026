@@ -118,10 +118,13 @@ def test_un_video_copiado_termina_como_filas_en_la_base(entorno) -> None:  # typ
     assert [p.name for p in ruta.parent.iterdir()] == [ruta.name]
     recorte = cv2.imdecode(np.frombuffer(datos, np.uint8), cv2.IMREAD_COLOR)
     # Persona del guion: x 0,40-0,52, y 0,20-0,80. Margen 25 %: en el recorte la persona va
-    # de y 36 a 180 y de x 10 a 48; su cabeza (22 %) de y 36 a 67.
-    cabeza = recorte[38:65, 12:46]
+    # de y 36 a 180 (alto 144) y de x 10 a 48 (ancho 38). Cara: y 43-58, x 21-37.
+    # Coronilla, donde va el casco: y 36-43, que tiene que quedar intacta.
+    cara = recorte[45:56, 23:35]
+    coronilla = recorte[36:42, 23:35]
     cuerpo = recorte[110:170, 12:46]
-    assert rugosidad(cabeza) < rugosidad(cuerpo) / 3
+    assert rugosidad(cara) < rugosidad(cuerpo) / 3
+    assert rugosidad(coronilla) > rugosidad(cuerpo) * 0.7
 
 
 def test_el_mismo_video_dos_veces_no_duplica_nada(entorno) -> None:  # type: ignore[no-untyped-def]

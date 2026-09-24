@@ -69,11 +69,16 @@ Sin la etapa 3 el sistema es inusable en cuanto haya más de una persona en cuad
 | **ntfy autoalojado** | Canal de terreno | Un contenedor, licencia permisiva, sin costo y **sin aprobación de terceros**. Sus botones de acción dan acuse de recibo de un toque — con guantes puestos |
 | **Web Push / PWA** | Panel de sala de control | Sin infraestructura adicional |
 | **Correo** | Solo el resumen | Barato y asíncrono por naturaleza |
-| **Telegram** | Plan B | Implementable en un día |
+| **Telegram** | **Canal de la v1** (decisión del 22-sep-2026) | Implementado en PT-13, con acuse por botón. Ver `docs/operacion/alertas-telegram.md` |
 | **WhatsApp Cloud API** | **Diseñado, no desplegado** | Exige verificación de negocio con Meta y revisión de plantillas de hasta 24 h. Es un riesgo que no se corre en la semana 17 de un proyecto de título |
 
 **Se escribe el adaptador de WhatsApp y sus pruebas, pero no se despliega.** Esa es la diferencia
 entre tener la puerta abierta y apostar el cronograma.
+
+> **Decisión del 22-sep-2026:** la v1 usa Telegram y no ntfy. Es el canal que el equipo ya tiene
+> en el teléfono, no requiere levantar ningún servicio, y el botón del mensaje da el acuse de un
+> toque. ntfy sigue siendo la opción para una faena sin internet: basta una clase nueva detrás
+> del mismo puerto.
 
 ## El contrato que deja la puerta abierta
 

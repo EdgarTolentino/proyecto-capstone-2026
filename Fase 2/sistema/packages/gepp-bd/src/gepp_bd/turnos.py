@@ -7,7 +7,8 @@ que el turno sea un dato de la faena en la base.
 from __future__ import annotations
 
 from dataclasses import dataclass
-from datetime import time
+from datetime import datetime, time, timedelta
+from zoneinfo import ZoneInfo
 
 
 @dataclass(frozen=True, slots=True)
@@ -31,3 +32,17 @@ TURNOS = (Turno("A", time(8), time(20)), Turno("B", time(20), time(8)))
 
 def turno(codigo: str) -> Turno | None:
     return next((t for t in TURNOS if t.codigo == codigo), None)
+
+
+def turno_en_curso(ahora: datetime, zona_horaria: str) -> tuple[Turno, datetime]:
+    """El turno que contiene `ahora` y su instante de inicio, en hora local de la faena."""
+    local = ahora.astimezone(ZoneInfo(zona_horaria))
+    for t in TURNOS:
+        if t.contiene(local.time()):
+            inicio = local.replace(
+                hour=t.desde.hour, minute=t.desde.minute, second=0, microsecond=0
+            )
+            if inicio > local:  # turno que cruza la medianoche y empezó ayer
+                inicio -= timedelta(days=1)
+            return t, inicio
+    raise LookupError(f"ningún turno cubre las {local:%H:%M}")

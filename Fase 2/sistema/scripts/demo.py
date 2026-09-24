@@ -91,6 +91,12 @@ def main(argv: list[str] | None = None) -> int:
     p.add_argument("video", type=Path)
     p.add_argument("--guion", type=Path, default=RAIZ / "demo" / "guion_cam03.json")
     p.add_argument("--espera", type=float, default=120.0, help="segundos máximos de espera")
+    p.add_argument(
+        "--fuente",
+        type=int,
+        default=1,
+        help="1 = acceso (regla alta: va al resumen) · 2 = obra gruesa (crítica: avisa ya)",
+    )
     args = p.parse_args(argv)
     if not args.video.is_file():
         sys.exit(f"no existe el video: {args.video}")
@@ -105,9 +111,11 @@ def main(argv: list[str] | None = None) -> int:
         "GEPP_CARPETA_VIGILADA": str(entrada),
         "GEPP_CARPETA_EVIDENCIA": str(evidencia),
         "GEPP_GUION_FALSO": str(args.guion.resolve()),
-        "GEPP_FUENTE_ID": "1",
+        "GEPP_FUENTE_ID": str(args.fuente),
         "GEPP_AVISO_CANAL": "telegram",
-        "GEPP_AVISO_DESTINATARIO": "prevencionista-demo",
+        # Con el chat real en el .env, el aviso llega al teléfono al correr `make despachador`.
+        "GEPP_AVISO_DESTINATARIO": os.environ.get("GEPP_AVISO_DESTINATARIO")
+        or "prevencionista-demo",
     }
     import redis  # solo para vaciar la base de Redis de la demo
 

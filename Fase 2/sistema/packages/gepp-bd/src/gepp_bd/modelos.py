@@ -340,6 +340,14 @@ class Notificacion(Base):
     acusada_en: Mapped[datetime | None] = mapped_column(TSTZ)
     acusada_por: Mapped[int | None] = mapped_column(ForeignKey("usuario.id"))
     creada_en: Mapped[datetime] = mapped_column(TSTZ, server_default=func.now())
+    #: Id del mensaje en el canal. Varias filas comparten uno cuando se agruparon en un aviso.
+    id_externo: Mapped[str | None] = mapped_column(Text)
+    #: Token de un solo uso del botón "Acuso recibo" (compartido por el grupo).
+    token_acuse: Mapped[str | None] = mapped_column(Text, index=True)
+    #: Tras un fallo transitorio del canal, no antes de este instante.
+    reintentar_despues: Mapped[datetime | None] = mapped_column(TSTZ)
+    #: Por qué quedó fallida o bajó al resumen (presupuesto, espera por cámara, ...).
+    motivo: Mapped[str | None] = mapped_column(Text)
 
 
 class Dotacion(Base):

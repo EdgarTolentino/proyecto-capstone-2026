@@ -7,6 +7,7 @@ dependencies = [
     "fastapi>=0.115",
     "gepp-bd",
     "gepp-core",
+    "httpx>=0.27",
     "prometheus-client>=0.20",
     "uvicorn>=0.30",
 ]

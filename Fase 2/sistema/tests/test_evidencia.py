@@ -1,4 +1,4 @@
-"""Evidencia anonimizada: cabeza pixelada, recorte, hash y fecha de purga (ADR-006)."""
+"""Evidencia anonimizada: cara pixelada, casco visible, recorte, hash y purga (ADR-006)."""
 
 from __future__ import annotations
 
@@ -12,8 +12,8 @@ from gepp_core import Caja
 from gepp_vision.evidencia import (
     escribir_evidencia,
     fecha_de_purga,
-    franja_de_cabeza,
     recortar,
+    zona_de_rostro,
 )
 
 PERSONA = Caja(0.25, 0.10, 0.75, 0.90)
@@ -29,16 +29,12 @@ def _ruido(alto: int = 240, ancho: int = 320) -> np.ndarray:
     return np.random.default_rng(7).integers(0, 256, (alto, ancho, 3), dtype=np.uint8)
 
 
-def test_la_franja_de_cabeza_es_la_parte_superior() -> None:
-    f = franja_de_cabeza(PERSONA, 0.25)
-    assert (f.x1, f.x2, f.y1) == (PERSONA.x1, PERSONA.x2, PERSONA.y1)
-    assert f.alto == pytest.approx(PERSONA.alto * 0.25)
-
-
-@pytest.mark.parametrize("fraccion", [0.0, 1.5])
-def test_la_franja_fuera_de_rango_se_rechaza(fraccion: float) -> None:
-    with pytest.raises(ValueError, match="fracción"):
-        franja_de_cabeza(PERSONA, fraccion)
+def test_la_zona_del_rostro_deja_fuera_la_coronilla_y_los_hombros() -> None:
+    r = zona_de_rostro(PERSONA)  # persona: x 0,25-0,75 · y 0,10-0,90 (alto 0,80)
+    assert r.y1 == pytest.approx(0.10 + 0.05 * 0.80)  # bajo la coronilla, donde va el casco
+    assert r.y2 == pytest.approx(0.10 + 0.15 * 0.80)
+    assert (r.x1, r.x2) == pytest.approx((0.25 + 0.30 * 0.5, 0.25 + 0.70 * 0.5))
+    assert PERSONA.x1 < r.x1 and r.x2 < PERSONA.x2 and PERSONA.y1 < r.y1
 
 
 def test_el_recorte_se_ajusta_al_borde_del_cuadro() -> None:
@@ -82,8 +78,13 @@ def test_la_evidencia_se_escribe_con_la_cabeza_pixelada(tmp_path: Path) -> None:
     import cv2
 
     recorte = cv2.imdecode(np.frombuffer(datos, np.uint8), cv2.IMREAD_COLOR)
-    # En el recorte la persona va de x 24 a 120 y de y 30 a 150; su cabeza (22 %) de 30 a 56.
     assert recorte.shape[:2] == (180, 144)
-    cabeza = recorte[32:54, 26:118]
+    # En el recorte la persona va de x 24 a 120 y de y 30 a 150 (alto 120, ancho 96).
+    # Cara: y 36-48, x 53-91. Coronilla (casco): y 30-36. Hombros a la altura de la cara.
+    cara = recorte[37:47, 55:89]
+    coronilla = recorte[30:35, 55:89]
+    hombro = recorte[37:47, 26:50]
     cuerpo = recorte[90:140, 26:118]
-    assert rugosidad(cabeza) < rugosidad(cuerpo) / 3
+    assert rugosidad(cara) < rugosidad(cuerpo) / 3  # pixelada
+    assert rugosidad(coronilla) > rugosidad(cuerpo) * 0.7  # intacta: se ve si hay casco
+    assert rugosidad(hombro) > rugosidad(cuerpo) * 0.7

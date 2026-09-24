@@ -175,6 +175,10 @@ erDiagram
         DATETIME acusada_en
         BIGINT acusada_por FK
         DATETIME creada_en
+        TEXT id_externo
+        TEXT token_acuse
+        DATETIME reintentar_despues
+        TEXT motivo
     }
     faena ||--o{ area : "faena_id"
     area ||--o{ dotacion : "area_id"

@@ -3,11 +3,15 @@
 El recorte llega a disco YA anonimizado: no existe una versión con el rostro visible, ni
 siquiera temporal. El cuadro original nunca se escribe; solo el recorte.
 
-**Privacidad por defecto, sin detector de rostros.** La v1 no tiene detector facial, así que
-se pixela la franja superior de la caja de CADA persona del cuadro (la cabeza, donde va el
-casco). Pixelar de más es el error barato: el recorte sigue mostrando si hay casco, que es lo
-que importa. Un detector facial que acote la zona queda para después; entraría aquí sin
-cambiar la firma.
+**Se pixela la cara, no la cabeza.** La v1 no tiene detector facial, así que la zona de la cara
+se estima desde la caja de CADA persona del cuadro: bajo la visera y centrada. La coronilla,
+donde va el casco, queda VISIBLE: una evidencia que no deja ver si hay casco no sirve para
+revisar el hallazgo (lo detectó Edgar en la demo del 22-sep: la primera versión pixelaba el
+22 % superior de la caja, casco incluido).
+
+Límite conocido: con una persona agachada, de espaldas o parcialmente fuera del cuadro la
+estimación puede quedar corta. Un detector facial que acote la zona entraría aquí sin cambiar
+la firma (PT-17).
 
 `purgar_el` se calcula desde la fecha de CAPTURA más `retencion_dias` de la regla, no desde la
 fecha en que se procesa: un video procesado con una semana de atraso no puede ganar una
@@ -28,9 +32,11 @@ from gepp_core import Caja
 
 from gepp_vision.privacidad import difuminar_regiones
 
-#: Fracción superior de la caja de la persona que se pixela. La cabeza de una persona de
-#: pie ocupa ~1/8 de su alto; 0,22 cubre la cabeza con casco y algo de margen.
-FRACCION_CABEZA = 0.22
+#: Zona de la cara, en fracción de la caja de la persona. La cabeza de una persona de pie
+#: ocupa ~1/8 de su alto: el casco va en el ~5 % superior y la cara, bajo la visera, hasta
+#: ~15 %. A lo ancho, la caja incluye brazos y hombros: la cabeza va en el centro.
+ROSTRO_VERTICAL = (0.05, 0.15)
+ROSTRO_HORIZONTAL = (0.30, 0.70)
 #: Margen alrededor de la persona en el recorte, en fracción de su caja.
 MARGEN_RECORTE = 0.25
 CALIDAD_JPG = 90
@@ -47,16 +53,20 @@ class EvidenciaEscrita:
     purgar_el: date
 
 
-def franja_de_cabeza(persona: Caja, fraccion: float = FRACCION_CABEZA) -> Caja:
-    """La parte superior de la caja de una persona."""
-    if not 0 < fraccion <= 1:
-        raise ValueError("la fracción de cabeza debe estar en (0, 1]")
-    return Caja(persona.x1, persona.y1, persona.x2, persona.y1 + persona.alto * fraccion)
+def zona_de_rostro(persona: Caja) -> Caja:
+    """La zona de la cara dentro de la caja de una persona. Deja fuera la coronilla (casco)."""
+    (y_desde, y_hasta), (x_desde, x_hasta) = ROSTRO_VERTICAL, ROSTRO_HORIZONTAL
+    return Caja(
+        persona.x1 + persona.ancho * x_desde,
+        persona.y1 + persona.alto * y_desde,
+        persona.x1 + persona.ancho * x_hasta,
+        persona.y1 + persona.alto * y_hasta,
+    )
 
 
 def anonimizar(imagen: np.ndarray, personas: Sequence[Caja]) -> np.ndarray:
-    """Copia de la imagen con la cabeza de cada persona pixelada."""
-    return difuminar_regiones(imagen, [franja_de_cabeza(p) for p in personas], margen=0.0)
+    """Copia de la imagen con la cara de cada persona pixelada y el casco a la vista."""
+    return difuminar_regiones(imagen, [zona_de_rostro(p) for p in personas], margen=0.0)
 
 
 def recortar(imagen: np.ndarray, caja: Caja, margen: float = MARGEN_RECORTE) -> np.ndarray:

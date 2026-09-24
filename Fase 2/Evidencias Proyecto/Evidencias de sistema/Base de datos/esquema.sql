@@ -280,5 +280,19 @@ ALTER TABLE zona ADD COLUMN evaluable TEXT[];
 
 UPDATE alembic_version SET version_num='0002' WHERE alembic_version.version_num = '0001';
 
+-- Running upgrade 0002 -> 0003
+
+ALTER TABLE notificacion ADD COLUMN id_externo TEXT;
+
+ALTER TABLE notificacion ADD COLUMN token_acuse TEXT;
+
+ALTER TABLE notificacion ADD COLUMN reintentar_despues TIMESTAMP WITH TIME ZONE;
+
+ALTER TABLE notificacion ADD COLUMN motivo TEXT;
+
+CREATE INDEX ix_notificacion_token_acuse ON notificacion (token_acuse);
+
+UPDATE alembic_version SET version_num='0003' WHERE alembic_version.version_num = '0002';
+
 COMMIT;
 
