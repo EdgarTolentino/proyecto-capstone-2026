@@ -22,8 +22,8 @@ from gepp_bd.modelos import Regla as FilaRegla
 from gepp_bd.repositorios import evidencias
 from gepp_bd.semilla import cargar, leer
 from gepp_vision.detectores import DetectorFalso, Guion
-from gepp_worker.cola import MAXIMO_INTENTOS, ColaTrabajos, EstadoTrabajo
 from gepp_worker import trabajador as modulo_trabajador
+from gepp_worker.cola import MAXIMO_INTENTOS, ColaTrabajos, EstadoTrabajo
 from gepp_worker.trabajador import Aviso, Configuracion, Trabajador
 from gepp_worker.vigilante import Vigilante
 from sqlalchemy import Engine, func, select, update
