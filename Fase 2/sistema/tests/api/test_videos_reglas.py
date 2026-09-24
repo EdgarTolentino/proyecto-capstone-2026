@@ -45,6 +45,27 @@ def test_la_cola_de_ingesta(api: Cliente) -> None:
     assert v["fps_efectivo"] == 5.0 and len(v["hash_abreviado"]) == 8
     assert sorted(x["hallazgos_generados"] for x in pagina["items"]) == [0, 1, 1]
     assert api.llamar("listarVideos", "GET", "/videos?estado=error")["items"] == []
+    assert all(x["intentos"] == 0 for x in pagina["items"])
+
+
+def test_un_video_que_fallo_se_ve_con_su_motivo_y_sus_intentos(api: Cliente, bd: Any) -> None:
+    from sqlalchemy import text
+
+    with bd.begin() as c:
+        c.execute(
+            text(
+                "UPDATE video SET estado = 'reintentando', intentos = 2,"
+                " error_motivo = 'No se pudo leer el video: moov atom not found' WHERE id = 2"
+            )
+        )
+    (v,) = api.llamar("listarVideos", "GET", "/videos?estado=reintentando")["items"]
+    assert (v["id"], v["intentos"]) == (2, 2)
+    assert v["error_motivo"].startswith("No se pudo leer el video")
+    # Volvió a la cola: la cabecera no puede decir "Ingesta detenida".
+    with bd.begin() as c:
+        c.execute(text("UPDATE video SET estado = 'listo' WHERE id <> 2"))
+    ingesta = api.llamar("obtenerEstado", "GET", "/estado")["ingesta"]
+    assert ingesta["activa"] and ingesta["en_cola"] == 1
 
 
 def test_reprocesar_exige_permiso_y_video_listo(api: Cliente) -> None:

@@ -44,11 +44,13 @@ def obtener_estado(request: Request, bd: Bd, sesion: Sesion) -> dict[str, Any]:
     pendientes = select(func.count()).where(Hallazgo.estado == "por_revisar")
     if sesion.rol == "supervisor":
         pendientes = pendientes.where(Hallazgo.area_id == sesion.area_id)
+    # Lo que falló y volvió a la cola también espera turno.
+    en_cola = por_estado.get("en_cola", 0) + por_estado.get("reintentando", 0)
     return {
         "ingesta": {
-            "activa": por_estado.get("procesando", 0) + por_estado.get("en_cola", 0) > 0,
+            "activa": por_estado.get("procesando", 0) + en_cola > 0,
             "en_proceso": por_estado.get("procesando", 0),
-            "en_cola": por_estado.get("en_cola", 0),
+            "en_cola": en_cola,
         },
         "cobertura": cobertura(bd, request.app.state.config.zona_horaria),
         "pendientes_por_revisar": bd.scalar(pendientes) or 0,

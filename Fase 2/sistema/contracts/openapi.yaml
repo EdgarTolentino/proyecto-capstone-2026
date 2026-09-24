@@ -491,7 +491,7 @@ paths:
           in: query
           schema:
             type: string
-            enum: [en_cola, procesando, listo, error]
+            enum: [en_cola, procesando, reintentando, listo, error]
         - { $ref: '#/components/parameters/FuenteId' }
         - { $ref: '#/components/parameters/Limite' }
         - { $ref: '#/components/parameters/Cursor' }
@@ -1126,7 +1126,12 @@ components:
           type: string
           enum: [metadatos, mtime, manual, ocr]
           description: Se muestra en la interfaz — un reloj de origen dudoso debe verse.
-        estado: { type: string, enum: [en_cola, procesando, listo, error] }
+        estado:
+          type: string
+          enum: [en_cola, procesando, reintentando, listo, error]
+          description: >-
+            `reintentando`: falló y volvió a la cola; `error_motivo` dice por qué. `error`:
+            agotó los intentos. Un archivo que no se pudo leer también aparece, con su motivo.
         progreso:
           type: [number, 'null']
           format: float
@@ -1134,6 +1139,11 @@ components:
           maximum: 1
           example: 0.42
         error_motivo: { type: [string, 'null'] }
+        intentos:
+          type: integer
+          minimum: 0
+          description: Intentos fallidos hasta ahora (el máximo es 3).
+          example: 0
         fps_efectivo: { type: [number, 'null'], format: float, example: 5.0 }
         cuadros_analizados: { type: [integer, 'null'], example: 18000 }
         proceso_ms: { type: [integer, 'null'], format: int64, example: 412000 }

@@ -40,6 +40,7 @@ def video_a_json(bd: Bd, v: Video, tz: ZoneInfo) -> dict[str, Any]:
         # El trabajador no publica avance parcial todavía: solo se sabe que empezó o terminó.
         "progreso": 1.0 if v.estado == "listo" else None,
         "error_motivo": v.error_motivo,
+        "intentos": v.intentos,
         "fps_efectivo": fps_efectivo,
         "cuadros_analizados": v.cuadros_analizados,
         "proceso_ms": v.proceso_ms,

@@ -2,14 +2,16 @@
 
     FuenteArchivo -> Muestreador -> PipelineEtapa1 -> gepp-bd
 
-Tres transacciones por video, a propósito:
+Transacciones separadas por video, a propósito:
 
-1. **Registro:** `video` (idempotente por hash) y estado `procesando`. Se confirma sola para
-   que el estado se vea mientras el video corre.
-2. **Resultado:** detecciones crudas, hallazgos, su evidencia y su notificación (outbox) y el
+1. **Registro:** `video` (idempotente por hash). Se confirma sola, antes de revisar reglas, para
+   que el video exista en `GET /videos` aunque lo siguiente falle.
+2. **Preparación:** reglas aplicables y zonas de privacidad de la cámara; estado `procesando`.
+3. **Resultado:** detecciones crudas, hallazgos, su evidencia y su notificación (outbox) y el
    estado `listo`, **todo o nada**. Si algo falla a la mitad no queda un hallazgo sin
    evidencia ni un aviso de un hallazgo que no existe, y reprocesar no duplica filas.
-3. **Error:** si la 2 falla, estado `error` con el motivo.
+4. **Fallo:** cualquier error, incluso un archivo que no se puede leer, deja el video en
+   `reintentando` con su motivo y sus intentos; al agotarlos, en `error` (#29).
 
 Un video que ya está `listo` no se reprocesa: registrar el mismo hash devuelve la fila
 existente y el trabajador la salta.
@@ -24,9 +26,11 @@ instante. Ningún instante de este módulo sale del reloj del sistema (ADR-005).
 
 from __future__ import annotations
 
+import sys
 import time
 from collections.abc import Callable, Iterator
 from dataclasses import dataclass
+from datetime import UTC, datetime
 from pathlib import Path
 
 from gepp_bd.modelos import Fuente, Zona
@@ -41,10 +45,14 @@ from gepp_vision.puertos import Detector, Seguidor
 from gepp_vision.seguimiento import SeguidorIoU
 from sqlalchemy import Engine, select
 
-from gepp_worker.cola import ColaTrabajos, Trabajo
+from gepp_worker.cola import ColaTrabajos, EstadoTrabajo, Trabajo
 from gepp_worker.fuente import Cuadro, PropiedadesFuente
 from gepp_worker.fuente_archivo import FuenteArchivo
 from gepp_worker.muestreo import Muestreador
+
+
+class VideoIlegible(Exception):
+    """El archivo no se pudo abrir como video. Su mensaje es el motivo que ve el usuario."""
 
 
 @dataclass(frozen=True, slots=True)
@@ -84,11 +92,28 @@ class _Contexto:
 
 def _propiedades(ruta: Path) -> PropiedadesFuente:
     fuente = FuenteArchivo(ruta)
-    fuente.abrir()
+    try:
+        fuente.abrir()
+    except (OSError, ValueError) as e:
+        raise VideoIlegible(f"No se pudo leer el video: {e}") from e
     try:
         return fuente.propiedades()
     finally:
         fuente.cerrar()
+
+
+def _sin_leer(trabajo: Trabajo) -> videos.NuevoVideo:
+    """El registro de un archivo que no se pudo leer: sin duración, el reloj es su fecha de
+    modificación y queda marcado `mtime`, que la interfaz muestra como origen dudoso."""
+    fin = datetime.fromtimestamp(Path(trabajo.ruta).stat().st_mtime, tz=UTC)
+    return videos.NuevoVideo(
+        fuente_id=trabajo.fuente_id,
+        ruta=trabajo.ruta,
+        hash_sha256=trabajo.hash_sha256,
+        bytes=trabajo.bytes,
+        capture_ts_inicio=fin,
+        origen_capture_ts="mtime",
+    )
 
 
 def _cuadro_de_evidencia(h: Hallazgo) -> int:
@@ -124,10 +149,27 @@ class Trabajador:
         try:
             resultado = self.procesar(trabajo)
         except Exception as e:
-            self._cola.reintentar(trabajo, f"{type(e).__name__}: {e}")
+            motivo = str(e) if isinstance(e, VideoIlegible) else f"{type(e).__name__}: {e}"
+            estado = self._cola.reintentar(trabajo, motivo)
+            try:
+                self._anotar_fallo(trabajo, motivo, definitivo=estado is EstadoTrabajo.ERROR)
+            except Exception as e2:
+                # El trabajo ya volvió a la cola con su motivo: anotar en la base no puede
+                # tumbar al trabajador (fuente inexistente, base caída, archivo borrado).
+                print(
+                    f"[trabajador] no se pudo anotar el fallo en la base: {e2!r}", file=sys.stderr
+                )
             return None
         self._cola.confirmar(trabajo)
         return resultado
+
+    def _anotar_fallo(self, trabajo: Trabajo, motivo: str, *, definitivo: bool) -> None:
+        """Que el fallo se vea en `GET /videos`, y no solo en Redis (#29)."""
+        with transaccion(self._motor) as s:
+            video = videos.por_hash(s, trabajo.hash_sha256)
+            if video is None:
+                video, _ = videos.registrar(s, _sin_leer(trabajo))
+            videos.anotar_fallo(s, video.id, motivo, definitivo=definitivo)
 
     def correr(self, seguir: Callable[[], bool] = lambda: True, espera_s: float = 2.0) -> None:
         self._cola.recuperar_huerfanos()
@@ -146,38 +188,35 @@ class Trabajador:
                 video = videos.por_hash(s, trabajo.hash_sha256)
                 assert video is not None
                 return Resultado(video_id=video.id, omitido=True)
-        try:
-            return self._analizar(ruta, props, contexto, inicio)
-        except Exception as e:
-            with transaccion(self._motor) as s:
-                videos.cambiar_estado(
-                    s, contexto.video_id, "error", error_motivo=f"{type(e).__name__}: {e}"
-                )
-            raise
+        return self._analizar(ruta, props, contexto, inicio)
 
     def _registrar(self, trabajo: Trabajo, props: PropiedadesFuente) -> _Contexto | None:
         duracion = props.cuadros_totales / props.fps if props.cuadros_totales is not None else None
+        nuevo = videos.NuevoVideo(
+            fuente_id=trabajo.fuente_id,
+            ruta=trabajo.ruta,
+            hash_sha256=trabajo.hash_sha256,
+            bytes=trabajo.bytes,
+            capture_ts_inicio=props.inicio_captura,
+            origen_capture_ts=props.origen_reloj,
+            duracion_s=duracion,
+            fps_declarado=props.fps,
+            ancho=props.ancho,
+            alto=props.alto,
+        )
         with transaccion(self._motor) as s:
-            video, _ = videos.registrar(
-                s,
-                videos.NuevoVideo(
-                    fuente_id=trabajo.fuente_id,
-                    ruta=trabajo.ruta,
-                    hash_sha256=trabajo.hash_sha256,
-                    bytes=trabajo.bytes,
-                    capture_ts_inicio=props.inicio_captura,
-                    origen_capture_ts=props.origen_reloj,
-                    duracion_s=duracion,
-                    fps_declarado=props.fps,
-                    ancho=props.ancho,
-                    alto=props.alto,
-                ),
-            )
+            video, _ = videos.registrar(s, nuevo)
             if video.estado == "listo":
                 return None
-            fuente = s.get(Fuente, video.fuente_id)
+            if video.fps_declarado is None:
+                # Un intento anterior no pudo leer el archivo y dejó datos de respaldo: el
+                # reloj era el FIN de la grabación. Ahora que se leyó, van los reales.
+                videos.completar_lectura(s, video.id, nuevo)
+            video_id, fuente_id = video.id, video.fuente_id
+        with transaccion(self._motor) as s:
+            fuente = s.get(Fuente, fuente_id)
             if fuente is None:
-                raise LookupError(f"no existe la fuente {video.fuente_id}")
+                raise LookupError(f"no existe la fuente {fuente_id}")
             activas = reglas.activas(s, area_id=fuente.area_id)
             if not activas:
                 raise LookupError(f"el área {fuente.area_id} no tiene reglas activas")
@@ -196,8 +235,8 @@ class Trabajador:
                     )
                 ).scalars()
             )
-            videos.cambiar_estado(s, video.id, "procesando")
-            return _Contexto(video.id, fuente.id, fuente.area_id, activas, privacidad, aplicables)
+            videos.cambiar_estado(s, video_id, "procesando")
+            return _Contexto(video_id, fuente.id, fuente.area_id, activas, privacidad, aplicables)
 
     def _analizar(
         self, ruta: Path, props: PropiedadesFuente, ctx: _Contexto, inicio: float

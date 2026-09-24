@@ -102,8 +102,9 @@ CREATE TABLE video (
     capture_ts_inicio TIMESTAMPTZ NOT NULL,
     origen_capture_ts TEXT NOT NULL CHECK (origen_capture_ts IN ('metadatos','mtime','manual','ocr')),
     estado         TEXT NOT NULL DEFAULT 'en_cola'
-                   CHECK (estado IN ('en_cola','procesando','listo','error')),
+                   CHECK (estado IN ('en_cola','procesando','reintentando','listo','error')),
     error_motivo   TEXT,
+    intentos       INT NOT NULL DEFAULT 0,  -- fallidos; al 3.º pasa de 'reintentando' a 'error'
     cuadros_analizados INT,
     proceso_ms     BIGINT,
     creado_en      TIMESTAMPTZ NOT NULL DEFAULT now()
