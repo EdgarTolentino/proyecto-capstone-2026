@@ -7,6 +7,8 @@ import type {
   HallazgoDetalle,
   PaginaHallazgos,
   Regla,
+  ReglaEntrada,
+  ResultadoSimulacion,
   Sesion,
 } from "./types";
 
@@ -100,6 +102,15 @@ export function listarReglas(areaId?: string): Promise<Regla[]> {
   const consulta = parametros.toString();
   return api<Regla[]>(`/reglas${consulta ? `?${consulta}` : ""}`);
 }
+
+export const crearRegla = (entrada: ReglaEntrada) =>
+  api<Regla>("/reglas", { method: "POST", body: JSON.stringify(entrada) });
+
+export const actualizarRegla = (id: number, entrada: ReglaEntrada) =>
+  api<Regla>(`/reglas/${id}`, { method: "PUT", body: JSON.stringify(entrada) });
+
+export const simularRegla = (id: number, simulacion: { desde: string; hasta: string; regla: ReglaEntrada }) =>
+  api<ResultadoSimulacion>(`/reglas/${id}/simular`, { method: "POST", body: JSON.stringify(simulacion) });
 
 export async function obtenerEvidencia(ruta: string, signal?: AbortSignal): Promise<Blob> {
   const base = baseApi();

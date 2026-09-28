@@ -214,7 +214,7 @@ export default function App() {
           </div>
         </main>
       )}
-      {seccion === "reglas" && sesion.data && <ReglasPage catalogos={catalogos.data} />}
+      {seccion === "reglas" && sesion.data && <ReglasPage catalogos={catalogos.data} puedeEditar={permisos.has("editar_reglas")} />}
       {seccion === "hallazgos" && filtros.hallazgoId && permiteEvidencia && (
         <EvidenceDrawer
           hallazgoId={filtros.hallazgoId}

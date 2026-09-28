@@ -1,5 +1,7 @@
 import { afterEach, describe, expect, it, vi } from "vitest";
 
+import type { ReglaEntrada } from "./types";
+
 afterEach(() => {
   vi.restoreAllMocks();
   vi.unstubAllEnvs();
@@ -56,5 +58,23 @@ describe("cliente API", () => {
 
     const [url] = fetchMock.mock.calls[0];
     expect(String(url)).toBe("http://127.0.0.1:4010/reglas?area_id=5");
+  });
+
+  it("crea, versiona y simula reglas con los endpoints del contrato", async () => {
+    const fetchMock = vi.spyOn(globalThis, "fetch").mockImplementation(async () =>
+      new Response(JSON.stringify({ id: 12, version: 1, hallazgos_estimados: 0 }), { status: 200, headers: { "Content-Type": "application/json" } }),
+    );
+    const { actualizarRegla, crearRegla, simularRegla } = await import("./client");
+    const entrada: ReglaEntrada = { nombre: "Casco", area_id: 3, epp_exigido: ["casco"], confirmacion_segundos: 2, cierre_segundos: 3, confianza_minima: 0.45, severidad: 2, activa: true, base_licitud: "obligacion_legal", finalidad_declarada: "Prevención", retencion_dias: 30 };
+
+    await crearRegla(entrada);
+    await actualizarRegla(12, entrada);
+    await simularRegla(12, { desde: "2026-08-29", hasta: "2026-09-28", regla: entrada });
+
+    expect(fetchMock.mock.calls.map(([url, options]) => [String(url), options?.method, options?.body])).toEqual([
+      ["http://127.0.0.1:4010/reglas", "POST", JSON.stringify(entrada)],
+      ["http://127.0.0.1:4010/reglas/12", "PUT", JSON.stringify(entrada)],
+      ["http://127.0.0.1:4010/reglas/12/simular", "POST", JSON.stringify({ desde: "2026-08-29", hasta: "2026-09-28", regla: entrada })],
+    ]);
   });
 });

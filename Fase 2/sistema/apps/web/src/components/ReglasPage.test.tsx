@@ -6,7 +6,7 @@ import * as api from "../api/client";
 import type { Catalogos, Regla } from "../api/types";
 import { ReglasPage } from "./ReglasPage";
 
-vi.mock("../api/client", () => ({ listarReglas: vi.fn() }));
+vi.mock("../api/client", () => ({ listarReglas: vi.fn(), crearRegla: vi.fn(), actualizarRegla: vi.fn(), simularRegla: vi.fn(), ApiError: class extends Error {} }));
 
 const catalogos: Catalogos = {
   areas: [
@@ -48,11 +48,11 @@ const reglas: Regla[] = [
   },
 ];
 
-function renderPage() {
+function renderPage(puedeEditar = true) {
   const queryClient = new QueryClient({ defaultOptions: { queries: { retry: false } } });
   return render(
     <QueryClientProvider client={queryClient}>
-      <ReglasPage catalogos={catalogos} />
+      <ReglasPage catalogos={catalogos} puedeEditar={puedeEditar} />
     </QueryClientProvider>,
   );
 }
@@ -78,7 +78,7 @@ it("vuelve a consultar el endpoint con el área seleccionada", async () => {
   renderPage();
   await screen.findByRole("table", { name: "Listado de reglas de seguridad" });
 
-  fireEvent.change(screen.getByRole("combobox", { name: "Área" }), { target: { value: "5" } });
+  fireEvent.change(screen.getAllByRole("combobox", { name: "Área" })[0], { target: { value: "5" } });
 
   await waitFor(() => expect(api.listarReglas).toHaveBeenLastCalledWith("5"));
 });
@@ -101,4 +101,71 @@ it("muestra el error y permite reintentar", async () => {
   fireEvent.click(screen.getByRole("button", { name: "Reintentar" }));
   expect(await screen.findByText("No hay reglas para el área seleccionada.")).toBeVisible();
   expect(api.listarReglas).toHaveBeenCalledTimes(2);
+});
+
+it("crea una regla con los valores requeridos", async () => {
+  vi.mocked(api.listarReglas).mockResolvedValue([]);
+  vi.mocked(api.crearRegla).mockResolvedValue({ ...reglas[0], id: 20, version: 1 });
+  renderPage();
+  await screen.findByText("No hay reglas para el área seleccionada.");
+  fireEvent.click(screen.getByRole("button", { name: "Nueva regla" }));
+  fireEvent.change(screen.getByRole("textbox", { name: "Nombre" }), { target: { value: "Casco en bodega" } });
+  fireEvent.change(screen.getAllByRole("combobox", { name: "Área" })[0], { target: { value: "5" } });
+  fireEvent.click(screen.getByRole("checkbox", { name: "casco" }));
+  fireEvent.change(screen.getByRole("textbox", { name: "Finalidad declarada" }), { target: { value: "Prevenir lesiones" } });
+  fireEvent.click(screen.getByRole("button", { name: "Crear regla" }));
+  await waitFor(() => expect(api.crearRegla).toHaveBeenCalledWith(expect.objectContaining({ nombre: "Casco en bodega", area_id: 5, epp_exigido: ["casco"], finalidad_declarada: "Prevenir lesiones", confirmacion_segundos: 2 })));
+});
+
+it("guarda la edición mediante una nueva versión", async () => {
+  vi.mocked(api.listarReglas).mockResolvedValue(reglas);
+  vi.mocked(api.actualizarRegla).mockResolvedValue({ ...reglas[0], version: 4 });
+  renderPage();
+  await screen.findByRole("table", { name: "Listado de reglas de seguridad" });
+  fireEvent.click(screen.getAllByRole("button", { name: "Editar" })[0]);
+  fireEvent.change(screen.getByRole("textbox", { name: "Finalidad declarada" }), { target: { value: "Nueva finalidad" } });
+  fireEvent.click(screen.getByRole("button", { name: "Guardar nueva versión" }));
+  await waitFor(() => expect(api.actualizarRegla).toHaveBeenCalledWith(12, expect.objectContaining({ finalidad_declarada: "Nueva finalidad" })));
+});
+
+it("mantiene la consulta sin controles de edición cuando falta el permiso", async () => {
+  vi.mocked(api.listarReglas).mockResolvedValue(reglas);
+  renderPage(false);
+  await screen.findByRole("table", { name: "Listado de reglas de seguridad" });
+  expect(screen.queryByRole("button", { name: "Nueva regla" })).not.toBeInTheDocument();
+  expect(screen.queryByRole("button", { name: "Editar" })).not.toBeInTheDocument();
+  expect(screen.getByText("Vista de consulta")).toBeVisible();
+});
+
+it("simula los cambios actuales sin guardar una nueva versión", async () => {
+  vi.mocked(api.listarReglas).mockResolvedValue(reglas);
+  vi.mocked(api.simularRegla).mockResolvedValue({ hallazgos_estimados: 38, contra_version_vigente: { actuales: 47, variacion: -9 }, alertas_por_turno_estimadas: 3.2 });
+  renderPage();
+  await screen.findByRole("table", { name: "Listado de reglas de seguridad" });
+  fireEvent.click(screen.getAllByRole("button", { name: "Editar" })[0]);
+  fireEvent.change(screen.getByRole("textbox", { name: "Finalidad declarada" }), { target: { value: "Simulación sin guardar" } });
+  fireEvent.click(screen.getByRole("button", { name: "Simular sobre últimos 30 días" }));
+  await waitFor(() => expect(api.simularRegla).toHaveBeenCalledWith(12, expect.objectContaining({ regla: expect.objectContaining({ finalidad_declarada: "Simulación sin guardar" }) })));
+  expect(await screen.findByText("Habría generado 38 hallazgos.")).toBeVisible();
+  expect(screen.getByText("Variación frente a la versión vigente: -9.")).toBeVisible();
+});
+
+it("informa el error de simulación y conserva el editor", async () => {
+  vi.mocked(api.listarReglas).mockResolvedValue(reglas);
+  vi.mocked(api.simularRegla).mockRejectedValue(new Error("sin red"));
+  renderPage();
+  await screen.findByRole("table", { name: "Listado de reglas de seguridad" });
+  fireEvent.click(screen.getAllByRole("button", { name: "Editar" })[0]);
+  fireEvent.click(screen.getByRole("button", { name: "Simular sobre últimos 30 días" }));
+  expect(await screen.findByRole("alert")).toHaveTextContent("No pudimos ejecutar la simulación");
+  expect(screen.getByRole("heading", { name: "Editar regla" })).toBeVisible();
+  expect(api.actualizarRegla).not.toHaveBeenCalled();
+});
+
+it("requiere seleccionar al menos un EPP antes de crear", async () => {
+  vi.mocked(api.listarReglas).mockResolvedValue([]);
+  renderPage();
+  await screen.findByText("No hay reglas para el área seleccionada.");
+  fireEvent.click(screen.getByRole("button", { name: "Nueva regla" }));
+  expect(screen.getByRole("button", { name: "Crear regla" })).toBeDisabled();
 });
