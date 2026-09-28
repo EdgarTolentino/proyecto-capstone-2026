@@ -10,6 +10,7 @@ export type DecisionTriage = components["schemas"]["DecisionTriage"];
 export type Severidad = components["schemas"]["Severidad"];
 export type TipoEpp = components["schemas"]["TipoEpp"];
 export type EstadoHallazgo = components["schemas"]["EstadoHallazgo"];
+export type Regla = components["schemas"]["Regla"];
 
 // El contrato define este objeto dentro de GET /estado y no le da un nombre propio.
 export interface EstadoSistema {

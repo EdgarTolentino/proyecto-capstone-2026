@@ -6,6 +6,7 @@ import type {
   Hallazgo,
   HallazgoDetalle,
   PaginaHallazgos,
+  Regla,
   Sesion,
 } from "./types";
 
@@ -92,6 +93,13 @@ export const obtenerHallazgo = (id: number) => api<HallazgoDetalle>(`/hallazgos/
 export const obtenerCatalogos = () => api<Catalogos>("/catalogos");
 export const obtenerEstado = () => api<EstadoSistema>("/estado");
 export const obtenerSesion = () => api<Sesion>("/yo");
+
+export function listarReglas(areaId?: string): Promise<Regla[]> {
+  const parametros = new URLSearchParams();
+  if (areaId) parametros.set("area_id", areaId);
+  const consulta = parametros.toString();
+  return api<Regla[]>(`/reglas${consulta ? `?${consulta}` : ""}`);
+}
 
 export async function obtenerEvidencia(ruta: string, signal?: AbortSignal): Promise<Blob> {
   const base = baseApi();

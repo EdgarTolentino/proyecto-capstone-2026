@@ -42,4 +42,19 @@ describe("cliente API", () => {
     expect(pagina.items.map((item) => item.id)).toEqual([1, 2]);
     expect(pagina.contadores?.descartado).toBe(pagina.items.length);
   });
+
+  it("envía area_id al consultar las reglas por área", async () => {
+    const fetchMock = vi.spyOn(globalThis, "fetch").mockResolvedValue(
+      new Response(JSON.stringify([]), {
+        status: 200,
+        headers: { "Content-Type": "application/json" },
+      }),
+    );
+    const { listarReglas } = await import("./client");
+
+    await listarReglas("5");
+
+    const [url] = fetchMock.mock.calls[0];
+    expect(String(url)).toBe("http://127.0.0.1:4010/reglas?area_id=5");
+  });
 });

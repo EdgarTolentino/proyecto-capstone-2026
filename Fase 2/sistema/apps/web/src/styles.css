@@ -121,6 +121,24 @@ kbd { min-width: 19px; padding: 3px 5px; border: 1px solid var(--gepp-borde-fuer
 .state-message button { padding: 8px 16px; }
 .spin { animation: spin 1s linear infinite; }
 @keyframes spin { to { transform: rotate(360deg); } }
+
+/* El listado de reglas es de consulta: compacto, legible y sin acciones que aún no existen. */
+.rules-page { position: relative; margin: 24px 4% 0; }
+.rules-heading { align-items: flex-start; }
+.rules-heading > div > p:last-child { margin: 7px 0 0; color: var(--gepp-texto-3); font-size: 12px; }
+.rules-filters .select-filter { max-width: 320px; }
+.rules-readonly { color: var(--gepp-texto-4); font-size: 10px; letter-spacing: .5px; text-transform: uppercase; }
+.rules-table-wrap { overflow-x: auto; border: 1px solid var(--gepp-borde); border-top: 0; border-radius: 0 0 6px 6px; background: var(--gepp-superficie); }
+.rules-table { width: 100%; min-width: 650px; border-collapse: collapse; font-size: 12px; }
+.rules-table th, .rules-table td { height: 56px; padding: 0 16px; border-bottom: 1px solid var(--gepp-borde-suave); text-align: left; }
+.rules-table thead th { height: 42px; background: var(--gepp-superficie-alta); color: var(--gepp-texto-4); font-size: 9px; font-weight: 600; letter-spacing: .6px; text-transform: uppercase; }
+.rules-table tbody th { color: var(--gepp-texto); font-weight: 600; }
+.rules-table tbody tr:last-child > * { border-bottom: 0; }
+.rules-table tbody tr:hover { background: var(--gepp-superficie-hover); }
+.rule-status { display: inline-flex; align-items: center; gap: 6px; padding: 4px 8px; border: 1px solid var(--gepp-borde); border-radius: var(--gepp-radio-px); font-size: 10px; font-weight: 600; }
+.rule-status::before { width: 7px; height: 7px; border-radius: 50%; background: currentColor; content: ""; }
+.rule-status--active { border-color: var(--gepp-conforme); color: var(--gepp-conforme); }
+.rule-status--inactive { color: var(--gepp-texto-4); }
 .workspace-footer { display: flex; justify-content: space-between; gap: 16px; padding: 22px 4%; color: var(--gepp-texto-4); font-size: 9px; letter-spacing: .6px; }
 .workspace-footer i { margin: 0 8px; color: var(--gepp-acento); font-style: normal; }
 
