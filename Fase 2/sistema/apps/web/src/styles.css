@@ -100,8 +100,11 @@ kbd { min-width: 19px; padding: 3px 5px; border: 1px solid var(--gepp-borde-fuer
 .severity--alta > span, .severity--alta > i { color: var(--gepp-alta); }
 .severity--media > span, .severity--media > i { color: var(--gepp-media); }
 .severity--baja > span, .severity--baja > i { color: var(--gepp-baja); }
-.epp-tags { display: flex; flex-wrap: wrap; gap: 4px; overflow: hidden; max-height: 52px; }
-.epp-tags span { padding: 3px 6px; border: 1px solid var(--gepp-borde); border-radius: 4px; background: var(--gepp-superficie-alta); white-space: nowrap; font-size: 10px; }
+.epp-icons { display: flex; flex-wrap: wrap; align-items: center; gap: 4px; max-height: 56px; overflow: visible; }
+.epp-icon { position: relative; display: grid; flex: 0 0 28px; place-items: center; width: 28px; height: 28px; border: 1px solid var(--gepp-borde); border-radius: 4px; background: var(--gepp-superficie-alta); color: var(--gepp-acento); }
+.epp-icon:hover, .epp-icon:focus-visible { border-color: var(--gepp-acento); background: var(--gepp-acento-fondo); }
+.epp-icon::after { position: absolute; z-index: 4; top: calc(100% + 5px); left: 50%; padding: 4px 7px; border-radius: 3px; background: var(--gepp-mineral); color: var(--gepp-texto-inverso); content: attr(data-tooltip); font-size: 10px; font-weight: 500; opacity: 0; pointer-events: none; transform: translate(-50%, -3px); transition: opacity .12s ease, transform .12s ease; white-space: nowrap; }
+.epp-icon:hover::after, .epp-icon:focus-visible::after { opacity: 1; transform: translate(-50%, 0); }
 .area-cell { display: flex; flex-direction: column; gap: 4px; }
 .area-cell strong, .area-cell small { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
 .area-cell strong { font-size: 12px; font-weight: 600; }

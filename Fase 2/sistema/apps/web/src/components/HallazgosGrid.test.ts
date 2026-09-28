@@ -1,5 +1,5 @@
 import { createElement } from "react";
-import { render, screen } from "@testing-library/react";
+import { render, screen, within } from "@testing-library/react";
 import { describe, expect, it, vi } from "vitest";
 
 import type { Hallazgo } from "../api/types";
@@ -47,5 +47,35 @@ describe("formatDuracion", () => {
     expect(grid).toHaveAttribute("tabindex", "0");
     expect(screen.getByRole("row", { name: /hallazgo 7/i })).toHaveAttribute("tabindex", "-1");
     expect(screen.getByRole("button", { name: "Abrir evidencia del hallazgo 7" })).toBeDisabled();
+  });
+
+  it("representa uno o varios EPP faltantes con nombres accesibles", () => {
+    const hallazgo = {
+      id: 8,
+      severidad: 3,
+      epp_faltante: ["casco", "chaleco", "lentes", "guantes", "arnes", "calzado"],
+      ts_inicio: "2026-09-07T12:00:00Z",
+      duracion_s: 10,
+      cuadros_confirmados: 5,
+      confianza_media: 0.9,
+    } as Hallazgo;
+    render(createElement(HallazgosGrid, {
+      hallazgos: [hallazgo],
+      seleccionados: new Set<number>(),
+      permiteSeleccionar: false,
+      permiteEvidencia: false,
+      onActivate: vi.fn(),
+      onOpen: vi.fn(),
+      onSelect: vi.fn(),
+      onSelectAll: vi.fn(),
+    }));
+
+    const fila = screen.getByRole("row", { name: /hallazgo 8/i });
+    for (const etiqueta of ["Sin casco", "Sin chaleco", "Sin lentes", "Sin guantes", "Sin arnés", "Sin calzado"]) {
+      const icono = within(fila).getByRole("img", { name: etiqueta });
+      expect(icono).toHaveAttribute("tabindex", "0");
+      expect(icono).toHaveAttribute("data-tooltip", etiqueta);
+    }
+    expect(screen.queryByText(/^sin casco$/i)).not.toBeInTheDocument();
   });
 });

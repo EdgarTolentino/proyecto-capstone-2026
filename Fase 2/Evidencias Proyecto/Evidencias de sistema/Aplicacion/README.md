@@ -21,6 +21,7 @@ git checkout v1.0.0
 |---|---|
 | `2026-09-22-api-real-bandeja.png` | La bandeja de `apps/web` contra la **API real** (PT-09), con el hallazgo que produjo `make demo` sobre el video sintético CAM 03 |
 | `2026-09-22-api-real-visor.png` | El visor del mismo hallazgo: recorte con la cabeza pixelada, línea de tiempo y botones de triage |
+| `2026-09-28-iconos-epp-faltante.png` | La bandeja contra el mock del contrato, con iconos accesibles de EPP faltante y un hallazgo al que le faltan casco y chaleco |
 
 El video de esas capturas es **sintético (generado con IA)** y las detecciones vienen de un
 guion (detector simulado): ver `docs/producto/07-datasets.md`.
