@@ -1731,7 +1731,7 @@ wheels = [
 
 [[package]]
 name = "rfdetr"
-version = "1.10.1"
+version = "1.11.0"
 source = { registry = "https://pypi.org/simple" }
 dependencies = [
     { name = "numpy" },
@@ -1744,9 +1744,9 @@ dependencies = [
     { name = "tqdm" },
     { name = "transformers" },
 ]
-sdist = { url = "https://files.pythonhosted.org/packages/db/1a/03d0e4feeac35d7e463acf349746db512c738ec088121bd37bdfcb8ec39c/rfdetr-1.10.1.tar.gz", hash = "sha256:90632c4c528c254216c8cd2f8141bd93f88c6c4948adaaa621e464cfcf805c3a", size = 553604, upload-time = "2026-09-07T11:50:47.688Z" }
+sdist = { url = "https://files.pythonhosted.org/packages/1a/45/ac43b7bd18672d8aae33ed2d1f487bc1258a5da15ffaa80d34f22430ab16/rfdetr-1.11.0.tar.gz", hash = "sha256:b1227a23a72e19cfcc7d284961b3f47e5465198d803bfca7f88e3eaa33724291", size = 686888, upload-time = "2026-09-24T17:14:46.925Z" }
 wheels = [
-    { url = "https://files.pythonhosted.org/packages/de/c1/54828a88cf087c2ed0f6029528c1373c0d79e81676fb9fc40a24c9750246/rfdetr-1.10.1-py3-none-any.whl", hash = "sha256:96fa7a8ecbcaeea5f5150ff0b503699d2d4d75a32a87eeabfc0ab90485076a52", size = 602697, upload-time = "2026-09-07T11:50:45.648Z" },
+    { url = "https://files.pythonhosted.org/packages/ab/f7/ee0760fcb5af157c113a758e97a0c7fc1a6d296395c808a461af68d0ec94/rfdetr-1.11.0-py3-none-any.whl", hash = "sha256:8ba29e551d74e03f146066ece12f29ec4eb6795b0348bd257c4b16a87eca7cff", size = 739466, upload-time = "2026-09-24T17:14:44.824Z" },
 ]
 
 [[package]]
