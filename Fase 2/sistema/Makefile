@@ -64,7 +64,7 @@ migrar:  ## Aplica las migraciones a la base de GEPP_BD_URL (ver .env.example)
 semilla:  ## Carga el perfil de construcción (ADR-011); PERFIL=perfiles/otro.yaml para cambiarlo
 	uv run python -m gepp_bd.semilla $(or $(PERFIL),perfiles/construccion.yaml)
 
-demo:  ## Demo de punta a punta: make demo VIDEO=ruta.mp4 [GUION=... | MODELO=ruta.onnx] [FUENTE=2]
+demo:  ## Demo de punta a punta: make demo VIDEO=ruta.mp4 [GUION=... | MODELO=ruta.onnx] [FUENTE=1]
 	@test -n "$(VIDEO)" || { echo "uso: make demo VIDEO=ruta/al/video.mp4 [GUION=demo/guion_cam03.json | MODELO=ruta.onnx]"; exit 2; }
 	uv run python scripts/demo.py "$(VIDEO)" $(if $(GUION),--guion "$(GUION)") $(if $(MODELO),--modelo "$(MODELO)") $(if $(FUENTE),--fuente $(FUENTE))
 

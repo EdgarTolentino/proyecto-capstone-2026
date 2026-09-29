@@ -119,6 +119,9 @@ def entorno_del_trabajador(
     return entorno
 
 
+FUENTE_POR_DEFECTO = 2  # obra gruesa, regla crítica: lo que espera docs/operacion/recorrido-h2.md
+
+
 def validar_modelo(modelo: Path) -> None:
     from gepp_vision.detectores.rfdetr_comun import MapaDeClases
 
@@ -131,7 +134,8 @@ def validar_modelo(modelo: Path) -> None:
         )
 
 
-def main(argv: list[str] | None = None) -> int:
+def analizador() -> argparse.ArgumentParser:
+    """Los argumentos de `make demo`. La cámara por defecto es la misma que en `make demo-todo`."""
     p = argparse.ArgumentParser(description=__doc__, formatter_class=argparse.RawTextHelpFormatter)
     p.add_argument("video", type=Path)
     p.add_argument("--guion", type=Path, default=RAIZ / "demo" / "guion_cam03.json")
@@ -144,10 +148,14 @@ def main(argv: list[str] | None = None) -> int:
     p.add_argument(
         "--fuente",
         type=int,
-        default=1,
+        default=FUENTE_POR_DEFECTO,
         help="1 = acceso (regla alta: va al resumen) · 2 = obra gruesa (crítica: avisa ya)",
     )
-    args = p.parse_args(argv)
+    return p
+
+
+def main(argv: list[str] | None = None) -> int:
+    args = analizador().parse_args(argv)
     if not args.video.is_file():
         sys.exit(f"no existe el video: {args.video}")
     if args.modelo is not None:
