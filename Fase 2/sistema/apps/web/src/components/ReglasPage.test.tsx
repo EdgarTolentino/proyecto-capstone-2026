@@ -123,6 +123,8 @@ it("guarda la edición mediante una nueva versión", async () => {
   renderPage();
   await screen.findByRole("table", { name: "Listado de reglas de seguridad" });
   fireEvent.click(screen.getAllByRole("button", { name: "Editar" })[0]);
+  expect(screen.getByRole("textbox", { name: /Nombre/ })).toBeDisabled();
+  expect(screen.getByRole("combobox", { name: /Área Inmutable al editar/ })).toBeDisabled();
   fireEvent.change(screen.getByRole("textbox", { name: "Finalidad declarada" }), { target: { value: "Nueva finalidad" } });
   fireEvent.click(screen.getByRole("button", { name: "Guardar nueva versión" }));
   await waitFor(() => expect(api.actualizarRegla).toHaveBeenCalledWith(12, expect.objectContaining({ finalidad_declarada: "Nueva finalidad" })));
