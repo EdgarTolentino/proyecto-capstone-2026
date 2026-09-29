@@ -100,8 +100,11 @@ kbd { min-width: 19px; padding: 3px 5px; border: 1px solid var(--gepp-borde-fuer
 .severity--alta > span, .severity--alta > i { color: var(--gepp-alta); }
 .severity--media > span, .severity--media > i { color: var(--gepp-media); }
 .severity--baja > span, .severity--baja > i { color: var(--gepp-baja); }
-.epp-tags { display: flex; flex-wrap: wrap; gap: 4px; overflow: hidden; max-height: 52px; }
-.epp-tags span { padding: 3px 6px; border: 1px solid var(--gepp-borde); border-radius: 4px; background: var(--gepp-superficie-alta); white-space: nowrap; font-size: 10px; }
+.epp-icons { display: flex; flex-wrap: wrap; align-items: center; gap: 4px; max-height: 56px; overflow: visible; }
+.epp-icon { position: relative; display: grid; flex: 0 0 28px; place-items: center; width: 28px; height: 28px; border: 1px solid var(--gepp-borde); border-radius: 4px; background: var(--gepp-superficie-alta); color: var(--gepp-acento); }
+.epp-icon:hover, .epp-icon:focus-visible { border-color: var(--gepp-acento); background: var(--gepp-acento-fondo); }
+.epp-icon::after { position: absolute; z-index: 4; top: calc(100% + 5px); left: 50%; padding: 4px 7px; border-radius: 3px; background: var(--gepp-mineral); color: var(--gepp-texto-inverso); content: attr(data-tooltip); font-size: 10px; font-weight: 500; opacity: 0; pointer-events: none; transform: translate(-50%, -3px); transition: opacity .12s ease, transform .12s ease; white-space: nowrap; }
+.epp-icon:hover::after, .epp-icon:focus-visible::after { opacity: 1; transform: translate(-50%, 0); }
 .area-cell { display: flex; flex-direction: column; gap: 4px; }
 .area-cell strong, .area-cell small { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
 .area-cell strong { font-size: 12px; font-weight: 600; }
@@ -118,6 +121,33 @@ kbd { min-width: 19px; padding: 3px 5px; border: 1px solid var(--gepp-borde-fuer
 .state-message button { padding: 8px 16px; }
 .spin { animation: spin 1s linear infinite; }
 @keyframes spin { to { transform: rotate(360deg); } }
+
+/* El listado de reglas es de consulta: compacto, legible y sin acciones que aún no existen. */
+.rules-page { position: relative; margin: 24px 4% 0; }
+.rules-heading { align-items: flex-start; }
+.rules-heading > div > p:last-child { margin: 7px 0 0; color: var(--gepp-texto-3); font-size: 12px; }
+.rules-filters .select-filter { max-width: 320px; }
+.rules-readonly { color: var(--gepp-texto-4); font-size: 10px; letter-spacing: .5px; text-transform: uppercase; }
+.rules-table-wrap { overflow-x: auto; border: 1px solid var(--gepp-borde); border-top: 0; border-radius: 0 0 6px 6px; background: var(--gepp-superficie); }
+.rules-table { width: 100%; min-width: 650px; border-collapse: collapse; font-size: 12px; }
+.rules-table th, .rules-table td { height: 56px; padding: 0 16px; border-bottom: 1px solid var(--gepp-borde-suave); text-align: left; }
+.rules-table thead th { height: 42px; background: var(--gepp-superficie-alta); color: var(--gepp-texto-4); font-size: 9px; font-weight: 600; letter-spacing: .6px; text-transform: uppercase; }
+.rules-table tbody th { color: var(--gepp-texto); font-weight: 600; }
+.rules-table tbody tr:last-child > * { border-bottom: 0; }
+.rules-table tbody tr:hover { background: var(--gepp-superficie-hover); }
+.rule-status { display: inline-flex; align-items: center; gap: 6px; padding: 4px 8px; border: 1px solid var(--gepp-borde); border-radius: var(--gepp-radio-px); font-size: 10px; font-weight: 600; }
+.rule-status::before { width: 7px; height: 7px; border-radius: 50%; background: currentColor; content: ""; }
+.rule-status--active { border-color: var(--gepp-conforme); color: var(--gepp-conforme); }
+.rule-status--inactive { color: var(--gepp-texto-4); }
+.rule-editor { margin: 0 0 18px; border: 1px solid var(--gepp-borde-fuerte); border-top: 3px solid var(--gepp-marca); border-radius: 6px; background: var(--gepp-superficie); }
+.rule-editor__header { display: flex; justify-content: space-between; align-items: center; padding: 16px; border-bottom: 1px solid var(--gepp-borde); }
+.rule-editor__header .eyebrow { margin-bottom: 4px; }.rule-editor__header h3 { margin: 0; font-size: 18px; }
+.rule-editor form { padding: 16px; }.rule-editor__grid { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 14px; }
+.rule-field { display: grid; gap: 6px; color: var(--gepp-texto-3); font-size: 11px; font-weight: 600; }.rule-field--wide { grid-column: 1 / -1; }.rule-field small { color: var(--gepp-texto-4); font-weight: 400; }
+.rule-field input, .rule-field select { min-height: 36px; padding: 0 8px; border: 1px solid var(--gepp-borde); background: var(--gepp-superficie-alta); color: var(--gepp-texto-2); }.rule-field input[type="time"] { padding: 0 8px; color-scheme: light; }
+.rule-field fieldset { min-width: 0; padding: 0; border: 0; }.rule-field legend { padding: 0; }.rule-epp-options { display: flex; flex-wrap: wrap; gap: 8px; }.rule-epp-options label { display: flex; align-items: center; gap: 5px; padding: 7px 9px; border: 1px solid var(--gepp-borde); border-radius: 4px; background: var(--gepp-superficie-alta); color: var(--gepp-texto-2); text-transform: capitalize; }.rule-epp-options input { min-height: auto; margin: 0; }
+.rule-editor__error { margin: 14px 0 0; color: var(--gepp-acento); font-size: 11px; }.rule-editor__actions { display: flex; justify-content: flex-end; gap: 8px; margin-top: 18px; }.rule-editor__actions button { min-height: 36px; padding: 0 12px; }
+.rule-simulator { display: grid; gap: 12px; margin-top: 20px; padding: 16px; border: 1px solid var(--gepp-borde); border-left: 3px solid var(--gepp-marca); background: var(--gepp-superficie-alta); }.rule-simulator .eyebrow { margin-bottom: 3px; }.rule-simulator h4 { margin: 0; font-size: 15px; }.rule-simulator p { margin: 5px 0 0; color: var(--gepp-texto-3); font-size: 11px; }.rule-simulator__period { display: flex; flex-wrap: wrap; align-items: end; gap: 10px; }.rule-simulator__period label { display: grid; gap: 5px; color: var(--gepp-texto-4); font-size: 10px; font-weight: 600; }.rule-simulator__period input { min-height: 34px; padding: 0 7px; border: 1px solid var(--gepp-borde); background: var(--gepp-superficie); color: var(--gepp-texto-2); color-scheme: light; }.rule-simulator__period button { min-height: 34px; padding: 0 11px; border-color: var(--gepp-acento); background: transparent; color: var(--gepp-acento); font-size: 11px; font-weight: 600; }.simulation-result { display: grid; gap: 4px; padding: 11px; border: 1px solid var(--gepp-conforme); background: var(--gepp-superficie); color: var(--gepp-texto-2); font-size: 11px; }.simulation-result strong { color: var(--gepp-conforme); }.rule-simulator__hint { margin: 18px 0 0; color: var(--gepp-texto-4); font-size: 11px; }
 .workspace-footer { display: flex; justify-content: space-between; gap: 16px; padding: 22px 4%; color: var(--gepp-texto-4); font-size: 9px; letter-spacing: .6px; }
 .workspace-footer i { margin: 0 8px; color: var(--gepp-acento); font-style: normal; }
 
@@ -213,6 +243,7 @@ dd { margin: 0; color: var(--gepp-texto-2); font-size: 12px; overflow-wrap: anyw
   .filters { padding: 12px; gap: 8px; }
   .select-filter, .date-filter { flex-basis: 42%; }
   .results-bar { align-items: flex-start; flex-direction: column; }
+  .rule-editor__grid { grid-template-columns: 1fr; }.rule-field--wide { grid-column: auto; }
   .severity-key { gap: 12px; }
   .workspace-footer { flex-direction: column; gap: 8px; font-size: 8px; }
   .evidence-drawer { width: 100%; }

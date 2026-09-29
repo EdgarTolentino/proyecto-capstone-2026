@@ -12,6 +12,7 @@ import {
 import type { ReactNode } from "react";
 
 import type { Catalogos, EstadoSistema, Sesion } from "../api/types";
+import type { SeccionApp } from "../hooks/useAppNavigation";
 
 interface AppShellProps {
   children: ReactNode;
@@ -19,18 +20,20 @@ interface AppShellProps {
   estado?: EstadoSistema;
   sesion?: Sesion;
   sesionError?: boolean;
+  seccion: SeccionApp;
+  onNavigate: (seccion: SeccionApp) => void;
 }
 
 const navegacion = [
   { texto: "Panel general", icono: BarChart3 },
-  { texto: "Hallazgos", icono: SearchCheck, activo: true },
+  { texto: "Hallazgos", icono: SearchCheck, seccion: "hallazgos" },
   { texto: "Videos", icono: FileVideo },
-  { texto: "Reglas", icono: Settings2, separador: "Configuración" },
+  { texto: "Reglas", icono: Settings2, seccion: "reglas" },
   { texto: "Reportes", icono: CircleDot },
   { texto: "Zonas y cámaras", icono: Map },
-];
+] satisfies { texto: string; icono: typeof BarChart3; seccion?: SeccionApp }[];
 
-export function AppShell({ children, catalogos, estado, sesion, sesionError = false }: AppShellProps) {
+export function AppShell({ children, catalogos, estado, sesion, sesionError = false, seccion, onNavigate }: AppShellProps) {
   const obra = catalogos?.obras?.[0]?.nombre ?? "Sin obra seleccionada";
   const ingestaActiva = estado?.ingesta?.activa ?? false;
   const nombre = sesion?.nombre ?? (sesionError ? "Sesión no disponible" : "Cargando sesión…");
@@ -49,12 +52,15 @@ export function AppShell({ children, catalogos, estado, sesion, sesionError = fa
         </div>
       </header>
       <nav className="operations-nav" aria-label="Navegación principal">
-        {navegacion.map(({ texto, icono: Icono, activo }) => (
-          <button key={texto} className={`nav-item ${activo ? "nav-item--active" : ""}`} type="button" disabled={!activo} aria-current={activo ? "page" : undefined} title={!activo ? "Módulo próximamente disponible" : undefined}>
+        {navegacion.map(({ texto, icono: Icono, seccion: destino }) => {
+          const activo = destino === seccion;
+          return (
+          <button key={texto} className={`nav-item ${activo ? "nav-item--active" : ""}`} type="button" disabled={!destino} aria-current={activo ? "page" : undefined} title={!destino ? "Módulo próximamente disponible" : undefined} onClick={() => destino && onNavigate(destino)}>
             <Icono size={17} aria-hidden="true" /><span>{texto}</span>
-            {activo && <span className="nav-count">{estado?.pendientes_por_revisar ?? "—"}</span>}
+            {destino === "hallazgos" && <span className="nav-count">{estado?.pendientes_por_revisar ?? "—"}</span>}
           </button>
-        ))}
+          );
+        })}
       </nav>
       <section className="workspace">
         <header className="operations-hero">

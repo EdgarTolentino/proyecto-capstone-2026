@@ -18,12 +18,15 @@ import { EvidenceDrawer } from "./components/EvidenceDrawer";
 import { FalsePositiveDialog } from "./components/FalsePositiveDialog";
 import { HallazgoFilters } from "./components/HallazgoFilters";
 import { HallazgosGrid } from "./components/HallazgosGrid";
+import { ReglasPage } from "./components/ReglasPage";
 import { TriageTabs } from "./components/TriageTabs";
+import { useAppNavigation } from "./hooks/useAppNavigation";
 import { useHallazgoFilters } from "./hooks/useHallazgoFilters";
 import { useHallazgoShortcuts } from "./hooks/useHallazgoShortcuts";
 
 export default function App() {
   const queryClient = useQueryClient();
+  const { seccion, navegar } = useAppNavigation();
   const { filtros, actualizar } = useHallazgoFilters();
   const [activoId, setActivoId] = useState<number>();
   const [seleccionados, setSeleccionados] = useState<Set<number>>(new Set());
@@ -38,7 +41,7 @@ export default function App() {
   const pagina = useQuery({
     queryKey: ["hallazgos", filtrosLista],
     queryFn: () => listarHallazgos(filtrosLista),
-    enabled: sesion.data?.permisos?.includes("ver_hallazgos") ?? false,
+    enabled: seccion === "hallazgos" && (sesion.data?.permisos?.includes("ver_hallazgos") ?? false),
   });
 
   const hallazgos = useMemo(() => pagina.data?.items ?? [], [pagina.data]);
@@ -117,7 +120,7 @@ export default function App() {
   useHallazgoShortcuts({
     hallazgos,
     activoId: atajoActivoId,
-    enabled: !mostrarMotivo && (sesion.data?.permisos?.includes("ver_hallazgos") ?? false),
+    enabled: seccion === "hallazgos" && !mostrarMotivo && (sesion.data?.permisos?.includes("ver_hallazgos") ?? false),
     permiteTriar,
     visorAbierto: Boolean(filtros.hallazgoId),
     onActivate: (id) => {
@@ -139,7 +142,8 @@ export default function App() {
   };
 
   return (
-    <AppShell catalogos={catalogos.data} estado={estado.data} sesion={sesion.data} sesionError={sesion.isError}>
+    <AppShell catalogos={catalogos.data} estado={estado.data} sesion={sesion.data} sesionError={sesion.isError} seccion={seccion} onNavigate={navegar}>
+      {seccion === "hallazgos" && (
       <main className="findings-page">
         {sesion.isLoading && <div className="state-message"><LoaderCircle className="spin" /> Cargando sesión…</div>}
         {sesion.isError && (
@@ -197,7 +201,21 @@ export default function App() {
           </>
         )}
       </main>
-      {filtros.hallazgoId && permiteEvidencia && (
+      )}
+      {seccion === "reglas" && sesion.isLoading && (
+        <main className="rules-page"><div className="state-message"><LoaderCircle className="spin" /> Cargando sesión…</div></main>
+      )}
+      {seccion === "reglas" && sesion.isError && (
+        <main className="rules-page">
+          <div className="state-message state-message--error" role="alert">
+            <AlertTriangle />
+            No fue posible cargar la sesión.
+            <button type="button" onClick={() => void sesion.refetch()}>Reintentar</button>
+          </div>
+        </main>
+      )}
+      {seccion === "reglas" && sesion.data && <ReglasPage catalogos={catalogos.data} puedeEditar={permisos.has("editar_reglas")} />}
+      {seccion === "hallazgos" && filtros.hallazgoId && permiteEvidencia && (
         <EvidenceDrawer
           hallazgoId={filtros.hallazgoId}
           cola={hallazgos}
@@ -209,7 +227,7 @@ export default function App() {
           isUpdating={triageIndividual.isPending}
         />
       )}
-      {mostrarMotivo && (
+      {seccion === "hallazgos" && mostrarMotivo && (
         <FalsePositiveDialog
           count={filtros.hallazgoId ? 1 : seleccionados.size || 1}
           onCancel={() => setMostrarMotivo(false)}

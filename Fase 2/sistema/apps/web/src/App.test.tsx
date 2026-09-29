@@ -13,9 +13,9 @@ vi.mock("./api/client", () => ({
   triarHallazgo: vi.fn(async () => ({})),
   triarLote: vi.fn(async () => ({})),
 }));
-vi.mock("./components/AppShell", () => ({ AppShell: ({ children }: { children: React.ReactNode }) => children }));
 vi.mock("./components/HallazgoFilters", () => ({ HallazgoFilters: () => null }));
 vi.mock("./components/TriageTabs", () => ({ TriageTabs: () => null }));
+vi.mock("./components/ReglasPage", () => ({ ReglasPage: () => <section><h2>Reglas de seguridad</h2></section> }));
 vi.mock("./components/HallazgosGrid", () => ({
   HallazgosGrid: ({ onOpen, onSelect }: { onOpen: (id: number) => void; onSelect: (id: number, checked: boolean) => void }) => (
     <div data-testid="bandeja"><button onClick={() => onOpen(2)}>Abrir segundo</button><button onClick={() => onSelect(1, true)}>Seleccionar primero</button></div>
@@ -71,4 +71,18 @@ it("muestra el error de sesión y permite reintentar cuando falla /yo", async ()
   expect(await screen.findByRole("alert")).toHaveTextContent("No fue posible cargar la sesión");
   expect(screen.getByRole("button", { name: "Reintentar" })).toBeEnabled();
   expect(api.listarHallazgos).not.toHaveBeenCalled();
+});
+
+it("navega a Reglas y permite volver a Hallazgos", async () => {
+  window.history.replaceState({}, "", "/hallazgos?area_id=5");
+  await iniciar();
+
+  fireEvent.click(screen.getByRole("button", { name: "Reglas" }));
+  expect(await screen.findByRole("heading", { name: "Reglas de seguridad" })).toBeVisible();
+  expect(window.location.pathname).toBe("/reglas");
+
+  fireEvent.click(screen.getByRole("button", { name: /Hallazgos/ }));
+  expect(await screen.findByTestId("bandeja")).toBeVisible();
+  expect(window.location.pathname).toBe("/hallazgos");
+  expect(window.location.search).toBe("?area_id=5");
 });

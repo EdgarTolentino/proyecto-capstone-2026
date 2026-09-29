@@ -1,8 +1,16 @@
 import { useVirtualizer } from "@tanstack/react-virtual";
-import { ArrowUpRight } from "lucide-react";
+import {
+  ArrowUpRight,
+  createLucideIcon,
+  Glasses,
+  Hand,
+  HardHat,
+  SportShoe,
+  type LucideIcon,
+} from "lucide-react";
 import { useEffect, useRef } from "react";
 
-import type { Hallazgo } from "../api/types";
+import type { Hallazgo, TipoEpp } from "../api/types";
 import { formatDuracion, formatHora } from "../utils/format";
 import { SeverityBadge } from "./SeverityBadge";
 
@@ -19,6 +27,44 @@ interface HallazgosGridProps {
 }
 
 const columnas = ["", "Prioridad", "EPP faltante", "Área / zona", "Cámara", "Inicio", "Duración", "Cuadros", "Confianza", "Evidencia", "Asignado a"];
+
+const SafetyVest = createLucideIcon("SafetyVest", [
+  ["path", { d: "M8 3h8l1 4 3 2-2 4v8H6v-8L4 9l3-2 1-4Z", key: "vest" }],
+  ["path", { d: "M9 3c0 2 1 4 3 5 2-1 3-3 3-5", key: "neck" }],
+  ["path", { d: "M6 14h12M6 17h12", key: "reflective" }],
+]);
+
+const SafetyHarness = createLucideIcon("SafetyHarness", [
+  ["circle", { cx: "12", cy: "4", r: "2", key: "head" }],
+  ["path", { d: "M12 6v7M8 8l4 5 4-5M9 13h6M8 21l4-8 4 8", key: "harness" }],
+]);
+
+const presentacionEpp: Record<TipoEpp, { Icono: LucideIcon; etiqueta: string }> = {
+  casco: { Icono: HardHat, etiqueta: "Sin casco" },
+  chaleco: { Icono: SafetyVest, etiqueta: "Sin chaleco" },
+  lentes: { Icono: Glasses, etiqueta: "Sin lentes" },
+  guantes: { Icono: Hand, etiqueta: "Sin guantes" },
+  arnes: { Icono: SafetyHarness, etiqueta: "Sin arnés" },
+  calzado: { Icono: SportShoe, etiqueta: "Sin calzado" },
+};
+
+function EppFaltante({ tipos }: { tipos: TipoEpp[] }) {
+  return tipos.map((tipo) => {
+    const { Icono, etiqueta } = presentacionEpp[tipo];
+    return (
+      <span
+        className="epp-icon"
+        data-tooltip={etiqueta}
+        key={tipo}
+        role="img"
+        tabIndex={0}
+        aria-label={etiqueta}
+      >
+        <Icono aria-hidden="true" size={18} strokeWidth={1.8} />
+      </span>
+    );
+  });
+}
 
 export function HallazgosGrid(props: HallazgosGridProps) {
   const viewportRef = useRef<HTMLDivElement>(null);
@@ -109,7 +155,7 @@ function HallazgoRow({ item, activo, seleccionado, permiteSeleccionar, permiteEv
     >
       <div role="cell"><input type="checkbox" checked={seleccionado} disabled={!permiteSeleccionar} onChange={(e) => onSelect(item.id, e.target.checked)} onClick={(e) => e.stopPropagation()} aria-label={`Seleccionar hallazgo ${item.id}`} /></div>
       <div role="cell"><SeverityBadge severidad={item.severidad} /></div>
-      <div role="cell" className="epp-tags">{item.epp_faltante.map((epp) => <span key={epp}>sin {epp}</span>)}</div>
+      <div role="cell" className="epp-icons"><EppFaltante tipos={item.epp_faltante} /></div>
       <div role="cell" className="area-cell"><strong>{item.area?.nombre ?? "Sin área"}</strong><small>{item.zona?.nombre ?? "Sin zona"}</small></div>
       <div role="cell" className="truncate mono">{item.fuente?.nombre ?? "—"}</div>
       <div role="cell" className="mono strong">{formatHora(item.ts_inicio)}</div>
