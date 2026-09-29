@@ -60,6 +60,8 @@ function renderPage(puedeEditar = true) {
 afterEach(() => {
   cleanup();
   vi.clearAllMocks();
+  vi.useRealTimers();
+  vi.unstubAllEnvs();
 });
 
 it("muestra nombre, área, estado y versión de cada regla", async () => {
@@ -150,6 +152,57 @@ it("simula los cambios actuales sin guardar una nueva versión", async () => {
   await waitFor(() => expect(api.simularRegla).toHaveBeenCalledWith(12, expect.objectContaining({ regla: expect.objectContaining({ finalidad_declarada: "Simulación sin guardar" }) })));
   expect(await screen.findByText("Habría generado 38 hallazgos.")).toBeVisible();
   expect(screen.getByText("Variación frente a la versión vigente: -9.")).toBeVisible();
+});
+
+it("mantiene las fechas del simulador fuera del formulario de guardado y Enter no actualiza la regla", async () => {
+  vi.mocked(api.listarReglas).mockResolvedValue(reglas);
+  renderPage();
+  await screen.findByRole("table", { name: "Listado de reglas de seguridad" });
+  fireEvent.click(screen.getAllByRole("button", { name: "Editar" })[0]);
+
+  const desde = screen.getByLabelText("Desde simulación");
+  expect(desde.closest("form")).toBeNull();
+  fireEvent.keyDown(desde, { key: "Enter", code: "Enter", charCode: 13 });
+  expect(api.actualizarRegla).not.toHaveBeenCalled();
+});
+
+it("limpia el resultado de simulación al cambiar de regla", async () => {
+  vi.mocked(api.listarReglas).mockResolvedValue(reglas);
+  vi.mocked(api.simularRegla).mockResolvedValue({ hallazgos_estimados: 38 });
+  renderPage();
+  await screen.findByRole("table", { name: "Listado de reglas de seguridad" });
+  fireEvent.click(screen.getAllByRole("button", { name: "Editar" })[0]);
+  fireEvent.click(screen.getByRole("button", { name: "Simular sobre últimos 30 días" }));
+  expect(await screen.findByText("Habría generado 38 hallazgos.")).toBeVisible();
+
+  fireEvent.click(screen.getAllByRole("button", { name: "Editar" })[1]);
+  expect(screen.queryByText("Habría generado 38 hallazgos.")).not.toBeInTheDocument();
+});
+
+it("limpia el error de guardado al cambiar de regla", async () => {
+  vi.mocked(api.listarReglas).mockResolvedValue(reglas);
+  vi.mocked(api.actualizarRegla).mockRejectedValueOnce(new Error("falló guardar"));
+  renderPage();
+  await screen.findByRole("table", { name: "Listado de reglas de seguridad" });
+  fireEvent.click(screen.getAllByRole("button", { name: "Editar" })[0]);
+  fireEvent.click(screen.getByRole("button", { name: "Guardar nueva versión" }));
+  expect(await screen.findByRole("alert")).toHaveTextContent("No pudimos guardar la regla");
+
+  fireEvent.click(screen.getAllByRole("button", { name: "Editar" })[1]);
+  expect(screen.queryByRole("alert")).not.toBeInTheDocument();
+});
+
+it("inicializa el período del simulador con fechas locales", async () => {
+  vi.mocked(api.listarReglas).mockResolvedValue(reglas);
+  renderPage();
+  await screen.findByRole("table", { name: "Listado de reglas de seguridad" });
+  vi.stubEnv("TZ", "America/Santiago");
+  vi.useFakeTimers();
+  vi.setSystemTime(new Date("2026-09-29T01:30:00.000Z"));
+  fireEvent.click(screen.getAllByRole("button", { name: "Editar" })[0]);
+
+  expect(screen.getByLabelText("Hasta simulación")).toHaveValue("2026-09-28");
+  expect(screen.getByLabelText("Desde simulación")).toHaveValue("2026-08-29");
 });
 
 it("informa el error de simulación y conserva el editor", async () => {

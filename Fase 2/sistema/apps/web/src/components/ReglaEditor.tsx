@@ -28,15 +28,21 @@ function valoresIniciales(regla?: Regla): ReglaEntrada {
   };
 }
 
-function fechaIso(fecha: Date) { return fecha.toISOString().slice(0, 10); }
+function fechaLocalIso(fecha: Date) {
+  const anio = fecha.getFullYear();
+  const mes = String(fecha.getMonth() + 1).padStart(2, "0");
+  const dia = String(fecha.getDate()).padStart(2, "0");
+  return `${anio}-${mes}-${dia}`;
+}
 
 export function ReglaEditor({ catalogos, regla, guardando, error, simulando, resultadoSimulacion, errorSimulacion, onCancel, onSubmit, onSimular }: ReglaEditorProps) {
   const [entrada, setEntrada] = useState<ReglaEntrada>(() => valoresIniciales(regla));
-  const hoy = new Date();
-  const haceTreintaDias = new Date(hoy);
-  haceTreintaDias.setDate(hoy.getDate() - 30);
-  const [desde, setDesde] = useState(fechaIso(haceTreintaDias));
-  const [hasta, setHasta] = useState(fechaIso(hoy));
+  const [{ desde, hasta }, setPeriodo] = useState(() => {
+    const hoy = new Date();
+    const haceTreintaDias = new Date(hoy);
+    haceTreintaDias.setDate(hoy.getDate() - 30);
+    return { desde: fechaLocalIso(haceTreintaDias), hasta: fechaLocalIso(hoy) };
+  });
   const eppDisponibles = catalogos?.epp?.length ? catalogos.epp : eppPredeterminado;
   const actualizar = <K extends keyof ReglaEntrada>(campo: K, valor: ReglaEntrada[K]) => setEntrada((actual) => ({ ...actual, [campo]: valor }));
   const alternarEpp = (epp: TipoEpp) => actualizar("epp_exigido", entrada.epp_exigido.includes(epp) ? entrada.epp_exigido.filter((actual) => actual !== epp) : [...entrada.epp_exigido, epp]);
@@ -55,7 +61,8 @@ export function ReglaEditor({ catalogos, regla, guardando, error, simulando, res
       <label className="rule-field"><span>Hasta <small>Opcional</small></span><input type="time" value={entrada.hora_hasta ?? ""} onChange={(event) => actualizar("hora_hasta", event.target.value || null)} /></label>
       <label className="rule-field rule-field--wide"><span>Finalidad declarada</span><input required value={entrada.finalidad_declarada} onChange={(event) => actualizar("finalidad_declarada", event.target.value)} placeholder="Ej.: Prevención de lesiones" /></label>
     </div>{error && <p className="rule-editor__error" role="alert">{error}</p>}
-      {regla ? <section className="rule-simulator" aria-labelledby="rule-simulator-title"><div><p className="eyebrow">¿Y SI…?</p><h4 id="rule-simulator-title">Simular sobre el histórico</h4><p>Prueba los cambios actuales sin guardar una nueva versión.</p></div><div className="rule-simulator__period"><label>Desde simulación<input type="date" value={desde} max={hasta} onChange={(event) => setDesde(event.target.value)} /></label><label>Hasta simulación<input type="date" value={hasta} min={desde} onChange={(event) => setHasta(event.target.value)} /></label><button type="button" disabled={simulando || entrada.epp_exigido.length === 0 || !desde || !hasta} onClick={() => onSimular({ desde, hasta, regla: entrada })}>{simulando && <LoaderCircle className="spin" size={15} />}Simular sobre últimos 30 días</button></div>{errorSimulacion && <p className="rule-editor__error" role="alert">{errorSimulacion}</p>}{resultadoSimulacion && <div className="simulation-result" role="status"><strong>Habría generado {resultadoSimulacion.hallazgos_estimados} hallazgos.</strong>{resultadoSimulacion.contra_version_vigente?.variacion !== undefined && <span>Variación frente a la versión vigente: {resultadoSimulacion.contra_version_vigente.variacion >= 0 ? "+" : ""}{resultadoSimulacion.contra_version_vigente.variacion}.</span>}{resultadoSimulacion.alertas_por_turno_estimadas !== undefined && <span>{resultadoSimulacion.alertas_por_turno_estimadas} alertas estimadas por turno.</span>}</div>}</section> : <p className="rule-simulator__hint">Guarda la regla para poder simularla sobre el histórico.</p>}
-      <footer className="rule-editor__actions"><button type="button" onClick={onCancel}>Cancelar</button><button type="submit" className="primary-button" disabled={guardando || entrada.epp_exigido.length === 0}>{guardando && <LoaderCircle className="spin" size={15} />}{regla ? "Guardar nueva versión" : "Crear regla"}</button></footer></form>
+      <footer className="rule-editor__actions"><button type="button" onClick={onCancel}>Cancelar</button><button type="submit" className="primary-button" disabled={guardando || entrada.epp_exigido.length === 0}>{guardando && <LoaderCircle className="spin" size={15} />}{regla ? "Guardar nueva versión" : "Crear regla"}</button></footer>
+    </form>
+    {regla ? <section className="rule-simulator" aria-labelledby="rule-simulator-title"><div><p className="eyebrow">¿Y SI…?</p><h4 id="rule-simulator-title">Simular sobre el histórico</h4><p>Prueba los cambios actuales sin guardar una nueva versión.</p></div><div className="rule-simulator__period"><label>Desde simulación<input type="date" value={desde} max={hasta} onChange={(event) => setPeriodo((actual) => ({ ...actual, desde: event.target.value }))} /></label><label>Hasta simulación<input type="date" value={hasta} min={desde} onChange={(event) => setPeriodo((actual) => ({ ...actual, hasta: event.target.value }))} /></label><button type="button" disabled={simulando || entrada.epp_exigido.length === 0 || !desde || !hasta} onClick={() => onSimular({ desde, hasta, regla: entrada })}>{simulando && <LoaderCircle className="spin" size={15} />}Simular sobre últimos 30 días</button></div>{errorSimulacion && <p className="rule-editor__error" role="alert">{errorSimulacion}</p>}{resultadoSimulacion && <div className="simulation-result" role="status"><strong>Habría generado {resultadoSimulacion.hallazgos_estimados} hallazgos.</strong>{resultadoSimulacion.contra_version_vigente?.variacion !== undefined && <span>Variación frente a la versión vigente: {resultadoSimulacion.contra_version_vigente.variacion >= 0 ? "+" : ""}{resultadoSimulacion.contra_version_vigente.variacion}.</span>}{resultadoSimulacion.alertas_por_turno_estimadas !== undefined && <span>{resultadoSimulacion.alertas_por_turno_estimadas} alertas estimadas por turno.</span>}</div>}</section> : <p className="rule-simulator__hint">Guarda la regla para poder simularla sobre el histórico.</p>}
   </section>;
 }
