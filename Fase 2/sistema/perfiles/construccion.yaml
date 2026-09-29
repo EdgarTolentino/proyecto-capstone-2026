@@ -78,6 +78,10 @@ reglas:
 
 # Usuarios de DEMOSTRACIÓN: roles, no personas. Correos en el dominio reservado `.invalid`
 # (RFC 2606): no pueden pertenecer a nadie. `Authorization: Bearer demo` entra como el primero.
+#
+# Al final van las cuentas del equipo para el desarrollo local: correos institucionales, un rol
+# cada una (ningún rol lo ve todo, ver `01-modelo-de-datos.md`). Entran con `Bearer <usuario>`,
+# la parte antes de la arroba; el mapa por defecto está en `gepp_api.config`.
 usuarios:
   - email: prevencionista@obra.invalid
     nombre: Prevencionista de turno
@@ -92,3 +96,9 @@ usuarios:
   - email: auditor@obra.invalid
     nombre: Auditor externo
     rol: auditor
+  - email: mortega@duocuc.cl
+    nombre: Miguel Ortega
+    rol: administrador
+  - email: lgrandon@duocuc.cl
+    nombre: Lian Grandón
+    rol: prevencionista

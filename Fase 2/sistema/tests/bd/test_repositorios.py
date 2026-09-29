@@ -8,7 +8,7 @@ from pathlib import Path
 import pytest
 from gepp_bd import transaccion
 from gepp_bd.modelos import Hallazgo as FilaHallazgo
-from gepp_bd.modelos import Notificacion, Regla
+from gepp_bd.modelos import Notificacion, Regla, Usuario
 from gepp_bd.repositorios import detecciones, hallazgos, notificaciones, reglas, videos
 from gepp_bd.semilla import PerfilInvalido, cargar, leer
 from gepp_core import Severidad, TipoEPP, agregar
@@ -56,6 +56,18 @@ def test_la_semilla_rechaza_un_area_que_no_existe(bd: Engine) -> None:
     perfil["reglas"][0]["area"] = "Área inventada"
     with pytest.raises(PerfilInvalido, match="Área inventada"), transaccion(bd) as s:
         cargar(s, perfil)
+
+
+def test_la_semilla_suma_los_usuarios_nuevos_a_una_base_ya_sembrada(sembrada: Engine) -> None:
+    """Una cuenta añadida al perfil llega a quien ya sembró: no hace falta recrear la base."""
+    perfil = leer(PERFIL)
+    perfil["usuarios"].append({"email": "nuevo@obra.invalid", "nombre": "Nuevo", "rol": "auditor"})
+    with transaccion(sembrada) as s:
+        cargar(s, perfil)
+        cargar(s, perfil)
+        correos = list(s.execute(select(Usuario.email)).scalars())
+    assert "nuevo@obra.invalid" in correos
+    assert len(correos) == len(perfil["usuarios"])
 
 
 def test_registrar_el_mismo_video_dos_veces_no_lo_duplica(sembrada: Engine) -> None:
