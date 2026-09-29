@@ -6,7 +6,11 @@ from pathlib import Path
 
 import pytest
 
-from scripts.demo import entorno_del_trabajador, validar_modelo  # type: ignore[import-not-found]
+from scripts.demo import (  # type: ignore[import-not-found]
+    analizador,
+    entorno_del_trabajador,
+    validar_modelo,
+)
 
 COMUNES = {"url": "postgresql://x/gepp_demo", "entrada": Path("/e"), "evidencia": Path("/v")}
 
@@ -41,3 +45,11 @@ def test_un_modelo_sin_su_mapa_de_clases_se_rechaza_antes_de_empezar(tmp_path: P
         validar_modelo(modelo)
     (tmp_path / "m.clases.json").write_text("{}")
     validar_modelo(modelo)  # los dos están: sigue
+
+
+def test_la_camara_por_defecto_es_la_misma_que_en_demo_todo() -> None:
+    """`make demo` sin FUENTE muestra lo que espera la guía: cámara 2, obra gruesa, crítica.
+
+    `scripts/demo_todo.sh` usa `${2:-2}`; si se cambia aquí, se cambia allá (y en la guía)."""
+    assert analizador().parse_args(["v.mp4"]).fuente == 2
+    assert analizador().parse_args(["v.mp4", "--fuente", "1"]).fuente == 1

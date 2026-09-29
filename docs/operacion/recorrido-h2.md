@@ -33,8 +33,11 @@ make demo-apagar                                  # al terminar
 ```
 
 `FUENTE=1` usa la cámara de acceso (regla alta: el aviso va al resumen); por defecto es la 2
-(regla crítica: aviso inmediato). Si el `.env` tiene el bot de Telegram, arranca también el
-despachador. Los pasos de abajo son lo mismo, uno por uno.
+(regla crítica: aviso inmediato), tanto en `make demo-todo` como en `make demo`. Si el `.env` tiene
+el bot de Telegram, arranca también el despachador. Los pasos de abajo son lo mismo, uno por uno.
+
+> No mezclar los dos caminos en una misma sesión: `make demo-todo` vuelve a crear la base `gepp_demo`
+> desde cero, así que lo que mostraba la web hasta ese momento desaparece.
 
 ## Pasos
 
@@ -53,7 +56,7 @@ imprime lo que quedó en la base. Lo esperado:
 | Bloque | Esperado |
 |---|---|
 | Video | `listo` · 40 cuadros (8 s a 5 fps) · reloj `mtime` |
-| Hallazgos | **1**: sin casco ni chaleco, ~2 s (con `FUENTE=2`, "Casco y chaleco en obra gruesa", crítico) |
+| Hallazgos | **1**: sin casco ni chaleco, ~2 s ("Casco y chaleco en obra gruesa", crítico; con `FUENTE=1`, "Casco y chaleco en acceso", alta) |
 | Evidencia | 1 recorte |
 | Avisos (outbox) | 1 pendiente |
 

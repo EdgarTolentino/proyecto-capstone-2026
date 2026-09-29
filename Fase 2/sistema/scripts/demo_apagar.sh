@@ -15,10 +15,7 @@ for nombre in api web despachador; do
   fi
   rm -f "$archivo"
 done
-sleep 1  # que terminen de cerrarse antes de buscar restos
-# Restos de corridas anteriores a este script (sin grupo propio): solo los de ESTE proyecto.
-for patron in "node_modules/\\.bin/vite --port 5173" "\\.venv/bin/python3 -m gepp_api"; do
-  pids=$(pgrep -f "$patron" || true)
-  [ -n "$pids" ] && kill $pids 2>/dev/null && echo "apagado resto: $patron"
-done
+# Solo lo que levantó demo_todo.sh. Antes había un barrido con `pgrep -f "python3 -m gepp_api"` que
+# también mataba la API que uno levanta a mano con `make demo-api` (y demo_todo.sh llama a este
+# script al arrancar, en silencio): la API "se cerraba sola" a mitad del recorrido.
 exit 0
