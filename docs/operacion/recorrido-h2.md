@@ -68,7 +68,7 @@ Luego, en dos terminales:
 ```bash
 make demo-api                                                     # 3. API en :8000
 cd apps/web && npm ci && VITE_API_URL=http://localhost:8000/api/v1 npm run dev   # 4. web en :5173
-# Para entrar con tu cuenta en vez del prevencionista de demo: VITE_API_TOKEN=mortega (o lgrandon)
+# Para entrar con tu cuenta en vez del prevencionista de demo: VITE_API_TOKEN=mortega (o lgrandon), o ponlo en apps/web/.env.development.local
 ```
 
 Se abre <http://localhost:5173>: la bandeja muestra el hallazgo; **Ver** abre el visor con el

@@ -15,12 +15,9 @@ import type {
 // En desarrollo usamos el mock. En producción esta URL se cambia con VITE_API_URL.
 const API_URL = import.meta.env.VITE_API_URL ?? "http://127.0.0.1:4010";
 // Con qué cuenta entra la web: `demo` es el prevencionista de demostración. Cada integrante
-// pone la suya en `apps/web/.env.local` (VITE_API_TOKEN=mortega); ver `.env.example`.
-const TOKEN_POR_DEFECTO = "demo";
-
-function autorizacion(): string {
-  return `Bearer ${import.meta.env.VITE_API_TOKEN || TOKEN_POR_DEFECTO}`;
-}
+// pone la suya en `apps/web/.env.development.local` (VITE_API_TOKEN=mortega); ver `.env.example`.
+// Ese archivo solo lo carga `npm run dev`: ni las pruebas ni `vite build` lo leen.
+const AUTHORIZATION = `Bearer ${import.meta.env.VITE_API_TOKEN || "demo"}`;
 
 function baseApi(): URL {
   const base = new URL(API_URL, window.location.origin);
@@ -34,7 +31,7 @@ function urlApi(ruta: string): URL {
 
 function cabecerasApi(headers?: HeadersInit): Headers {
   const result = new Headers(headers);
-  result.set("Authorization", autorizacion());
+  result.set("Authorization", AUTHORIZATION);
   return result;
 }
 

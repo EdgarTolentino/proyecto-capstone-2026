@@ -131,8 +131,9 @@ make ayuda      # todos los comandos
 
 La web entra con la cuenta de `VITE_API_TOKEN` (`demo`, el prevencionista de demostración, si no
 se define). Cada integrante tiene la suya, la parte del correo antes de la arroba: copia
-`apps/web/.env.example` a `apps/web/.env.local` y pon `VITE_API_TOKEN=mortega` o `lgrandon`.
-Contra la API, es la cabecera `Authorization: Bearer mortega`.
+`apps/web/.env.example` a `apps/web/.env.development.local` y pon `VITE_API_TOKEN=mortega` o
+`lgrandon`. Contra la API, es la cabecera `Authorization: Bearer mortega`. `make demo-todo` siembra
+las cuentas al recrear la base; si ya tenías la base `gepp` sembrada, `make semilla` las suma.
 
 ## Equipo
 
