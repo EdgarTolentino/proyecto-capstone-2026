@@ -1,6 +1,7 @@
 import { AlertTriangle, LoaderCircle } from "lucide-react";
 
 import type { Panel } from "../api/types";
+import { PanelCharts } from "./PanelCharts";
 
 interface PanelPageProps {
   panel?: Panel;
@@ -52,18 +53,21 @@ export function PanelPage({ panel, isLoading, isError, sinPermiso, onRetry }: Pa
         </div>
       )}
       {!isLoading && !isError && panel && (
-        <section className="panel-indicators" aria-label="Indicadores del panel">
-          {panel.indicadores.map((indicador) => (
-            <article className="panel-indicator" key={indicador.clave} aria-labelledby={`indicador-${indicador.clave}`}>
-              <h3 id={`indicador-${indicador.clave}`}>{indicador.etiqueta}</h3>
-              <strong className="panel-indicator__value mono">
-                {indicador.valor}{indicador.unidad ? <small>{indicador.unidad}</small> : null}
-              </strong>
-              <span className="panel-indicator__variation">{variacionTexto(indicador.variacion)}</span>
-              <Sparkline etiqueta={indicador.etiqueta} serie={indicador.serie} />
-            </article>
-          ))}
-        </section>
+        <>
+          <section className="panel-indicators" aria-label="Indicadores del panel">
+            {panel.indicadores.map((indicador) => (
+              <article className="panel-indicator" key={indicador.clave} aria-labelledby={`indicador-${indicador.clave}`}>
+                <h3 id={`indicador-${indicador.clave}`}>{indicador.etiqueta}</h3>
+                <strong className="panel-indicator__value mono">
+                  {indicador.valor}{indicador.unidad ? <small>{indicador.unidad}</small> : null}
+                </strong>
+                <span className="panel-indicator__variation">{variacionTexto(indicador.variacion)}</span>
+                <Sparkline etiqueta={indicador.etiqueta} serie={indicador.serie} />
+              </article>
+            ))}
+          </section>
+          <PanelCharts tendencia={panel.tendencia} rankingEpp={panel.ranking_epp} />
+        </>
       )}
     </main>
   );

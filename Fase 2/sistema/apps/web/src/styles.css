@@ -59,6 +59,27 @@ input[type="checkbox"] { accent-color: var(--gepp-acento); width: 16px; height: 
 .panel-indicator__variation { color: var(--gepp-texto-3); font-size: 10px; }
 .panel-sparkline { display: block; width: 60px; height: 20px; margin-top: auto; color: var(--gepp-acento); }
 .panel-sparkline--empty { width: auto; color: var(--gepp-texto-4); font-size: 10px; line-height: 20px; }
+.panel-charts { display: grid; grid-template-columns: minmax(0, 1.6fr) minmax(280px, .8fr); gap: 12px; margin-top: 12px; }
+.panel-chart { min-width: 0; padding: 18px; border: 1px solid var(--gepp-borde); border-radius: 4px; background: var(--gepp-superficie); }
+.panel-chart > header { display: flex; align-items: flex-start; justify-content: space-between; gap: 16px; margin-bottom: 14px; }
+.panel-chart .eyebrow { margin-bottom: 5px; font-size: 9px; }
+.panel-chart h3 { margin: 0; font-size: 15px; font-weight: 600; }
+.panel-chart__legend { display: flex; flex-wrap: wrap; justify-content: flex-end; gap: 10px; }
+.panel-chart__legend .severity { font-size: 10px; font-weight: 500; }
+.panel-chart__empty { display: grid; place-items: center; min-height: 180px; margin: 0; color: var(--gepp-texto-4); font-size: 11px; }
+.panel-trend { display: block; width: 100%; height: 220px; overflow: visible; }
+.panel-trend__grid { stroke: var(--gepp-borde-suave); stroke-width: 1; }
+.panel-trend__label { fill: var(--gepp-texto-4); font-family: var(--gepp-fuente-mono); font-size: 10px; }
+.panel-trend__line { stroke-width: 2; stroke-linecap: round; stroke-linejoin: round; }
+.panel-trend__line--4 { stroke: var(--gepp-critica); }
+.panel-trend__line--3 { stroke: var(--gepp-alta); }
+.panel-trend__line--2 { stroke: var(--gepp-media); }
+.panel-trend__line--1 { stroke: var(--gepp-baja); }
+.panel-ranking { display: grid; gap: 13px; margin: 22px 0 0; padding: 0; list-style: none; }
+.panel-ranking li { display: grid; grid-template-columns: minmax(80px, .7fr) minmax(90px, 1fr) 32px; align-items: center; gap: 10px; color: var(--gepp-texto-3); font-size: 11px; }
+.panel-ranking__track { height: 8px; overflow: hidden; border-radius: 2px; background: var(--gepp-borde-suave); }
+.panel-ranking__track i { display: block; width: var(--ranking-width); height: 100%; background: var(--gepp-texto-3); }
+.panel-ranking strong { color: var(--gepp-texto); font-size: 11px; text-align: right; }
 .triage-tabs { display: grid; grid-template-columns: repeat(5, minmax(0, 1fr)); gap: 12px; margin-bottom: 28px; }
 .triage-tabs > button { position: relative; display: flex; flex-direction: column; align-items: flex-start; gap: 9px; padding: 16px 18px; border: 1px solid var(--gepp-borde); border-bottom: 3px solid var(--gepp-borde); border-radius: 4px; background: var(--gepp-superficie); color: var(--gepp-texto-3); text-align: left; }
 .triage-tabs > button strong { font-size: 12px; font-weight: 500; }
@@ -228,6 +249,7 @@ dd { margin: 0; color: var(--gepp-texto-2); font-size: 12px; overflow-wrap: anyw
 .reason-dialog footer { display: flex; justify-content: flex-end; gap: 8px; padding: 16px; border-top: 1px solid var(--gepp-borde); }
 @media (max-width: 900px) {
   .panel-indicators { grid-template-columns: repeat(2, minmax(0, 1fr)); }
+  .panel-charts { grid-template-columns: 1fr; }
   .site-header__context { display: none; }
   .operations-nav { gap: 20px; }
   .operations-hero { gap: 20px; }
