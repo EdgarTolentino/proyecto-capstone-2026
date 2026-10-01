@@ -25,11 +25,13 @@ import { TriageTabs } from "./components/TriageTabs";
 import { useAppNavigation } from "./hooks/useAppNavigation";
 import { useHallazgoFilters } from "./hooks/useHallazgoFilters";
 import { useHallazgoShortcuts } from "./hooks/useHallazgoShortcuts";
+import { usePanelFilters } from "./hooks/usePanelFilters";
 
 export default function App() {
   const queryClient = useQueryClient();
   const { seccion, navegar, navegarHallazgos } = useAppNavigation();
   const { filtros, actualizar } = useHallazgoFilters();
+  const { filtros: filtrosPanel, actualizar: actualizarFiltrosPanel } = usePanelFilters();
   const [activoId, setActivoId] = useState<number>();
   const [seleccionados, setSeleccionados] = useState<Set<number>>(new Set());
   const [mostrarMotivo, setMostrarMotivo] = useState(false);
@@ -39,8 +41,8 @@ export default function App() {
   const catalogos = useQuery({ queryKey: ["catalogos"], queryFn: obtenerCatalogos, staleTime: Infinity });
   const estado = useQuery({ queryKey: ["estado"], queryFn: obtenerEstado, refetchInterval: 5_000 });
   const panel = useQuery({
-    queryKey: ["panel"],
-    queryFn: () => obtenerPanel(),
+    queryKey: ["panel", filtrosPanel],
+    queryFn: () => obtenerPanel(filtrosPanel),
     enabled: seccion === "panel" && (sesion.data?.permisos?.includes("ver_hallazgos") ?? false),
   });
   // El visor no cambia la consulta ni desmonta la tabla: así conserva el desplazamiento.
@@ -153,10 +155,13 @@ export default function App() {
       {seccion === "panel" && (
         <PanelPage
           panel={panel.data}
+          filtros={filtrosPanel}
+          catalogos={catalogos.data}
           isLoading={sesion.isLoading || panel.isLoading}
           isError={sesion.isError || panel.isError}
           sinPermiso={Boolean(sesion.data && !permisos.has("ver_hallazgos"))}
           onRetry={() => { if (sesion.isError) void sesion.refetch(); else void panel.refetch(); }}
+          onChangeFilters={actualizarFiltrosPanel}
           onNavigateHallazgos={navegarHallazgos}
         />
       )}

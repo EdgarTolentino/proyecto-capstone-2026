@@ -18,7 +18,19 @@ it("abre Hallazgos con filtros válidos y conserva solo los compatibles", () => 
   expect(parametros.get("inventado")).toBeNull();
   expect(result.current.hallazgos.filtros).toEqual(expect.objectContaining({ vista: "todos", severidad: "4", epp: "casco", desde: "2026-09-01", hasta: "2026-09-07", turno: "A" }));
 
+  act(() => result.current.navegacion.navegar("panel"));
+  expect(`${window.location.pathname}${window.location.search}`).toBe("/?desde=2026-09-01&hasta=2026-09-07&turno=A&obra_id=2");
+
   act(() => result.current.navegacion.navegarHallazgos({ vista: "todos", severidad: 4, hallazgoId: 4821 }));
   expect(window.location.search).toContain("hallazgo=4821");
   expect(window.location.search).not.toContain("epp=");
+});
+
+it("lleva al panel las fechas y el turno compatibles de un enlace a Hallazgos", () => {
+  window.history.replaceState({}, "", "/hallazgos?desde=2026-09-01&hasta=2026-09-07&turno=A&severidad=4");
+  const { result } = renderHook(() => useAppNavigation());
+
+  act(() => result.current.navegar("panel"));
+
+  expect(`${window.location.pathname}${window.location.search}`).toBe("/?desde=2026-09-01&hasta=2026-09-07&turno=A");
 });

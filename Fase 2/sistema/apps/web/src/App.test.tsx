@@ -8,7 +8,10 @@ vi.mock("./api/client", () => ({
   ApiError: class extends Error {},
   listarHallazgos: vi.fn(async () => ({ items: [{ id: 1 }, { id: 2 }], contadores: {} })),
   obtenerSesion: vi.fn(async () => ({ permisos: ["ver_hallazgos", "ver_evidencia", "triar_hallazgos"] })),
-  obtenerCatalogos: vi.fn(async () => ({})),
+  obtenerCatalogos: vi.fn(async () => ({
+    obras: [{ id: 7, nombre: "Edificio Norte" }, { id: 8, nombre: "Edificio Sur" }],
+    turnos: [{ codigo: "A", etiqueta: "Turno A" }, { codigo: "B", etiqueta: "Turno B" }],
+  })),
   obtenerPanel: vi.fn(async () => ({
     indicadores: [
       { clave: "hallazgos_abiertos", etiqueta: "Hallazgos abiertos", valor: 4, variacion: 0.25, serie: [1, 2, 3] },
@@ -57,7 +60,7 @@ it("usa la raíz como panel general y permite volver a la bandeja", async () => 
   expect(await screen.findByRole("heading", { name: "Panel general" })).toBeVisible();
   expect(await screen.findByText("Hallazgos abiertos")).toBeVisible();
   expect(screen.getByRole("region", { name: "Indicadores del panel" }).querySelectorAll(".panel-indicator")).toHaveLength(5);
-  expect(api.obtenerPanel).toHaveBeenCalledWith();
+  expect(api.obtenerPanel).toHaveBeenCalledWith({});
   expect(screen.getByRole("button", { name: "Panel general" })).toHaveAttribute("aria-current", "page");
 
   fireEvent.click(within(screen.getByRole("navigation", { name: "Navegación principal" })).getByRole("button", { name: /Hallazgos/ }));
@@ -67,6 +70,26 @@ it("usa la raíz como panel general y permite volver a la bandeja", async () => 
   fireEvent.click(screen.getByRole("button", { name: "Panel general" }));
   expect(await screen.findByRole("heading", { name: "Panel general" })).toBeVisible();
   expect(window.location.pathname).toBe("/");
+});
+
+it("restaura los filtros del panel y vuelve a consultar al cambiarlos", async () => {
+  window.history.replaceState({}, "", "/?obra_id=7&desde=2026-09-01&hasta=2026-09-30&turno=A");
+  const client = new QueryClient({ defaultOptions: { queries: { retry: false, staleTime: Infinity } } });
+  render(<QueryClientProvider client={client}><App /></QueryClientProvider>);
+
+  await waitFor(() => expect(screen.getByRole("combobox", { name: "Obra" })).toHaveValue("7"));
+  expect(screen.getByLabelText("Desde")).toHaveValue("2026-09-01");
+  expect(screen.getByLabelText("Hasta")).toHaveValue("2026-09-30");
+  expect(screen.getByRole("combobox", { name: "Turno" })).toHaveValue("A");
+  await waitFor(() => expect(api.obtenerPanel).toHaveBeenCalledWith({ obraId: 7, desde: "2026-09-01", hasta: "2026-09-30", turno: "A" }));
+
+  fireEvent.change(screen.getByRole("combobox", { name: "Obra" }), { target: { value: "8" } });
+  fireEvent.change(screen.getByLabelText("Desde"), { target: { value: "2026-09-08" } });
+  fireEvent.change(screen.getByLabelText("Hasta"), { target: { value: "2026-10-01" } });
+  fireEvent.change(screen.getByRole("combobox", { name: "Turno" }), { target: { value: "B" } });
+
+  expect(window.location.search).toBe("?obra_id=8&desde=2026-09-08&hasta=2026-10-01&turno=B");
+  await waitFor(() => expect(api.obtenerPanel).toHaveBeenLastCalledWith({ obraId: 8, desde: "2026-09-08", hasta: "2026-10-01", turno: "B" }));
 });
 
 it("mantiene la misma bandeja y consulta al abrir y cerrar el visor", async () => {

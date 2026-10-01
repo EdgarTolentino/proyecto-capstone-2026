@@ -1,16 +1,20 @@
 import { AlertTriangle, LoaderCircle } from "lucide-react";
 
-import type { Panel } from "../api/types";
+import type { Catalogos, FiltrosPanel, Panel } from "../api/types";
 import type { DestinoHallazgos } from "../hooks/useAppNavigation";
 import { PanelCharts } from "./PanelCharts";
+import { PanelFilters } from "./PanelFilters";
 import { PanelOperations } from "./PanelOperations";
 
 interface PanelPageProps {
   panel?: Panel;
+  filtros?: FiltrosPanel;
+  catalogos?: Catalogos;
   isLoading: boolean;
   isError: boolean;
   sinPermiso: boolean;
   onRetry: () => void;
+  onChangeFilters?: (cambios: Partial<FiltrosPanel>) => void;
   onNavigateHallazgos: (destino: DestinoHallazgos) => void;
 }
 
@@ -41,7 +45,7 @@ function Sparkline({ etiqueta, serie }: { etiqueta: string; serie?: number[] }) 
   );
 }
 
-export function PanelPage({ panel, isLoading, isError, sinPermiso, onRetry, onNavigateHallazgos }: PanelPageProps) {
+export function PanelPage({ panel, filtros, catalogos, isLoading, isError, sinPermiso, onRetry, onChangeFilters, onNavigateHallazgos }: PanelPageProps) {
   const panelVacio = !panel || (
     panel.indicadores.length === 0
     && (panel.tendencia.series ?? []).length === 0
@@ -62,6 +66,8 @@ export function PanelPage({ panel, isLoading, isError, sinPermiso, onRetry, onNa
           <h2 id="panel-page-title">Panel general</h2>
         </div>
       </div>
+
+      {filtros && onChangeFilters && <PanelFilters filtros={filtros} catalogos={catalogos} onChange={onChangeFilters} />}
 
       {isLoading && <div className="state-message" role="status" aria-live="polite"><LoaderCircle className="spin" aria-hidden="true" /> Cargando panel…</div>}
       {mostrarError && (

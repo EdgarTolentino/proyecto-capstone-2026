@@ -96,6 +96,22 @@ describe("cliente API", () => {
     expect(String(fetchMock.mock.calls[0][0])).toBe("http://127.0.0.1:4010/panel");
   });
 
+  it("convierte las fechas del selector en límites completos del día", async () => {
+    const fetchMock = vi.spyOn(globalThis, "fetch").mockResolvedValue(
+      new Response(JSON.stringify({ indicadores: [], tendencia: {}, ranking_epp: [], criticos_recientes: [], cobertura: {} }), {
+        status: 200,
+        headers: { "Content-Type": "application/json" },
+      }),
+    );
+    const { obtenerPanel } = await import("./client");
+
+    await obtenerPanel({ desde: "2026-10-01", hasta: "2026-10-02" });
+
+    const url = new URL(String(fetchMock.mock.calls[0][0]));
+    expect(url.searchParams.get("desde")).toBe(new Date("2026-10-01T00:00:00").toISOString());
+    expect(url.searchParams.get("hasta")).toBe(new Date("2026-10-02T23:59:59").toISOString());
+  });
+
   it("crea, versiona y simula reglas con los endpoints del contrato", async () => {
     const fetchMock = vi.spyOn(globalThis, "fetch").mockImplementation(async () =>
       new Response(JSON.stringify({ id: 12, version: 1, hallazgos_estimados: 0 }), { status: 200, headers: { "Content-Type": "application/json" } }),

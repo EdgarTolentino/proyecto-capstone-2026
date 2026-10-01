@@ -12,6 +12,7 @@ export interface DestinoHallazgos {
 }
 
 const parametrosCompartidos = ["desde", "hasta", "turno"] as const;
+const parametrosPanel = [...parametrosCompartidos, "obra_id"] as const;
 
 export function construirRutaHallazgos(destino: DestinoHallazgos): string {
   const actuales = new URL(window.location.href).searchParams;
@@ -41,16 +42,29 @@ function ubicacionHallazgosActual(): string {
   return `${ruta}${window.location.search}`;
 }
 
+function ubicacionPanelActual(): string {
+  const actuales = new URL(window.location.href).searchParams;
+  const parametros = new URLSearchParams();
+  for (const nombre of parametrosPanel) {
+    const valor = actuales.get(nombre);
+    if (valor) parametros.set(nombre, valor);
+  }
+  const consulta = parametros.toString();
+  return `/${consulta ? `?${consulta}` : ""}`;
+}
+
 export function useAppNavigation() {
   const [seccion, setSeccion] = useState(leerSeccion);
   const ultimaUbicacionHallazgos = useRef(
     leerSeccion() === "hallazgos" ? ubicacionHallazgosActual() : "/hallazgos",
   );
+  const ultimaUbicacionPanel = useRef(ubicacionPanelActual());
 
   useEffect(() => {
     const volver = () => {
       const siguiente = leerSeccion();
       if (siguiente === "hallazgos") ultimaUbicacionHallazgos.current = ubicacionHallazgosActual();
+      if (siguiente === "panel") ultimaUbicacionPanel.current = ubicacionPanelActual();
       setSeccion(siguiente);
     };
     window.addEventListener("popstate", volver);
@@ -61,13 +75,15 @@ export function useAppNavigation() {
     const actual = leerSeccion();
     if (actual === destino) return;
     if (actual === "hallazgos") ultimaUbicacionHallazgos.current = ubicacionHallazgosActual();
+    if (actual === "panel") ultimaUbicacionPanel.current = ubicacionPanelActual();
 
-    const ruta = destino === "panel" ? "/" : destino === "reglas" ? "/reglas" : ultimaUbicacionHallazgos.current;
+    const ruta = destino === "panel" ? ultimaUbicacionPanel.current : destino === "reglas" ? "/reglas" : ultimaUbicacionHallazgos.current;
     window.history.pushState({}, "", ruta);
     setSeccion(destino);
   }, []);
 
   const navegarHallazgos = useCallback((destino: DestinoHallazgos) => {
+    if (leerSeccion() === "panel") ultimaUbicacionPanel.current = ubicacionPanelActual();
     const ruta = construirRutaHallazgos(destino);
     ultimaUbicacionHallazgos.current = ruta;
     window.history.pushState({}, "", ruta);

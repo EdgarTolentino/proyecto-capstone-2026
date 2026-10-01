@@ -101,8 +101,12 @@ export const obtenerSesion = () => api<Sesion>("/yo");
 function parametrosDelPanel(filtros: FiltrosPanel = {}): URLSearchParams {
   const parametros = new URLSearchParams();
 
-  if (filtros.desde) parametros.set("desde", filtros.desde);
-  if (filtros.hasta) parametros.set("hasta", filtros.hasta);
+  const instante = (valor: string, finDelDia = false) => /^\d{4}-\d{2}-\d{2}$/.test(valor)
+    ? new Date(`${valor}T${finDelDia ? "23:59:59" : "00:00:00"}`).toISOString()
+    : valor;
+
+  if (filtros.desde) parametros.set("desde", instante(filtros.desde));
+  if (filtros.hasta) parametros.set("hasta", instante(filtros.hasta, true));
   if (filtros.turno) parametros.set("turno", filtros.turno);
   if (filtros.obraId !== undefined) parametros.set("obra_id", String(filtros.obraId));
 
