@@ -26,6 +26,22 @@ describe("cliente API", () => {
     expect(new Headers(options?.headers).get("Authorization")).toBe("Bearer demo");
   });
 
+  it("entra con la cuenta de VITE_API_TOKEN cuando está definida", async () => {
+    vi.stubEnv("VITE_API_TOKEN", "mortega");
+    const fetchMock = vi.spyOn(globalThis, "fetch").mockResolvedValue(
+      new Response(JSON.stringify({ permisos: [] }), {
+        status: 200,
+        headers: { "Content-Type": "application/json" },
+      }),
+    );
+    const { obtenerSesion } = await import("./client");
+
+    await obtenerSesion();
+
+    const [, options] = fetchMock.mock.calls[0];
+    expect(new Headers(options?.headers).get("Authorization")).toBe("Bearer mortega");
+  });
+
   it("no considera pospuesto dentro de Descartados", async () => {
     vi.spyOn(globalThis, "fetch").mockResolvedValue(
       new Response(JSON.stringify({

@@ -19,13 +19,21 @@ AVISO_LEGAL = "Indicio automatizado. Requiere validación humana."
 TURNOS = _TURNOS
 
 
+#: Tokens cuando `GEPP_API_TOKENS` no está: el prevencionista de demostración más las cuentas
+#: del equipo que siembra `perfiles/construccion.yaml`, para entrar al levantar en local sin
+#: configurar. Un despliegue fuera del equipo define la variable (ver `.env.example`).
+TOKENS_POR_DEFECTO = (
+    "demo=prevencionista@obra.invalid,mortega=mortega@duocuc.cl,lgrandon=lgrandon@duocuc.cl"
+)
+
+
 def _tokens_desde_entorno() -> dict[str, str]:
-    """`GEPP_API_TOKENS="demo=prevencionista@obra.invalid,admin=administrador@obra.invalid"`.
+    """`GEPP_API_TOKENS="token=correo,otro=correo"` reemplaza a `TOKENS_POR_DEFECTO`.
 
     Autenticación de DEMOSTRACIÓN, igual que el servidor simulado. La real (sesión con
     contraseña o SSO) no es de la v1.
     """
-    texto = os.environ.get("GEPP_API_TOKENS", "demo=prevencionista@obra.invalid")
+    texto = os.environ.get("GEPP_API_TOKENS", TOKENS_POR_DEFECTO)
     pares = (p.split("=", 1) for p in texto.split(",") if "=" in p)
     return {token.strip(): email.strip() for token, email in pares}
 

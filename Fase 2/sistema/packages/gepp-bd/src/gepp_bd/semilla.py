@@ -1,7 +1,8 @@
 """Carga un perfil de dominio (`perfiles/*.yaml`) en la base (ADR-011).
 
 Un perfil es configuración: cambiar de construcción a minería es cargar otro archivo, sin
-tocar código. La carga es idempotente por nombre de faena: si ya existe, no hace nada.
+tocar código. La carga es idempotente por nombre de faena: si ya existe, solo suma los usuarios
+que falten (por correo), para que una cuenta nueva llegue a las bases ya sembradas.
 
 Uso: `python -m gepp_bd.semilla perfiles/construccion.yaml`
 """
@@ -43,6 +44,34 @@ def _epp(nombres: list[str], donde: str) -> frozenset[TipoEPP]:
         raise PerfilInvalido(f"{donde}: {e}") from e
 
 
+def _cargar_usuarios(sesion: Session, perfil: dict[str, Any], areas: dict[str, Area]) -> int:
+    """Inserta los usuarios del perfil que aún no existen (por correo). Devuelve cuántos sumó."""
+    existentes = set(sesion.execute(select(Usuario.email)).scalars())
+    nuevos = 0
+    for u in perfil.get("usuarios", []):
+        donde = f"usuario {u['email']!r}"
+        if u["rol"] not in ROLES:
+            raise PerfilInvalido(f"{donde}: rol {u['rol']!r} inválido")
+        area_usuario = None
+        if u.get("area"):
+            area_usuario = areas.get(u["area"])
+            if area_usuario is None:
+                raise PerfilInvalido(f"{donde}: el área {u['area']!r} no está en el perfil")
+        if u["email"] in existentes:
+            continue
+        sesion.add(
+            Usuario(
+                email=u["email"],
+                nombre=u["nombre"],
+                rol=u["rol"],
+                area_id=area_usuario.id if area_usuario else None,
+            )
+        )
+        nuevos += 1
+    sesion.flush()
+    return nuevos
+
+
 def cargar(sesion: Session, perfil: dict[str, Any]) -> Faena:
     """Inserta faena, áreas, fuentes, zonas, usuarios de demostración y reglas. Devuelve la faena.
 
@@ -53,6 +82,11 @@ def cargar(sesion: Session, perfil: dict[str, Any]) -> Faena:
         select(Faena).where(Faena.nombre == perfil["faena"]["nombre"])
     ).scalar_one_or_none()
     if existente is not None:
+        areas_existentes = {
+            a.nombre: a
+            for a in sesion.execute(select(Area).where(Area.faena_id == existente.id)).scalars()
+        }
+        _cargar_usuarios(sesion, perfil, areas_existentes)
         return existente
 
     faena = Faena(
@@ -109,20 +143,7 @@ def cargar(sesion: Session, perfil: dict[str, Any]) -> Faena:
         )
     sesion.flush()
 
-    for u in perfil.get("usuarios", []):
-        donde = f"usuario {u['email']!r}"
-        if u["rol"] not in ROLES:
-            raise PerfilInvalido(f"{donde}: rol {u['rol']!r} inválido")
-        area_usuario = area_de(u["area"], donde) if u.get("area") else None
-        sesion.add(
-            Usuario(
-                email=u["email"],
-                nombre=u["nombre"],
-                rol=u["rol"],
-                area_id=area_usuario.id if area_usuario else None,
-            )
-        )
-    sesion.flush()
+    _cargar_usuarios(sesion, perfil, areas)
 
     for r in perfil["reglas"]:
         donde = f"regla {r['nombre']!r}"
