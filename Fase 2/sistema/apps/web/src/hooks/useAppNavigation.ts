@@ -1,9 +1,11 @@
 import { useCallback, useEffect, useRef, useState } from "react";
 
-export type SeccionApp = "hallazgos" | "reglas";
+export type SeccionApp = "panel" | "hallazgos" | "reglas";
 
 function leerSeccion(): SeccionApp {
-  return window.location.pathname.startsWith("/reglas") ? "reglas" : "hallazgos";
+  if (window.location.pathname.startsWith("/reglas")) return "reglas";
+  if (window.location.pathname.startsWith("/hallazgos")) return "hallazgos";
+  return "panel";
 }
 
 function ubicacionHallazgosActual(): string {
@@ -34,7 +36,7 @@ export function useAppNavigation() {
     if (actual === destino) return;
     if (actual === "hallazgos") ultimaUbicacionHallazgos.current = ubicacionHallazgosActual();
 
-    const ruta = destino === "reglas" ? "/reglas" : ultimaUbicacionHallazgos.current;
+    const ruta = destino === "panel" ? "/" : destino === "reglas" ? "/reglas" : ultimaUbicacionHallazgos.current;
     window.history.pushState({}, "", ruta);
     setSeccion(destino);
   }, []);

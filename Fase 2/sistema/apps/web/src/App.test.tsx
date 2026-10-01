@@ -30,10 +30,28 @@ vi.mock("./components/EvidenceDrawer", () => ({
 afterEach(() => { cleanup(); vi.clearAllMocks(); window.history.replaceState({}, "", "/"); });
 
 async function iniciar() {
+  if (!window.location.pathname.startsWith("/hallazgos")) window.history.replaceState({}, "", "/hallazgos");
   const client = new QueryClient({ defaultOptions: { queries: { retry: false, staleTime: Infinity } } });
   render(<QueryClientProvider client={client}><App /></QueryClientProvider>);
   await screen.findByTestId("bandeja");
 }
+
+it("usa la raíz como panel general y permite volver a la bandeja", async () => {
+  window.history.replaceState({}, "", "/");
+  const client = new QueryClient({ defaultOptions: { queries: { retry: false, staleTime: Infinity } } });
+  render(<QueryClientProvider client={client}><App /></QueryClientProvider>);
+
+  expect(await screen.findByRole("heading", { name: "Panel general" })).toBeVisible();
+  expect(screen.getByRole("button", { name: "Panel general" })).toHaveAttribute("aria-current", "page");
+
+  fireEvent.click(screen.getByRole("button", { name: /Hallazgos/ }));
+  expect(await screen.findByTestId("bandeja")).toBeVisible();
+  expect(window.location.pathname).toBe("/hallazgos");
+
+  fireEvent.click(screen.getByRole("button", { name: "Panel general" }));
+  expect(await screen.findByRole("heading", { name: "Panel general" })).toBeVisible();
+  expect(window.location.pathname).toBe("/");
+});
 
 it("mantiene la misma bandeja y consulta al abrir y cerrar el visor", async () => {
   await iniciar();
@@ -64,6 +82,7 @@ it("descartar desde el visor no modifica una selección anterior", async () => {
 });
 
 it("muestra el error de sesión y permite reintentar cuando falla /yo", async () => {
+  window.history.replaceState({}, "", "/hallazgos");
   vi.mocked(api.obtenerSesion).mockRejectedValueOnce(new Error("sin red"));
   const client = new QueryClient({ defaultOptions: { queries: { retry: false } } });
   render(<QueryClientProvider client={client}><App /></QueryClientProvider>);

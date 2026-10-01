@@ -49,7 +49,7 @@ input[type="checkbox"] { accent-color: var(--gepp-acento); width: 16px; height: 
 .ingestion--active svg { color: var(--gepp-texto-inverso); }
 
 /* Las tarjetas de estado son filtros reales, no indicadores ficticios. */
-.findings-page { position: relative; margin: 24px 4% 0; }
+.findings-page, .panel-page { position: relative; margin: 24px 4% 0; }
 .triage-tabs { display: grid; grid-template-columns: repeat(5, minmax(0, 1fr)); gap: 12px; margin-bottom: 28px; }
 .triage-tabs > button { position: relative; display: flex; flex-direction: column; align-items: flex-start; gap: 9px; padding: 16px 18px; border: 1px solid var(--gepp-borde); border-bottom: 3px solid var(--gepp-borde); border-radius: 4px; background: var(--gepp-superficie); color: var(--gepp-texto-3); text-align: left; }
 .triage-tabs > button strong { font-size: 12px; font-weight: 500; }

@@ -143,6 +143,14 @@ export default function App() {
 
   return (
     <AppShell catalogos={catalogos.data} estado={estado.data} sesion={sesion.data} sesionError={sesion.isError} seccion={seccion} onNavigate={navegar}>
+      {seccion === "panel" && (
+        <main className="panel-page" aria-labelledby="panel-page-title">
+          <div className="state-message">
+            <h2 id="panel-page-title">Panel general</h2>
+            <p>Los indicadores del panel estarán disponibles próximamente.</p>
+          </div>
+        </main>
+      )}
       {seccion === "hallazgos" && (
       <main className="findings-page">
         {sesion.isLoading && <div className="state-message"><LoaderCircle className="spin" /> Cargando sesión…</div>}
