@@ -46,6 +46,18 @@ Un cambio está terminado cuando se cumplen las cinco condiciones:
    último elemento, valor cero.
 5. **La plantilla del PR está completa:** «Cómo lo verificaste» lleva comandos y salida.
 
+## Hábitos que evitan errores
+
+- **Si la tarea choca con una regla de este archivo o con un ADR, se avisa antes de escribir
+  código**, citando la regla. No se busca la forma de esquivarla.
+- **Las cifras se copian de una salida, no se calculan de memoria.** Antes de publicar, se
+  recalculan.
+- **El significado de un dato se comprueba con una ejecución real**, no con su nombre: qué id
+  es cada clase, en qué unidad viene un número, en qué zona horaria está una fecha.
+- **Dos intentos fallidos con el mismo enfoque: se para.** Se relee el código o se empieza
+  limpio, en vez de un tercer parche sobre el mismo síntoma.
+- **Antes de cambiar de dónde sale un dato, se busca quién lo consume** (`grep`).
+
 ## Frontend: errores que ya ocurrieron aquí
 
 - **La URL y el estado deben coincidir siempre.** Si un filtro vive en la URL, el estado se
