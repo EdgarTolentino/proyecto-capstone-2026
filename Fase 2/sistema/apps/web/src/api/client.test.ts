@@ -60,6 +60,42 @@ describe("cliente API", () => {
     expect(String(url)).toBe("http://127.0.0.1:4010/reglas?area_id=5");
   });
 
+  it("consulta el panel con sus filtros y conserva la respuesta tipada", async () => {
+    const fetchMock = vi.spyOn(globalThis, "fetch").mockResolvedValue(
+      new Response(JSON.stringify({ indicadores: [], tendencia: {}, ranking_epp: [], criticos_recientes: [], cobertura: {} }), {
+        status: 200,
+        headers: { "Content-Type": "application/json" },
+      }),
+    );
+    const { obtenerPanel } = await import("./client");
+
+    const panel = await obtenerPanel({
+      desde: "2026-10-01T00:00:00Z",
+      hasta: "2026-10-01T23:59:59Z",
+      turno: "A",
+      obraId: 7,
+    });
+
+    const [url, options] = fetchMock.mock.calls[0];
+    expect(String(url)).toBe("http://127.0.0.1:4010/panel?desde=2026-10-01T00%3A00%3A00Z&hasta=2026-10-01T23%3A59%3A59Z&turno=A&obra_id=7");
+    expect(new Headers(options?.headers).get("Authorization")).toBe("Bearer demo");
+    expect(panel.indicadores).toEqual([]);
+  });
+
+  it("consulta el panel sin query cuando no hay filtros", async () => {
+    const fetchMock = vi.spyOn(globalThis, "fetch").mockResolvedValue(
+      new Response(JSON.stringify({ indicadores: [], tendencia: {}, ranking_epp: [], criticos_recientes: [], cobertura: {} }), {
+        status: 200,
+        headers: { "Content-Type": "application/json" },
+      }),
+    );
+    const { obtenerPanel } = await import("./client");
+
+    await obtenerPanel();
+
+    expect(String(fetchMock.mock.calls[0][0])).toBe("http://127.0.0.1:4010/panel");
+  });
+
   it("crea, versiona y simula reglas con los endpoints del contrato", async () => {
     const fetchMock = vi.spyOn(globalThis, "fetch").mockImplementation(async () =>
       new Response(JSON.stringify({ id: 12, version: 1, hallazgos_estimados: 0 }), { status: 200, headers: { "Content-Type": "application/json" } }),

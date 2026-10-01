@@ -6,6 +6,8 @@ import type {
   Hallazgo,
   HallazgoDetalle,
   PaginaHallazgos,
+  Panel,
+  FiltrosPanel,
   Regla,
   ReglaEntrada,
   ResultadoSimulacion,
@@ -95,6 +97,22 @@ export const obtenerHallazgo = (id: number) => api<HallazgoDetalle>(`/hallazgos/
 export const obtenerCatalogos = () => api<Catalogos>("/catalogos");
 export const obtenerEstado = () => api<EstadoSistema>("/estado");
 export const obtenerSesion = () => api<Sesion>("/yo");
+
+function parametrosDelPanel(filtros: FiltrosPanel = {}): URLSearchParams {
+  const parametros = new URLSearchParams();
+
+  if (filtros.desde) parametros.set("desde", filtros.desde);
+  if (filtros.hasta) parametros.set("hasta", filtros.hasta);
+  if (filtros.turno) parametros.set("turno", filtros.turno);
+  if (filtros.obraId !== undefined) parametros.set("obra_id", String(filtros.obraId));
+
+  return parametros;
+}
+
+export function obtenerPanel(filtros: FiltrosPanel = {}): Promise<Panel> {
+  const consulta = parametrosDelPanel(filtros).toString();
+  return api<Panel>(`/panel${consulta ? `?${consulta}` : ""}`);
+}
 
 export function listarReglas(areaId?: string): Promise<Regla[]> {
   const parametros = new URLSearchParams();
