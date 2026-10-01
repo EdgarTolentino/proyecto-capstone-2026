@@ -32,7 +32,8 @@ from typing import Any
 
 import numpy as np
 import yaml
-from gepp_core import Caja, ClaseDetectada
+from gepp_core import Caja, ClaseDetectada, Deteccion
+from scipy.optimize import linear_sum_assignment
 
 from gepp_vision.dataset import UMBRAL_DUPLICADO, Particion
 
@@ -237,3 +238,44 @@ def a_coco(imagenes: Iterable[tuple[Anotada, str, Sequence[Caja]]]) -> dict[str,
                 }
             )
     return salida
+
+
+# --- verificación del modelo exportado -------------------------------------------------
+
+
+def _asignar(iou: np.ndarray, umbral: float) -> list[tuple[int, int]]:
+    """Emparejamiento óptimo (húngaro) de filas y columnas con IoU >= `umbral`."""
+    if iou.size == 0:
+        return []
+    filas, columnas = linear_sum_assignment(-iou)
+    return [(int(f), int(c)) for f, c in zip(filas, columnas, strict=True) if iou[f, c] >= umbral]
+
+
+def emparejar(
+    a: Sequence[Deteccion], b: Sequence[Deteccion], umbral_iou: float = 0.9
+) -> list[tuple[Deteccion, Deteccion]]:
+    """Pares de detecciones de la misma clase que son la misma caja (ONNX contra PyTorch)."""
+    iou = np.array([[x.caja.iou(y.caja) if x.clase is y.clase else 0.0 for y in b] for x in a])
+    return [(a[f], b[c]) for f, c in _asignar(iou, umbral_iou)]
+
+
+def pares_con_verdad(
+    predichas: Sequence[tuple[int, Caja]],
+    verdad: Sequence[tuple[ClaseDetectada, Caja]],
+    umbral_iou: float = 0.5,
+) -> list[tuple[int, ClaseDetectada]]:
+    """(id que devolvió el modelo, clase verdadera) de cada predicción que cae sobre una caja.
+
+    Ignora la clase a propósito: sirve para averiguar qué significa cada id del modelo.
+    """
+    iou = np.array([[p.iou(v) for _, v in verdad] for _, p in predichas])
+    return [(predichas[f][0], verdad[c][0]) for f, c in _asignar(iou, umbral_iou)]
+
+
+def acuerdo_de_clases(
+    pares: Sequence[tuple[int, ClaseDetectada]], mapa: dict[int, ClaseDetectada]
+) -> float:
+    """Fracción de pares en que el mapa traduce el id a la clase verdadera."""
+    if not pares:
+        raise ValueError("sin pares: el modelo no acertó ninguna caja, no hay acuerdo que medir")
+    return sum(mapa.get(i) is clase for i, clase in pares) / len(pares)
