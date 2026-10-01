@@ -6,6 +6,7 @@ import {
   ApiError,
   listarHallazgos,
   obtenerCatalogos,
+  obtenerPanel,
   obtenerEstado,
   obtenerSesion,
   triarHallazgo,
@@ -19,6 +20,7 @@ import { FalsePositiveDialog } from "./components/FalsePositiveDialog";
 import { HallazgoFilters } from "./components/HallazgoFilters";
 import { HallazgosGrid } from "./components/HallazgosGrid";
 import { ReglasPage } from "./components/ReglasPage";
+import { PanelPage } from "./components/PanelPage";
 import { TriageTabs } from "./components/TriageTabs";
 import { useAppNavigation } from "./hooks/useAppNavigation";
 import { useHallazgoFilters } from "./hooks/useHallazgoFilters";
@@ -36,6 +38,11 @@ export default function App() {
   const sesion = useQuery({ queryKey: ["sesion"], queryFn: obtenerSesion });
   const catalogos = useQuery({ queryKey: ["catalogos"], queryFn: obtenerCatalogos, staleTime: Infinity });
   const estado = useQuery({ queryKey: ["estado"], queryFn: obtenerEstado, refetchInterval: 5_000 });
+  const panel = useQuery({
+    queryKey: ["panel"],
+    queryFn: () => obtenerPanel(),
+    enabled: seccion === "panel" && (sesion.data?.permisos?.includes("ver_hallazgos") ?? false),
+  });
   // El visor no cambia la consulta ni desmonta la tabla: así conserva el desplazamiento.
   const filtrosLista = { ...filtros, hallazgoId: undefined };
   const pagina = useQuery({
@@ -144,12 +151,13 @@ export default function App() {
   return (
     <AppShell catalogos={catalogos.data} estado={estado.data} sesion={sesion.data} sesionError={sesion.isError} seccion={seccion} onNavigate={navegar}>
       {seccion === "panel" && (
-        <main className="panel-page" aria-labelledby="panel-page-title">
-          <div className="state-message">
-            <h2 id="panel-page-title">Panel general</h2>
-            <p>Los indicadores del panel estarán disponibles próximamente.</p>
-          </div>
-        </main>
+        <PanelPage
+          panel={panel.data}
+          isLoading={sesion.isLoading || panel.isLoading}
+          isError={sesion.isError || panel.isError}
+          sinPermiso={Boolean(sesion.data && !permisos.has("ver_hallazgos"))}
+          onRetry={() => { if (sesion.isError) void sesion.refetch(); else void panel.refetch(); }}
+        />
       )}
       {seccion === "hallazgos" && (
       <main className="findings-page">

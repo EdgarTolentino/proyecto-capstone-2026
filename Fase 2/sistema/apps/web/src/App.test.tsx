@@ -9,6 +9,19 @@ vi.mock("./api/client", () => ({
   listarHallazgos: vi.fn(async () => ({ items: [{ id: 1 }, { id: 2 }], contadores: {} })),
   obtenerSesion: vi.fn(async () => ({ permisos: ["ver_hallazgos", "ver_evidencia", "triar_hallazgos"] })),
   obtenerCatalogos: vi.fn(async () => ({})),
+  obtenerPanel: vi.fn(async () => ({
+    indicadores: [
+      { clave: "hallazgos_abiertos", etiqueta: "Hallazgos abiertos", valor: 4, variacion: 0.25, serie: [1, 2, 3] },
+      { clave: "criticos_sin_revisar", etiqueta: "Críticos sin revisar", valor: 1, variacion: -0.5, serie: [2, 1] },
+      { clave: "cumplimiento_epp", etiqueta: "Cumplimiento de EPP", valor: 92.5, unidad: "%", variacion: 0.1, serie: [] },
+      { clave: "zona_mas_incumplimientos", etiqueta: "Zona con más incumplimientos", valor: "Sector norte", variacion: null, serie: [] },
+      { clave: "videos_procesados_hoy", etiqueta: "Videos procesados hoy", valor: 8, variacion: null, serie: [1, 4, 8] },
+    ],
+    tendencia: { etiquetas: [], series: [] },
+    ranking_epp: [],
+    criticos_recientes: [],
+    cobertura: {},
+  })),
   obtenerEstado: vi.fn(async () => ({})),
   triarHallazgo: vi.fn(async () => ({})),
   triarLote: vi.fn(async () => ({})),
@@ -42,6 +55,9 @@ it("usa la raíz como panel general y permite volver a la bandeja", async () => 
   render(<QueryClientProvider client={client}><App /></QueryClientProvider>);
 
   expect(await screen.findByRole("heading", { name: "Panel general" })).toBeVisible();
+  expect(await screen.findByText("Hallazgos abiertos")).toBeVisible();
+  expect(screen.getByRole("region", { name: "Indicadores del panel" }).querySelectorAll(".panel-indicator")).toHaveLength(5);
+  expect(api.obtenerPanel).toHaveBeenCalledWith();
   expect(screen.getByRole("button", { name: "Panel general" })).toHaveAttribute("aria-current", "page");
 
   fireEvent.click(screen.getByRole("button", { name: /Hallazgos/ }));
