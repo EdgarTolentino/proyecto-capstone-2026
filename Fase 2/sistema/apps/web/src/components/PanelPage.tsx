@@ -16,7 +16,7 @@ function variacionTexto(variacion: number | null | undefined): string {
   return `${variacion >= 0 ? "↑ +" : "↓ −"}${porcentaje}% vs. período anterior`;
 }
 
-function Sparkline({ serie }: { serie?: number[] }) {
+function Sparkline({ etiqueta, serie }: { etiqueta: string; serie?: number[] }) {
   if (!serie?.length) return <span className="panel-sparkline panel-sparkline--empty">Sin tendencia</span>;
   const maximo = Math.max(...serie, 1);
   const puntos = serie.map((valor, indice) => {
@@ -26,7 +26,7 @@ function Sparkline({ serie }: { serie?: number[] }) {
   }).join(" ");
 
   return (
-    <svg className="panel-sparkline" viewBox="0 0 60 20" role="img" aria-label="Tendencia del indicador">
+    <svg className="panel-sparkline" viewBox="0 0 60 20" role="img" aria-label={`Tendencia de ${etiqueta}: ${serie.join(", ")}`}>
       <polyline points={puntos} fill="none" stroke="currentColor" strokeWidth="1.5" vectorEffect="non-scaling-stroke" />
     </svg>
   );
@@ -54,13 +54,13 @@ export function PanelPage({ panel, isLoading, isError, sinPermiso, onRetry }: Pa
       {!isLoading && !isError && panel && (
         <section className="panel-indicators" aria-label="Indicadores del panel">
           {panel.indicadores.map((indicador) => (
-            <article className="panel-indicator" key={indicador.clave}>
-              <p>{indicador.etiqueta}</p>
+            <article className="panel-indicator" key={indicador.clave} aria-labelledby={`indicador-${indicador.clave}`}>
+              <h3 id={`indicador-${indicador.clave}`}>{indicador.etiqueta}</h3>
               <strong className="panel-indicator__value mono">
                 {indicador.valor}{indicador.unidad ? <small>{indicador.unidad}</small> : null}
               </strong>
               <span className="panel-indicator__variation">{variacionTexto(indicador.variacion)}</span>
-              <Sparkline serie={indicador.serie} />
+              <Sparkline etiqueta={indicador.etiqueta} serie={indicador.serie} />
             </article>
           ))}
         </section>
