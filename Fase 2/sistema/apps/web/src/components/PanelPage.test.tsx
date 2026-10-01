@@ -1,5 +1,6 @@
-import { fireEvent, render, screen, within } from "@testing-library/react";
-import { expect, it, vi } from "vitest";
+import { cleanup, fireEvent, render, screen, within } from "@testing-library/react";
+import userEvent from "@testing-library/user-event";
+import { afterEach, expect, it, vi } from "vitest";
 
 import type { Panel } from "../api/types";
 import { PanelPage } from "./PanelPage";
@@ -18,9 +19,11 @@ const panel: Panel = {
   cobertura: {},
 };
 
+afterEach(cleanup);
+
 it("presenta las cinco tarjetas con valor, variación y tendencia del contrato", () => {
   const navegar = vi.fn();
-  render(<PanelPage panel={panel} isLoading={false} isError={false} sinPermiso={false} onRetry={vi.fn()} onNavigateHallazgos={navegar} />);
+  const { container } = render(<PanelPage panel={panel} isLoading={false} isError={false} sinPermiso={false} onRetry={vi.fn()} onNavigateHallazgos={navegar} />);
 
   const indicadores = screen.getByRole("region", { name: "Indicadores del panel" });
   const tarjetas = within(indicadores).getAllByRole("article");
@@ -40,4 +43,55 @@ it("presenta las cinco tarjetas con valor, variación y tendencia del contrato",
   expect(navegar).toHaveBeenNthCalledWith(1, { vista: "por_revisar" });
   expect(navegar).toHaveBeenNthCalledWith(2, { vista: "por_revisar", severidad: 4 });
   expect(within(indicadores).getAllByRole("button")).toHaveLength(2);
+  expect(container.querySelectorAll("[data-panel-band]")).toHaveLength(3);
+});
+
+it("presenta la carga sin exponer datos anteriores", () => {
+  const { container } = render(<PanelPage panel={panel} isLoading isError={false} sinPermiso={false} onRetry={vi.fn()} onNavigateHallazgos={vi.fn()} />);
+
+  expect(screen.getByRole("main")).toHaveAttribute("aria-busy", "true");
+  expect(screen.getByRole("status")).toHaveTextContent("Cargando panel…");
+  expect(container.querySelectorAll("[data-panel-band]")).toHaveLength(0);
+});
+
+it("presenta el error, oculta datos anteriores y permite reintentar", () => {
+  const reintentar = vi.fn();
+  const { container } = render(<PanelPage panel={panel} isLoading={false} isError sinPermiso={false} onRetry={reintentar} onNavigateHallazgos={vi.fn()} />);
+
+  expect(screen.getByRole("alert")).toHaveTextContent("No fue posible cargar el panel general.");
+  expect(container.querySelectorAll("[data-panel-band]")).toHaveLength(0);
+  fireEvent.click(screen.getByRole("button", { name: "Reintentar" }));
+  expect(reintentar).toHaveBeenCalledOnce();
+});
+
+it("prioriza la falta de permiso y no muestra datos conservados", () => {
+  const { container } = render(<PanelPage panel={panel} isLoading={false} isError={false} sinPermiso onRetry={vi.fn()} onNavigateHallazgos={vi.fn()} />);
+
+  expect(screen.getByRole("alert")).toHaveTextContent("No tienes permiso para ver el panel general.");
+  expect(container.querySelectorAll("[data-panel-band]")).toHaveLength(0);
+});
+
+it("presenta un estado vacío único cuando el contrato no contiene información", () => {
+  const panelVacio: Panel = {
+    indicadores: [],
+    tendencia: {},
+    ranking_epp: [],
+    criticos_recientes: [],
+    cobertura: {},
+  };
+  const { container } = render(<PanelPage panel={panelVacio} isLoading={false} isError={false} sinPermiso={false} onRetry={vi.fn()} onNavigateHallazgos={vi.fn()} />);
+
+  expect(screen.getByRole("status")).toHaveTextContent("No hay información disponible para el período seleccionado.");
+  expect(container.querySelectorAll("[data-panel-band]")).toHaveLength(0);
+});
+
+it("activa la primera tarjeta navegable usando solo el teclado", async () => {
+  const navegar = vi.fn();
+  const usuario = userEvent.setup();
+  render(<PanelPage panel={panel} isLoading={false} isError={false} sinPermiso={false} onRetry={vi.fn()} onNavigateHallazgos={navegar} />);
+
+  await usuario.tab();
+  expect(screen.getByRole("button", { name: "Ver Hallazgos abiertos en Hallazgos" })).toHaveFocus();
+  await usuario.keyboard("{Enter}");
+  expect(navegar).toHaveBeenCalledWith({ vista: "por_revisar" });
 });

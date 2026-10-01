@@ -42,8 +42,20 @@ function Sparkline({ etiqueta, serie }: { etiqueta: string; serie?: number[] }) 
 }
 
 export function PanelPage({ panel, isLoading, isError, sinPermiso, onRetry, onNavigateHallazgos }: PanelPageProps) {
+  const panelVacio = !panel || (
+    panel.indicadores.length === 0
+    && (panel.tendencia.series ?? []).length === 0
+    && panel.ranking_epp.length === 0
+    && panel.criticos_recientes.length === 0
+    && (panel.cobertura.fuentes_totales ?? 0) === 0
+  );
+  const mostrarError = !isLoading && isError;
+  const mostrarSinPermiso = !isLoading && !isError && sinPermiso;
+  const mostrarVacio = !isLoading && !isError && !sinPermiso && panelVacio;
+  const mostrarPanel = !isLoading && !isError && !sinPermiso && !panelVacio && panel;
+
   return (
-    <main className="panel-page" aria-labelledby="panel-page-title">
+    <main className="panel-page" aria-labelledby="panel-page-title" aria-busy={isLoading}>
       <div className="review-heading panel-heading">
         <div>
           <p className="eyebrow">VISIÓN GENERAL</p>
@@ -51,18 +63,19 @@ export function PanelPage({ panel, isLoading, isError, sinPermiso, onRetry, onNa
         </div>
       </div>
 
-      {sinPermiso && <div className="state-message" role="alert">No tienes permiso para ver el panel general.</div>}
-      {isLoading && <div className="state-message"><LoaderCircle className="spin" /> Cargando panel…</div>}
-      {isError && (
+      {isLoading && <div className="state-message" role="status" aria-live="polite"><LoaderCircle className="spin" aria-hidden="true" /> Cargando panel…</div>}
+      {mostrarError && (
         <div className="state-message state-message--error" role="alert">
-          <AlertTriangle />
+          <AlertTriangle aria-hidden="true" />
           No fue posible cargar el panel general.
           <button type="button" onClick={onRetry}>Reintentar</button>
         </div>
       )}
-      {!isLoading && !isError && panel && (
+      {mostrarSinPermiso && <div className="state-message" role="alert"><AlertTriangle aria-hidden="true" /> No tienes permiso para ver el panel general.</div>}
+      {mostrarVacio && <div className="state-message" role="status">No hay información disponible para el período seleccionado.</div>}
+      {mostrarPanel && (
         <>
-          <section className="panel-indicators" aria-label="Indicadores del panel">
+          <section className="panel-indicators" aria-label="Indicadores del panel" data-panel-band="indicadores">
             {panel.indicadores.map((indicador) => (
               <article className={`panel-indicator ${destinoIndicador[indicador.clave] ? "panel-indicator--link" : ""}`} key={indicador.clave} aria-labelledby={`indicador-${indicador.clave}`}>
                 <h3 id={`indicador-${indicador.clave}`}>{indicador.etiqueta}</h3>

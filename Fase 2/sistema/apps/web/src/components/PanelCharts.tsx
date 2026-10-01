@@ -117,5 +117,5 @@ function RankingEpp({ ranking, onNavigateHallazgos }: { ranking: Panel["ranking_
 }
 
 export function PanelCharts({ tendencia, rankingEpp, onNavigateHallazgos }: PanelChartsProps) {
-  return <div className="panel-charts"><TendenciaSemanal tendencia={tendencia} onNavigateHallazgos={onNavigateHallazgos} /><RankingEpp ranking={rankingEpp} onNavigateHallazgos={onNavigateHallazgos} /></div>;
+  return <section className="panel-charts" aria-label="Tendencia y ranking del panel" data-panel-band="analisis"><TendenciaSemanal tendencia={tendencia} onNavigateHallazgos={onNavigateHallazgos} /><RankingEpp ranking={rankingEpp} onNavigateHallazgos={onNavigateHallazgos} /></section>;
 }

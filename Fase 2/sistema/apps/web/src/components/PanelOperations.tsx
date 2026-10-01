@@ -91,5 +91,5 @@ function CoberturaOperacional({ cobertura }: { cobertura: Panel["cobertura"] }) 
 }
 
 export function PanelOperations({ criticos, cobertura, onNavigateHallazgos }: PanelOperationsProps) {
-  return <div className="panel-operations"><CriticosRecientes criticos={criticos} onNavigateHallazgos={onNavigateHallazgos} /><CoberturaOperacional cobertura={cobertura} /></div>;
+  return <section className="panel-operations" aria-label="Críticos recientes y cobertura" data-panel-band="operacion"><CriticosRecientes criticos={criticos} onNavigateHallazgos={onNavigateHallazgos} /><CoberturaOperacional cobertura={cobertura} /></section>;
 }
