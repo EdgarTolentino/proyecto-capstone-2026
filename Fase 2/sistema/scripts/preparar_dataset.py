@@ -1,4 +1,4 @@
-"""Une los datasets descargados en uno solo, listo para entrenar RF-DETR (#31).
+"""Une los datasets descargados en uno solo, en el formato COCO que lee `rfdetr` (#31).
 
     uv run python scripts/preparar_dataset.py ~/datos/gepp/crudos ~/datos/gepp/epp-v1 \
         --pesos-coco ~/modelos/rf-detr-medium.pth --variante medium
@@ -7,8 +7,10 @@
    categorías a persona / casco / chaleco. Una categoría no declarada detiene todo.
 2. Si la fuente no marca a todas las personas, el detector COCO propone las que faltan
    (con umbral alto) y se agregan como `automatica`. `--sin-completar` lo omite.
-3. Respeta la partición de la fuente (train/valid/test); si no trae, reparte 80/10/10 por
-   hash del nombre. Quita de entrenamiento lo que se parezca a validación o prueba.
+3. Respeta la partición de la fuente (train/valid/test), salvo para las imágenes que vienen
+   de un video (`grupos` en fuentes.yaml): ese video entero va a una sola partición. Si la
+   fuente no trae partición, reparte 80/10/10 por hash del nombre. Quita de entrenamiento lo
+   que se parezca a validación o prueba, y al final lo comprueba con `verificar_particion`.
 4. Escribe `SALIDA/{train,valid,test}/` en el formato que lee `rfdetr` y `resumen.json` con
    los conteos que van al manifiesto y al issue del experimento.
 
@@ -30,7 +32,7 @@ from typing import TYPE_CHECKING
 
 import cv2
 from gepp_core import Caja, ClaseDetectada
-from gepp_vision.dataset import Particion, dhash
+from gepp_vision.dataset import Imagen, Particion, dhash, verificar_particion
 from gepp_vision.entrenamiento import (
     Anotada,
     Fuente,
@@ -39,6 +41,7 @@ from gepp_vision.entrenamiento import (
     completar,
     desde_coco,
     desde_voc,
+    grupo,
     particion_estable,
     quitar_fugas,
 )
@@ -57,21 +60,31 @@ UMBRAL_COMPLETAR = 0.6
 #: `Deteccion` exige un instante con zona; aquí no hay video, así que es fijo.
 INSTANTE = datetime(2000, 1, 1, tzinfo=UTC)
 
-Registro = tuple[Fuente, Anotada, Path, Particion]
+#: (fuente, imagen, ruta, partición, video de origen o None)
+Registro = tuple[Fuente, Anotada, Path, Particion, str | None]
 
 
-def leer_fuente(fuente: Fuente, carpeta: Path) -> Iterator[Registro]:
+def _crudos(fuente: Fuente, carpeta: Path) -> Iterator[tuple[Anotada, Path, Particion]]:
     if fuente.origen.get("formato") == "voc":
         for xml in sorted((carpeta / "annotations").glob("*.xml")):
             img = desde_voc(xml.read_text(encoding="utf-8"), fuente)
-            yield fuente, img, carpeta / "images" / img.archivo, particion_estable(img.archivo)
+            yield img, carpeta / "images" / img.archivo, particion_estable(img.archivo)
         return
     for particion, nombre in CARPETA.items():
         anotaciones = carpeta / nombre / "_annotations.coco.json"
         if anotaciones.exists():
             coco = json.loads(anotaciones.read_text(encoding="utf-8"))
             for img in desde_coco(coco, fuente):
-                yield fuente, img, carpeta / nombre / img.archivo, particion
+                yield img, carpeta / nombre / img.archivo, particion
+
+
+def leer_fuente(fuente: Fuente, carpeta: Path) -> Iterator[Registro]:
+    """Como viene en la fuente, salvo que un video entero va a una sola partición."""
+    for img, ruta, particion in _crudos(fuente, carpeta):
+        video = grupo(img.archivo, fuente)
+        if video is not None:
+            particion = particion_estable(f"{fuente.nombre}/{video}")
+        yield fuente, img, ruta, particion, video
 
 
 def detector_coco(pesos: Path, variante: str) -> DetectorRFDETR:
@@ -114,7 +127,7 @@ def main(argv: list[str] | None = None) -> int:
         for n, registro in enumerate(leer_fuente(fuente, crudos / fuente.nombre)):
             if args.limite is not None and n >= args.limite:
                 break
-            _, img, ruta, _ = registro
+            _, img, ruta, _, _ = registro
             imagen = cv2.imread(str(ruta))
             if imagen is None:
                 ilegibles[fuente.nombre] += 1
@@ -135,22 +148,31 @@ def main(argv: list[str] | None = None) -> int:
     fugas = quitar_fugas([h for _, h, _ in registros], [r[3] for r, _, _ in registros])
     conteo: Counter[str] = Counter()
     por_particion: dict[Particion, list[tuple[Anotada, str, list[Caja]]]] = {p: [] for p in CARPETA}
-    for i, ((fuente, img, ruta, particion), _, automaticas) in enumerate(registros):
+    escritas: list[Imagen] = []
+    for i, ((fuente, img, ruta, particion, video), hash_, automaticas) in enumerate(registros):
         if i in fugas:
             conteo[f"{fuente.nombre}/descartada_por_fuga"] += 1
             continue
         nombre = f"{fuente.nombre}__{Path(img.archivo).name}"
         destino = salida / CARPETA[particion] / nombre
         destino.parent.mkdir(parents=True, exist_ok=True)
+        if destino.exists():  # dos imágenes con el mismo nombre base: una pisaría a la otra
+            sys.exit(f"nombre repetido en la salida: {nombre} (de {ruta})")
         try:
             os.link(ruta, destino)  # mismo disco: no duplica gigas
         except OSError:
             shutil.copy2(ruta, destino)
+        escritas.append(Imagen(nombre, f"{fuente.nombre}/{video or nombre}", particion, hash_))
         por_particion[particion].append((img, nombre, automaticas))
         conteo[f"{fuente.nombre}/{particion}/imagenes"] += 1
+        if video is not None:
+            conteo[f"{fuente.nombre}/{particion}/de_video"] += 1
         for clase, _ in img.cajas:
             conteo[f"{fuente.nombre}/{particion}/{clase}"] += 1
         conteo[f"{fuente.nombre}/{particion}/persona_automatica"] += len(automaticas)
+
+    # La misma guarda que el lote 0: ningún video ni escena en dos particiones.
+    verificar_particion(escritas)
 
     for particion, imagenes in por_particion.items():
         (salida / CARPETA[particion]).mkdir(parents=True, exist_ok=True)

@@ -13,7 +13,7 @@
 fuentes:
   - nombre: construction-site-safety
     licencia: CC BY 4.0  # exige atribución en el README y el informe final
-    origen: {tipo: roboflow, proyecto: roboflow-universe-projects/construction-site-safety}
+    origen: {tipo: roboflow, proyecto: roboflow-universe-projects/construction-site-safety, version: 30}
     clases:
       Hardhat: casco
       Safety Vest: chaleco
@@ -25,7 +25,30 @@ fuentes:
       Safety Cone: null
       machinery: null
       vehicle: null
+      # Versión 30 (verificada el 2026-10-01): 717 imágenes y estas categorías además.
+      Gloves: null    # guantes existe como clase, pero no entra en la v1
+      Ladder: null
+      Excavator: null
+      wheel loader: null
+      dump truck: null
+      truck: null
+      truck and trailer: null
+      trailer: null
+      semi: null
+      SUV: null
+      sedan: null
+      van: null
+      mini-van: null
+      bus: null
+      fire hydrant: null
     exhaustivas: [casco, chaleco]
+    # Roboflow parte por cuadro: cuadros de un mismo video caían en train y en test. Estos
+    # patrones reconocen el video en el nombre y lo mandan entero a una partición.
+    # `IMG_0871_mp4-11_jpg` y `IMG_0871_MOV-12_jpg` son el mismo video (159 imágenes).
+    # `youtube-N` no dice de qué video viene (192 imágenes): van todas como un solo grupo.
+    grupos:
+      - '(?i)^(.*?)_(?:mp4|mov)-\d+_'
+      - '^(youtube)-'
 
   # Son las imágenes de Hard Hat Workers (Roboflow, CC0), redistribuidas en Kaggle: archivos
   # `hard_hat_workers*.png`. Por eso Hard Hat Workers no figura aparte: serían duplicados.

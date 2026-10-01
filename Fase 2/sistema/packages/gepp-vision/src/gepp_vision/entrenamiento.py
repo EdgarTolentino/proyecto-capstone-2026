@@ -10,8 +10,11 @@ entrenamiento corre igual y nadie se entera:
 2. **Una clase que la fuente no etiqueta en todas sus imágenes deja falsos negativos:** una
    persona sin caja es, para el modelo, fondo. `completar` agrega las personas que propone
    un detector COCO, marcadas como `automatica` para poder auditarlas.
-3. **Ninguna escena cruza particiones.** `quitar_fugas` usa la misma distancia que
-   `dataset.verificar_particion`.
+3. **Los cuadros de un mismo video no se reparten entre particiones.** Roboflow parte por
+   cuadro; `grupo` reconoce el video en el nombre del archivo (patrones de `fuentes.yaml`) y
+   todo el grupo va a una sola partición. Las casi copias que quedan sin grupo las saca
+   `quitar_fugas` por dHash. El dHash solo no basta: cuadros del mismo video quedan a más de
+   14 bits.
 
 Las imágenes no se tocan aquí: este módulo solo traduce anotaciones. Leer, copiar y correr
 el detector es trabajo de `scripts/preparar_dataset.py`.
@@ -20,6 +23,7 @@ el detector es trabajo de `scripts/preparar_dataset.py`.
 from __future__ import annotations
 
 import hashlib
+import re
 import xml.etree.ElementTree as ET
 from collections.abc import Iterable, Sequence
 from dataclasses import dataclass, field
@@ -58,6 +62,8 @@ class Fuente:
     #: Clases que la fuente marca en TODAS sus imágenes. Las demás se completan.
     exhaustivas: frozenset[ClaseDetectada]
     origen: dict[str, Any] = field(default_factory=dict)
+    #: Expresiones regulares cuyo primer grupo de captura identifica el video de origen.
+    grupos: tuple[str, ...] = ()
 
     def traducir(self, nombres: Iterable[str]) -> dict[str, ClaseDetectada | None]:
         nombres = set(nombres)
@@ -84,7 +90,15 @@ def cargar_fuentes(ruta: Path) -> list[Fuente]:
         fuera = {c for c in clases.values() if c is not None} | exhaustivas
         if not fuera <= CLASES_V1.keys():
             raise ValueError(f"{f['nombre']}: clases fuera de la v1: {sorted(fuera)}")
-        fuentes.append(Fuente(f["nombre"], f["licencia"], clases, exhaustivas, f["origen"]))
+        grupos = tuple(f.get("grupos", []))
+        for patron in grupos:
+            try:
+                compilado = re.compile(patron)
+            except re.error as e:
+                raise ValueError(f"{f['nombre']}: patrón de grupo inválido {patron!r}: {e}") from e
+            if compilado.groups < 1:
+                raise ValueError(f"{f['nombre']}: el patrón {patron!r} no tiene grupo de captura")
+        fuentes.append(Fuente(f["nombre"], f["licencia"], clases, exhaustivas, f["origen"], grupos))
     return fuentes
 
 
@@ -142,6 +156,14 @@ def desde_voc(xml: str, fuente: Fuente) -> Anotada:
         if clase is not None and caja is not None:
             img.cajas.append((clase, caja))
     return img
+
+
+def grupo(nombre: str, fuente: Fuente) -> str | None:
+    """El video del que salió la imagen, si su nombre lo dice; si no, `None`."""
+    for patron in fuente.grupos:
+        if m := re.search(patron, nombre):
+            return m.group(1).lower()
+    return None
 
 
 def completar(

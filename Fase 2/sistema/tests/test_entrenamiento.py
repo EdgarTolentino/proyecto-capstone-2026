@@ -21,6 +21,7 @@ from gepp_vision.entrenamiento import (
     completar,
     desde_coco,
     desde_voc,
+    grupo,
     particion_estable,
     quitar_fugas,
 )
@@ -216,3 +217,54 @@ def test_a_coco_usa_las_tres_clases_v1_y_marca_lo_automatico() -> None:
     assert persona["automatica"] is True
     assert persona["area"] == pytest.approx(100 * 50)
     assert coco["images"] == [{"id": 1, "file_name": "css__a.jpg", "width": 200, "height": 100}]
+
+
+# --- grupos de imágenes que vienen del mismo video -------------------------------------
+
+
+PATRONES = (r"(?i)^(.*?)_(?:mp4|mov)-\d+_", r"^(youtube)-")
+
+
+@pytest.mark.parametrize(
+    ("nombre", "clave"),
+    [
+        ("IMG_0871_mp4-11_jpg.rf.ab12.jpg", "img_0871"),
+        ("IMG_0871_MOV-12_jpg.rf.cd34.jpg", "img_0871"),  # mismo video, otra extensión
+        ("youtube-153_jpg.rf.ef56.jpg", "youtube"),
+        ("construction-12-_jpg.rf.0a.jpg", None),
+    ],
+)
+def test_grupo_reune_los_cuadros_de_un_mismo_video(nombre: str, clave: str | None) -> None:
+    assert grupo(nombre, Fuente("x", "CC0", {}, frozenset(), grupos=PATRONES)) == clave
+
+
+def test_sin_patrones_ninguna_imagen_tiene_grupo() -> None:
+    assert grupo("IMG_0871_mp4-11_jpg", FUENTE) is None
+
+
+def test_los_cuadros_de_un_video_caen_todos_en_la_misma_particion() -> None:
+    fuente = Fuente("css", "CC BY 4.0", {}, frozenset(), grupos=PATRONES)
+    nombres = [f"IMG_0871_mp4-{i}_jpg.rf.{i:04x}.jpg" for i in range(40)]
+    claves = {grupo(n, fuente) for n in nombres}
+    assert claves == {"img_0871"}
+    assert len({particion_estable(f"css/{c}") for c in claves}) == 1
+
+
+def test_un_patron_invalido_en_el_archivo_falla_al_cargar(tmp_path: Path) -> None:
+    ruta = tmp_path / "f.yaml"
+    ruta.write_text(
+        "fuentes:\n  - nombre: x\n    licencia: CC0\n    origen: {}\n"
+        "    clases: {}\n    exhaustivas: []\n    grupos: ['(sin cerrar']\n"
+    )
+    with pytest.raises(ValueError, match="x: patrón de grupo inválido"):
+        cargar_fuentes(ruta)
+
+
+def test_un_patron_sin_grupo_de_captura_falla_al_cargar(tmp_path: Path) -> None:
+    ruta = tmp_path / "f.yaml"
+    ruta.write_text(
+        "fuentes:\n  - nombre: x\n    licencia: CC0\n    origen: {}\n"
+        "    clases: {}\n    exhaustivas: []\n    grupos: ['_mp4-']\n"
+    )
+    with pytest.raises(ValueError, match="grupo de captura"):
+        cargar_fuentes(ruta)
