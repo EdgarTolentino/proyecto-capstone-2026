@@ -1,6 +1,7 @@
 import { AlertTriangle, LoaderCircle } from "lucide-react";
 
 import type { Panel } from "../api/types";
+import type { DestinoHallazgos } from "../hooks/useAppNavigation";
 import { PanelCharts } from "./PanelCharts";
 import { PanelOperations } from "./PanelOperations";
 
@@ -10,7 +11,13 @@ interface PanelPageProps {
   isError: boolean;
   sinPermiso: boolean;
   onRetry: () => void;
+  onNavigateHallazgos: (destino: DestinoHallazgos) => void;
 }
+
+const destinoIndicador: Partial<Record<Panel["indicadores"][number]["clave"], DestinoHallazgos>> = {
+  hallazgos_abiertos: { vista: "por_revisar" },
+  criticos_sin_revisar: { vista: "por_revisar", severidad: 4 },
+};
 
 function variacionTexto(variacion: number | null | undefined): string {
   if (variacion === null || variacion === undefined) return "Sin comparación";
@@ -34,7 +41,7 @@ function Sparkline({ etiqueta, serie }: { etiqueta: string; serie?: number[] }) 
   );
 }
 
-export function PanelPage({ panel, isLoading, isError, sinPermiso, onRetry }: PanelPageProps) {
+export function PanelPage({ panel, isLoading, isError, sinPermiso, onRetry, onNavigateHallazgos }: PanelPageProps) {
   return (
     <main className="panel-page" aria-labelledby="panel-page-title">
       <div className="review-heading panel-heading">
@@ -57,18 +64,19 @@ export function PanelPage({ panel, isLoading, isError, sinPermiso, onRetry }: Pa
         <>
           <section className="panel-indicators" aria-label="Indicadores del panel">
             {panel.indicadores.map((indicador) => (
-              <article className="panel-indicator" key={indicador.clave} aria-labelledby={`indicador-${indicador.clave}`}>
+              <article className={`panel-indicator ${destinoIndicador[indicador.clave] ? "panel-indicator--link" : ""}`} key={indicador.clave} aria-labelledby={`indicador-${indicador.clave}`}>
                 <h3 id={`indicador-${indicador.clave}`}>{indicador.etiqueta}</h3>
                 <strong className="panel-indicator__value mono">
                   {indicador.valor}{indicador.unidad ? <small>{indicador.unidad}</small> : null}
                 </strong>
                 <span className="panel-indicator__variation">{variacionTexto(indicador.variacion)}</span>
                 <Sparkline etiqueta={indicador.etiqueta} serie={indicador.serie} />
+                {destinoIndicador[indicador.clave] && <button className="panel-card-action" type="button" aria-label={`Ver ${indicador.etiqueta} en Hallazgos`} onClick={() => onNavigateHallazgos(destinoIndicador[indicador.clave]!)} />}
               </article>
             ))}
           </section>
-          <PanelCharts tendencia={panel.tendencia} rankingEpp={panel.ranking_epp} />
-          <PanelOperations criticos={panel.criticos_recientes} cobertura={panel.cobertura} />
+          <PanelCharts tendencia={panel.tendencia} rankingEpp={panel.ranking_epp} onNavigateHallazgos={onNavigateHallazgos} />
+          <PanelOperations criticos={panel.criticos_recientes} cobertura={panel.cobertura} onNavigateHallazgos={onNavigateHallazgos} />
         </>
       )}
     </main>

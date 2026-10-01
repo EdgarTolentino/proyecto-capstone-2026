@@ -1,5 +1,5 @@
-import { render, screen, within } from "@testing-library/react";
-import { expect, it } from "vitest";
+import { fireEvent, render, screen, within } from "@testing-library/react";
+import { expect, it, vi } from "vitest";
 
 import { PanelCharts } from "./PanelCharts";
 
@@ -24,7 +24,8 @@ it("muestra solo cuatro series y el top cinco de EPP más Otros", () => {
     { epp: "otros", total: 7 },
   ];
 
-  const { container } = render(<PanelCharts tendencia={tendencia} rankingEpp={rankingEpp} />);
+  const navegar = vi.fn();
+  const { container } = render(<PanelCharts tendencia={tendencia} rankingEpp={rankingEpp} onNavigateHallazgos={navegar} />);
 
   expect(container.querySelectorAll(".panel-chart")).toHaveLength(2);
   expect(screen.getByRole("region", { name: "Tendencia semanal por severidad" })).toBeVisible();
@@ -36,4 +37,10 @@ it("muestra solo cuatro series y el top cinco de EPP más Otros", () => {
   expect(within(ranking).getAllByRole("listitem")).toHaveLength(6);
   expect(within(ranking).getByText("Otros")).toBeVisible();
   expect(within(ranking).queryByText("Calzado")).not.toBeInTheDocument();
+
+  fireEvent.click(screen.getByRole("button", { name: "Ver hallazgos de severidad Crítica" }));
+  fireEvent.click(screen.getByRole("button", { name: "Ver hallazgos sin Casco" }));
+  expect(navegar).toHaveBeenNthCalledWith(1, { vista: "todos", severidad: 4 });
+  expect(navegar).toHaveBeenNthCalledWith(2, { vista: "todos", epp: "casco" });
+  expect(within(ranking).queryByRole("button", { name: /Otros/ })).not.toBeInTheDocument();
 });

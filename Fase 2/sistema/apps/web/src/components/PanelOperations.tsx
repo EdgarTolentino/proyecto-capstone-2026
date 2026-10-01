@@ -1,11 +1,13 @@
 import { AlertTriangle, RadioTower } from "lucide-react";
 
 import type { Panel, TipoEpp } from "../api/types";
+import type { DestinoHallazgos } from "../hooks/useAppNavigation";
 import { SeverityBadge } from "./SeverityBadge";
 
 interface PanelOperationsProps {
   criticos: Panel["criticos_recientes"];
   cobertura: Panel["cobertura"];
+  onNavigateHallazgos: (destino: DestinoHallazgos) => void;
 }
 
 const nombresEpp: Record<TipoEpp, string> = {
@@ -32,7 +34,7 @@ const formatoFecha = new Intl.DateTimeFormat("es-CL", {
   hour12: false,
 });
 
-function CriticosRecientes({ criticos }: { criticos: Panel["criticos_recientes"] }) {
+function CriticosRecientes({ criticos, onNavigateHallazgos }: { criticos: Panel["criticos_recientes"]; onNavigateHallazgos: PanelOperationsProps["onNavigateHallazgos"] }) {
   const recientes = criticos.slice(0, 8);
   return (
     <section className="panel-operation" aria-labelledby="panel-criticos-title">
@@ -40,13 +42,14 @@ function CriticosRecientes({ criticos }: { criticos: Panel["criticos_recientes"]
       {recientes.length === 0 ? <p className="panel-operation__empty">No hay hallazgos críticos en el período.</p> : (
         <ol className="panel-critical-list" aria-label="Hallazgos críticos recientes">
           {recientes.map((hallazgo) => (
-            <li key={hallazgo.id}>
+            <li className="panel-critical-list__item--link" key={hallazgo.id}>
               <SeverityBadge severidad={hallazgo.severidad} />
               <div>
                 <strong>Hallazgo #{hallazgo.id} · Sin {hallazgo.epp_faltante.map((epp) => nombresEpp[epp]).join(" y ")}</strong>
                 <span>{hallazgo.area?.nombre ?? "Sin área"} / {hallazgo.zona?.nombre ?? "Sin zona"} · {hallazgo.fuente?.nombre ?? "Sin fuente"}</span>
               </div>
               <time className="mono" dateTime={hallazgo.ts_inicio}>{formatoFecha.format(new Date(hallazgo.ts_inicio))}</time>
+              <button className="panel-row-action" type="button" aria-label={`Ver hallazgo #${hallazgo.id}`} onClick={() => onNavigateHallazgos({ vista: "todos", severidad: 4, hallazgoId: hallazgo.id })} />
             </li>
           ))}
         </ol>
@@ -87,6 +90,6 @@ function CoberturaOperacional({ cobertura }: { cobertura: Panel["cobertura"] }) 
   );
 }
 
-export function PanelOperations({ criticos, cobertura }: PanelOperationsProps) {
-  return <div className="panel-operations"><CriticosRecientes criticos={criticos} /><CoberturaOperacional cobertura={cobertura} /></div>;
+export function PanelOperations({ criticos, cobertura, onNavigateHallazgos }: PanelOperationsProps) {
+  return <div className="panel-operations"><CriticosRecientes criticos={criticos} onNavigateHallazgos={onNavigateHallazgos} /><CoberturaOperacional cobertura={cobertura} /></div>;
 }

@@ -1,5 +1,5 @@
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
-import { cleanup, fireEvent, render, screen, waitFor } from "@testing-library/react";
+import { cleanup, fireEvent, render, screen, waitFor, within } from "@testing-library/react";
 import { afterEach, expect, it, vi } from "vitest";
 import App from "./App";
 import * as api from "./api/client";
@@ -60,7 +60,7 @@ it("usa la raíz como panel general y permite volver a la bandeja", async () => 
   expect(api.obtenerPanel).toHaveBeenCalledWith();
   expect(screen.getByRole("button", { name: "Panel general" })).toHaveAttribute("aria-current", "page");
 
-  fireEvent.click(screen.getByRole("button", { name: /Hallazgos/ }));
+  fireEvent.click(within(screen.getByRole("navigation", { name: "Navegación principal" })).getByRole("button", { name: /Hallazgos/ }));
   expect(await screen.findByTestId("bandeja")).toBeVisible();
   expect(window.location.pathname).toBe("/hallazgos");
 
@@ -116,7 +116,7 @@ it("navega a Reglas y permite volver a Hallazgos", async () => {
   expect(await screen.findByRole("heading", { name: "Reglas de seguridad" })).toBeVisible();
   expect(window.location.pathname).toBe("/reglas");
 
-  fireEvent.click(screen.getByRole("button", { name: /Hallazgos/ }));
+  fireEvent.click(within(screen.getByRole("navigation", { name: "Navegación principal" })).getByRole("button", { name: /Hallazgos/ }));
   expect(await screen.findByTestId("bandeja")).toBeVisible();
   expect(window.location.pathname).toBe("/hallazgos");
   expect(window.location.search).toBe("?area_id=5");

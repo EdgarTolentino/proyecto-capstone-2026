@@ -1,4 +1,4 @@
-import { render, screen, within } from "@testing-library/react";
+import { fireEvent, render, screen, within } from "@testing-library/react";
 import { expect, it, vi } from "vitest";
 
 import type { Panel } from "../api/types";
@@ -19,7 +19,8 @@ const panel: Panel = {
 };
 
 it("presenta las cinco tarjetas con valor, variación y tendencia del contrato", () => {
-  render(<PanelPage panel={panel} isLoading={false} isError={false} sinPermiso={false} onRetry={vi.fn()} />);
+  const navegar = vi.fn();
+  render(<PanelPage panel={panel} isLoading={false} isError={false} sinPermiso={false} onRetry={vi.fn()} onNavigateHallazgos={navegar} />);
 
   const indicadores = screen.getByRole("region", { name: "Indicadores del panel" });
   const tarjetas = within(indicadores).getAllByRole("article");
@@ -33,4 +34,10 @@ it("presenta las cinco tarjetas con valor, variación y tendencia del contrato",
 
   expect(screen.getByRole("img", { name: "Tendencia de Hallazgos abiertos: 12, 15, 9, 18" })).toHaveAttribute("viewBox", "0 0 60 20");
   expect(within(indicadores).getAllByText("Sin tendencia")).toHaveLength(2);
+
+  fireEvent.click(screen.getByRole("button", { name: "Ver Hallazgos abiertos en Hallazgos" }));
+  fireEvent.click(screen.getByRole("button", { name: "Ver Críticos sin revisar en Hallazgos" }));
+  expect(navegar).toHaveBeenNthCalledWith(1, { vista: "por_revisar" });
+  expect(navegar).toHaveBeenNthCalledWith(2, { vista: "por_revisar", severidad: 4 });
+  expect(within(indicadores).getAllByRole("button")).toHaveLength(2);
 });

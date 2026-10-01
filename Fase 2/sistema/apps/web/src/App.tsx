@@ -28,7 +28,7 @@ import { useHallazgoShortcuts } from "./hooks/useHallazgoShortcuts";
 
 export default function App() {
   const queryClient = useQueryClient();
-  const { seccion, navegar } = useAppNavigation();
+  const { seccion, navegar, navegarHallazgos } = useAppNavigation();
   const { filtros, actualizar } = useHallazgoFilters();
   const [activoId, setActivoId] = useState<number>();
   const [seleccionados, setSeleccionados] = useState<Set<number>>(new Set());
@@ -157,6 +157,7 @@ export default function App() {
           isError={sesion.isError || panel.isError}
           sinPermiso={Boolean(sesion.data && !permisos.has("ver_hallazgos"))}
           onRetry={() => { if (sesion.isError) void sesion.refetch(); else void panel.refetch(); }}
+          onNavigateHallazgos={navegarHallazgos}
         />
       )}
       {seccion === "hallazgos" && (

@@ -1,5 +1,5 @@
-import { cleanup, render, screen, within } from "@testing-library/react";
-import { afterEach, expect, it } from "vitest";
+import { cleanup, fireEvent, render, screen, within } from "@testing-library/react";
+import { afterEach, expect, it, vi } from "vitest";
 
 import type { Hallazgo } from "../api/types";
 import { PanelOperations } from "./PanelOperations";
@@ -24,6 +24,7 @@ function hallazgo(id: number): Hallazgo {
 }
 
 it("limita los críticos a ocho y detalla las fuentes sin cobertura", () => {
+  const navegar = vi.fn();
   render(
     <PanelOperations
       criticos={Array.from({ length: 9 }, (_item, indice) => hallazgo(indice + 1))}
@@ -32,6 +33,7 @@ it("limita los críticos a ocho y detalla las fuentes sin cobertura", () => {
         fuentes_totales: 4,
         sin_cobertura: [{ fuente: { id: 4, nombre: "CAM-04" }, motivo: "requiere_recalibracion", desde: "2026-09-01T08:00:00-03:00" }],
       }}
+      onNavigateHallazgos={navegar}
     />,
   );
 
@@ -44,10 +46,13 @@ it("limita los críticos a ocho y detalla las fuentes sin cobertura", () => {
   const sinCobertura = screen.getByRole("list", { name: "Fuentes sin cobertura" });
   expect(sinCobertura).toHaveTextContent("CAM-04");
   expect(sinCobertura).toHaveTextContent("Requiere recalibración");
+
+  fireEvent.click(screen.getByRole("button", { name: "Ver hallazgo #1" }));
+  expect(navegar).toHaveBeenCalledWith({ vista: "todos", severidad: 4, hallazgoId: 1 });
 });
 
 it("explica el estado vacío y confirma la cobertura completa", () => {
-  render(<PanelOperations criticos={[]} cobertura={{ fuentes_activas: 4, fuentes_totales: 4, sin_cobertura: [] }} />);
+  render(<PanelOperations criticos={[]} cobertura={{ fuentes_activas: 4, fuentes_totales: 4, sin_cobertura: [] }} onNavigateHallazgos={vi.fn()} />);
 
   expect(screen.getByText("No hay hallazgos críticos en el período.")).toBeVisible();
   expect(screen.getByText("Cobertura completa")).toBeVisible();

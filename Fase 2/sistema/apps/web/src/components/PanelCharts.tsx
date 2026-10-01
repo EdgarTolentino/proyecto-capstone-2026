@@ -1,11 +1,13 @@
 import type { CSSProperties } from "react";
 
-import type { Panel, Severidad } from "../api/types";
+import type { Panel, Severidad, TipoEpp } from "../api/types";
+import type { DestinoHallazgos } from "../hooks/useAppNavigation";
 import { SeverityBadge } from "./SeverityBadge";
 
 interface PanelChartsProps {
   tendencia: Panel["tendencia"];
   rankingEpp: Panel["ranking_epp"];
+  onNavigateHallazgos: (destino: DestinoHallazgos) => void;
 }
 
 const nombreSeveridad: Record<Severidad, string> = {
@@ -25,7 +27,13 @@ const nombreEpp: Record<string, string> = {
   otros: "Otros",
 };
 
-function TendenciaSemanal({ tendencia }: { tendencia: Panel["tendencia"] }) {
+const eppFiltrables = new Set<TipoEpp>(["casco", "chaleco", "lentes", "guantes", "arnes", "calzado"]);
+
+function esEppFiltrable(epp: string | undefined): epp is TipoEpp {
+  return epp !== undefined && eppFiltrables.has(epp as TipoEpp);
+}
+
+function TendenciaSemanal({ tendencia, onNavigateHallazgos }: { tendencia: Panel["tendencia"]; onNavigateHallazgos: PanelChartsProps["onNavigateHallazgos"] }) {
   const etiquetas = tendencia.etiquetas ?? [];
   const series = (tendencia.series ?? []).flatMap((serie) =>
     serie.severidad === undefined
@@ -47,7 +55,7 @@ function TendenciaSemanal({ tendencia }: { tendencia: Panel["tendencia"] }) {
       <header>
         <div><p className="eyebrow">EVOLUCIÓN</p><h3 id="panel-trend-title">Tendencia semanal por severidad</h3></div>
         <div className="panel-chart__legend" aria-label="Leyenda de severidades">
-          {series.map((serie, indice) => <SeverityBadge key={`${serie.severidad}-${indice}`} severidad={serie.severidad} />)}
+          {series.map((serie, indice) => <button className="panel-chart__filter" type="button" key={`${serie.severidad}-${indice}`} aria-label={`Ver hallazgos de severidad ${nombreSeveridad[serie.severidad]}`} onClick={() => onNavigateHallazgos({ vista: "todos", severidad: serie.severidad })}><SeverityBadge severidad={serie.severidad} /></button>)}
         </div>
       </header>
       {series.length === 0 ? <p className="panel-chart__empty">Sin datos de tendencia.</p> : (
@@ -78,7 +86,7 @@ function TendenciaSemanal({ tendencia }: { tendencia: Panel["tendencia"] }) {
   );
 }
 
-function RankingEpp({ ranking }: { ranking: Panel["ranking_epp"] }) {
+function RankingEpp({ ranking, onNavigateHallazgos }: { ranking: Panel["ranking_epp"]; onNavigateHallazgos: PanelChartsProps["onNavigateHallazgos"] }) {
   const principales = ranking.filter((item) => item.epp !== "otros").slice(0, 5);
   const otros = ranking.find((item) => item.epp === "otros");
   const items = otros ? [...principales, otros] : principales;
@@ -92,11 +100,13 @@ function RankingEpp({ ranking }: { ranking: Panel["ranking_epp"] }) {
           {items.map((item, indice) => {
             const total = item.total ?? 0;
             const etiqueta = nombreEpp[item.epp ?? ""] ?? item.epp ?? "Sin clasificar";
+            const epp = esEppFiltrable(item.epp) ? item.epp : undefined;
             return (
-              <li key={`${item.epp ?? "sin-clasificar"}-${indice}`}>
+              <li className={epp ? "panel-ranking__item--link" : undefined} key={`${item.epp ?? "sin-clasificar"}-${indice}`}>
                 <span>{etiqueta}</span>
                 <span className="panel-ranking__track" aria-hidden="true"><i style={{ "--ranking-width": `${(total / maximo) * 100}%` } as CSSProperties} /></span>
                 <strong className="mono">{total}</strong>
+                {epp && <button className="panel-row-action" type="button" aria-label={`Ver hallazgos sin ${etiqueta}`} onClick={() => onNavigateHallazgos({ vista: "todos", epp })} />}
               </li>
             );
           })}
@@ -106,6 +116,6 @@ function RankingEpp({ ranking }: { ranking: Panel["ranking_epp"] }) {
   );
 }
 
-export function PanelCharts({ tendencia, rankingEpp }: PanelChartsProps) {
-  return <div className="panel-charts"><TendenciaSemanal tendencia={tendencia} /><RankingEpp ranking={rankingEpp} /></div>;
+export function PanelCharts({ tendencia, rankingEpp, onNavigateHallazgos }: PanelChartsProps) {
+  return <div className="panel-charts"><TendenciaSemanal tendencia={tendencia} onNavigateHallazgos={onNavigateHallazgos} /><RankingEpp ranking={rankingEpp} onNavigateHallazgos={onNavigateHallazgos} /></div>;
 }

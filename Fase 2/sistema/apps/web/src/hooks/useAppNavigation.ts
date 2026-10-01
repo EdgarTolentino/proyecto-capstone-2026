@@ -1,6 +1,32 @@
 import { useCallback, useEffect, useRef, useState } from "react";
 
+import type { Severidad, TipoEpp, VistaTriage } from "../api/types";
+
 export type SeccionApp = "panel" | "hallazgos" | "reglas";
+
+export interface DestinoHallazgos {
+  vista?: VistaTriage;
+  severidad?: Severidad;
+  epp?: TipoEpp;
+  hallazgoId?: number;
+}
+
+const parametrosCompartidos = ["desde", "hasta", "turno"] as const;
+
+export function construirRutaHallazgos(destino: DestinoHallazgos): string {
+  const actuales = new URL(window.location.href).searchParams;
+  const parametros = new URLSearchParams();
+  for (const nombre of parametrosCompartidos) {
+    const valor = actuales.get(nombre);
+    if (valor) parametros.set(nombre, valor);
+  }
+  if (destino.vista) parametros.set("vista", destino.vista);
+  if (destino.severidad) parametros.set("severidad", String(destino.severidad));
+  if (destino.epp) parametros.set("epp", destino.epp);
+  if (destino.hallazgoId) parametros.set("hallazgo", String(destino.hallazgoId));
+  const consulta = parametros.toString();
+  return `/hallazgos${consulta ? `?${consulta}` : ""}`;
+}
 
 function leerSeccion(): SeccionApp {
   if (window.location.pathname.startsWith("/reglas")) return "reglas";
@@ -41,5 +67,12 @@ export function useAppNavigation() {
     setSeccion(destino);
   }, []);
 
-  return { seccion, navegar };
+  const navegarHallazgos = useCallback((destino: DestinoHallazgos) => {
+    const ruta = construirRutaHallazgos(destino);
+    ultimaUbicacionHallazgos.current = ruta;
+    window.history.pushState({}, "", ruta);
+    window.dispatchEvent(new PopStateEvent("popstate"));
+  }, []);
+
+  return { seccion, navegar, navegarHallazgos };
 }
