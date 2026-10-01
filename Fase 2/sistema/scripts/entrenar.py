@@ -17,6 +17,7 @@ lote efectivo de 16, el que usa rfdetr como referencia.
 from __future__ import annotations
 
 import argparse
+import hashlib
 import json
 import subprocess
 import sys
@@ -30,14 +31,32 @@ from gepp_vision.entrenamiento import CLASES_V1
 RAIZ = Path(__file__).resolve().parent
 
 
-def commit_actual() -> str:
-    salida = subprocess.run(
-        ["git", "-C", str(RAIZ), "rev-parse", "HEAD"], capture_output=True, text=True, check=True
-    )
-    sucio = subprocess.run(
-        ["git", "-C", str(RAIZ), "status", "--porcelain"], capture_output=True, text=True
+def _git(*args: str) -> str:
+    return subprocess.run(
+        ["git", "-C", str(RAIZ), *args], capture_output=True, text=True, check=True
     ).stdout.strip()
-    return salida.stdout.strip() + ("-con-cambios" if sucio else "")
+
+
+def commit_actual(salida: Path) -> str:
+    """El commit, y si hay cambios sin confirmar, su diff junto a los pesos: sin él la corrida
+    no se puede reproducir."""
+    commit = _git("rev-parse", "HEAD")
+    if not _git("status", "--porcelain"):
+        return commit
+    (salida / "cambios_sin_commit.diff").write_text(_git("diff", "HEAD"), encoding="utf-8")
+    return f"{commit}-con-cambios (ver cambios_sin_commit.diff)"
+
+
+def huella_anotaciones(dataset: Path) -> dict[str, str]:
+    """sha256 de cada `_annotations.coco.json`: si se regenera el dataset en la misma ruta,
+    la procedencia lo delata."""
+    return {
+        carpeta: hashlib.sha256(
+            (dataset / carpeta / "_annotations.coco.json").read_bytes()
+        ).hexdigest()
+        for carpeta in ("train", "valid", "test")
+        if (dataset / carpeta / "_annotations.coco.json").exists()
+    }
 
 
 def verificar_dataset(dataset: Path) -> dict[str, object]:
@@ -47,11 +66,13 @@ def verificar_dataset(dataset: Path) -> dict[str, object]:
             sys.exit(
                 f"{dataset}/{carpeta} no tiene _annotations.coco.json (corre preparar_dataset)"
             )
-    coco = json.loads((dataset / "train/_annotations.coco.json").read_text(encoding="utf-8"))
-    categorias = {int(c["id"]): str(c["name"]) for c in coco["categories"]}
     esperadas = {i: str(c) for c, i in CLASES_V1.items()}
-    if categorias != esperadas:
-        sys.exit(f"categorías {categorias} distintas de las de la v1 {esperadas}")
+    for carpeta in ("train", "valid"):
+        anotaciones = json.loads((dataset / carpeta / "_annotations.coco.json").read_text("utf-8"))
+        categorias = {int(c["id"]): str(c["name"]) for c in anotaciones["categories"]}
+        if categorias != esperadas:
+            sys.exit(f"{carpeta}: categorías {categorias} distintas de las de la v1 {esperadas}")
+    coco = json.loads((dataset / "train/_annotations.coco.json").read_text(encoding="utf-8"))
     usadas = {int(a["category_id"]) for a in coco["annotations"]}
     sin_cajas = [esperadas[i] for i in esperadas if i not in usadas]
     if sin_cajas:
@@ -87,10 +108,11 @@ def main(argv: list[str] | None = None) -> int:
 
     salida.mkdir(parents=True)
     procedencia = {
-        "commit": commit_actual(),
+        "commit": commit_actual(salida),
         "inicio": datetime.now(UTC).isoformat(timespec="seconds"),
         "dataset": str(dataset),
         "dataset_resumen": resumen,
+        "dataset_sha256": huella_anotaciones(dataset),
         "parametros": {k: (str(v) if isinstance(v, Path) else v) for k, v in vars(args).items()},
         "rfdetr": version("rfdetr"),
         "torch": torch.__version__,

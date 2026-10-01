@@ -19,10 +19,13 @@ El `.clases.json` tiene esta forma. Los índices que no aparecen se ignoran:
 ```
 
 **No se escribe a mano.** Lo genera `scripts/exportar_onnx.py`, que lo contrasta con las cajas
-verdaderas de validación y se niega a exportar si no acierta. La razón: un modelo entrenado por
-nosotros devuelve la **posición** de la clase, que empieza en 0 (0 = persona). El RF-DETR
-preentrenado en COCO, en cambio, devuelve el **id de categoría COCO** (1 = persona). Verificado
-el 2026-10-01: con un mapa que empezaba en 1, los 14 cascos de la muestra salían como personas.
+verdaderas de validación, clase por clase, y se niega a exportar si alguna no queda verificada.
+La razón: un modelo entrenado por nosotros devuelve la **posición** de la clase, que empieza en
+0 (0 = persona). El RF-DETR preentrenado en COCO, en cambio, devuelve el **id de categoría COCO**
+(1 = persona). Así lo hace el código de rfdetr 1.11 (`remap_category_ids` en
+`datasets/coco.py`). En un modelo de prueba de 1 época se observó para casco: los 14 cascos
+contrastados salieron con id 1, con umbral 0,3. Un mapa que empezaba en 1 los habría
+convertido en personas.
 
 Clases válidas: `persona`, `casco`, `chaleco`, `lentes`, `guantes`, `arnes`, `calzado`.
 

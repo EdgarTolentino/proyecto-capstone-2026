@@ -5,7 +5,12 @@ mapa dice qué `ClaseDetectada` es cada índice, y vive en un JSON junto a los p
 
     modelos/rfdetr-n-epp-v1.onnx
     modelos/rfdetr-n-epp-v1.clases.json   ->  {"version": "rfdetr-n-epp-v1",
-                                               "clases": {"1": "persona", "2": "casco"}}
+                                               "clases": {"0": "persona", "1": "casco",
+                                                          "2": "chaleco"}}
+
+En un modelo entrenado por nosotros el índice es la posición en `class_names` (desde 0);
+en el preentrenado de COCO es el id de categoría COCO (1 = persona). El mapa de un modelo
+propio lo escribe y lo verifica `scripts/exportar_onnx.py`; no se escribe a mano.
 
 Un índice que no está en el mapa se ignora. Así, un modelo preentrenado en COCO sirve para
 probar el recorrido con `{"1": "persona"}`: las otras clases de COCO no entran. (En el

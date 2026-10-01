@@ -18,6 +18,7 @@ from gepp_vision.entrenamiento import (
     CategoriaDesconocida,
     Fuente,
     a_coco,
+    acierto_por_id,
     acuerdo_de_clases,
     cargar_fuentes,
     completar,
@@ -25,6 +26,7 @@ from gepp_vision.entrenamiento import (
     desde_voc,
     emparejar,
     grupo,
+    muestra_estratificada,
     pares_con_verdad,
     particion_estable,
     quitar_fugas,
@@ -314,3 +316,35 @@ def test_acuerdo_de_clases() -> None:
 def test_sin_pares_no_hay_acuerdo_que_medir() -> None:
     with pytest.raises(ValueError, match="sin pares"):
         acuerdo_de_clases([], {0: P})
+
+
+def test_acierto_por_id_cuenta_cada_id_del_mapa_aunque_no_aparezca() -> None:
+    mapa = {0: P, 1: C, 2: V}
+    pares = [(1, C)] * 3 + [(0, P), (0, V)]
+    assert acierto_por_id(pares, mapa) == {0: (1, 2), 1: (3, 3), 2: (0, 0)}
+
+
+def test_un_mapa_con_clases_intercambiadas_no_pasa_por_id() -> None:
+    # Solo cascos en la muestra: el acuerdo global es 100 %, pero persona y chaleco
+    # nunca se contrastaron. Es el caso que la revisión reprodujo.
+    intercambiado = {0: V, 1: C, 2: P}
+    pares = [(1, C)] * 14
+    assert acuerdo_de_clases(pares, intercambiado) == 1.0
+    por_id = acierto_por_id(pares, intercambiado)
+    assert por_id[0] == (0, 0) and por_id[2] == (0, 0)
+    # Con evidencia de las tres clases, el intercambio se ve.
+    pares += [(0, P)] * 5 + [(2, V)] * 5
+    assert acierto_por_id(pares, intercambiado) == {0: (0, 5), 1: (14, 14), 2: (0, 5)}
+
+
+def test_muestra_estratificada_cubre_cada_clase() -> None:
+    imagenes = [(f"c{i}", [C]) for i in range(100)] + [("p", [P]), ("v", [V])]
+    elegidas = muestra_estratificada(imagenes, n=10, minimo_por_clase=1)
+    clases = {c for _, cs in imagenes if _ in elegidas for c in cs}
+    assert clases == {P, C, V}
+    assert len(elegidas) == 10
+
+
+def test_muestra_estratificada_es_reproducible() -> None:
+    imagenes = [(f"c{i}", [C if i % 3 else P]) for i in range(50)]
+    assert muestra_estratificada(imagenes, 10, 2) == muestra_estratificada(imagenes, 10, 2)

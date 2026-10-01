@@ -23,6 +23,7 @@ el detector es trabajo de `scripts/preparar_dataset.py`.
 from __future__ import annotations
 
 import hashlib
+import random
 import re
 import xml.etree.ElementTree as ET
 from collections.abc import Iterable, Sequence
@@ -279,3 +280,36 @@ def acuerdo_de_clases(
     if not pares:
         raise ValueError("sin pares: el modelo no acertó ninguna caja, no hay acuerdo que medir")
     return sum(mapa.get(i) is clase for i, clase in pares) / len(pares)
+
+
+def acierto_por_id(
+    pares: Sequence[tuple[int, ClaseDetectada]], mapa: dict[int, ClaseDetectada]
+) -> dict[int, tuple[int, int]]:
+    """Por cada id del mapa: (aciertos, predicciones contrastadas con la verdad).
+
+    El acuerdo global no basta: si la muestra es casi toda casco, un mapa con persona y
+    chaleco intercambiados acierta el 100 %. Un id con 0 contrastes no está verificado.
+    """
+    return {
+        i: (sum(1 for j, c in pares if j == i and c is clase), sum(1 for j, _ in pares if j == i))
+        for i, clase in mapa.items()
+    }
+
+
+def muestra_estratificada[K](
+    imagenes: Sequence[tuple[K, Sequence[ClaseDetectada]]],
+    n: int,
+    minimo_por_clase: int,
+    semilla: int = 2026,
+) -> list[K]:
+    """`n` imágenes al azar (semilla fija), garantizando primero `minimo_por_clase` imágenes
+    con cada clase presente. Las primeras `n` en orden saldrían todas de una sola fuente."""
+    orden = list(range(len(imagenes)))
+    random.Random(semilla).shuffle(orden)
+    elegidas: list[int] = []
+    for clase in CLASES_V1:
+        con_clase = [i for i in orden if clase in imagenes[i][1] and i not in elegidas]
+        ya = sum(1 for i in elegidas if clase in imagenes[i][1])
+        elegidas += con_clase[: max(minimo_por_clase - ya, 0)]
+    elegidas += [i for i in orden if i not in elegidas][: max(n - len(elegidas), 0)]
+    return [imagenes[i][0] for i in elegidas]

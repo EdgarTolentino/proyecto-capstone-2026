@@ -8,7 +8,10 @@ dos comprobaciones que se detienen si fallan:
 1. **Qué clase es cada id.** El mapa sale del checkpoint, pero no se le cree sin más: en
    RF-DETR, `predict` devuelve el índice de `class_names` (0 = persona) después de entrenar
    y el id de categoría COCO (1 = persona) en el modelo preentrenado. El mapa se contrasta
-   con las cajas verdaderas de validación y tiene que acertar al menos el `--acuerdo-minimo`.
+   con las cajas verdaderas de validación, **id por id**: cada clase necesita al menos
+   `--pares-minimos` contrastes y acertar `--acuerdo-minimo`. El acuerdo global no basta: con
+   una muestra casi toda de cascos, un mapa con persona y chaleco intercambiados acierta 100 %.
+   La muestra de validación se estratifica para que traiga las tres clases.
 2. **ONNX y PyTorch ven lo mismo** sobre las mismas imágenes: las mismas cajas (IoU >= 0,9)
    y confianzas a menos de 0,02, como `tests/test_detector_rfdetr.py`.
 
@@ -28,7 +31,12 @@ import cv2
 from gepp_core import Caja, ClaseDetectada
 from gepp_vision.detectores.rfdetr import VARIANTES
 from gepp_vision.detectores.rfdetr_comun import UMBRAL_CONFIANZA, MapaDeClases
-from gepp_vision.entrenamiento import acuerdo_de_clases, emparejar, pares_con_verdad
+from gepp_vision.entrenamiento import (
+    acierto_por_id,
+    emparejar,
+    muestra_estratificada,
+    pares_con_verdad,
+)
 
 #: Umbral para contrastar ids con la verdad: solo detecciones de las que el modelo está seguro.
 UMBRAL_MAPA = 0.5
@@ -52,10 +60,12 @@ def imagenes_de_validacion(
         if w > 0 and h > 0:
             caja = Caja(x / ancho, y / alto, (x + w) / ancho, (y + h) / alto)
             verdad.setdefault(int(a["image_id"]), []).append((nombre[int(a["category_id"])], caja))
-    return [
-        (dataset / "valid" / i["file_name"], verdad.get(int(i["id"]), []))
-        for i in coco["images"][:n]
+    todas = [
+        (dataset / "valid" / i["file_name"], verdad.get(int(i["id"]), [])) for i in coco["images"]
     ]
+    por_ruta = dict(todas)
+    claves = [(ruta, [c for c, _ in cajas]) for ruta, cajas in todas]
+    return [(r, por_ruta[r]) for r in muestra_estratificada(claves, n, minimo_por_clase=15)]
 
 
 def main(argv: list[str] | None = None) -> int:
@@ -64,8 +74,9 @@ def main(argv: list[str] | None = None) -> int:
     p.add_argument("dataset", type=Path)
     p.add_argument("--variante", default="nano", choices=sorted(VARIANTES))
     p.add_argument("--nombre", help="por defecto, el nombre de la carpeta del modelo")
-    p.add_argument("--imagenes", type=int, default=50)
-    p.add_argument("--acuerdo-minimo", type=float, default=0.8)
+    p.add_argument("--imagenes", type=int, default=200)
+    p.add_argument("--acuerdo-minimo", type=float, default=0.8, help="acierto mínimo por clase")
+    p.add_argument("--pares-minimos", type=int, default=10, help="contrastes mínimos por clase")
     p.add_argument("--umbral-mapa", type=float, default=UMBRAL_MAPA)
     args = p.parse_args(argv)
     carpeta, dataset = args.modelo.expanduser(), args.dataset.expanduser()
@@ -93,16 +104,20 @@ def main(argv: list[str] | None = None) -> int:
             if x2 > x1 and y2 > y1:
                 predichas.append((int(cid), Caja(x1, y1, x2, y2)))
         pares += pares_con_verdad(predichas, verdad)
-    try:
-        acuerdo = acuerdo_de_clases(pares, mapa.clases)
-    except ValueError as e:
-        sys.exit(f"{e} (umbral {args.umbral_mapa}): ¿el modelo está entrenado?")
+    por_id = acierto_por_id(pares, mapa.clases)
     tabla = Counter(f"id {i} sobre {c}" for i, c in pares)
-    print(f"mapa {dict(mapa.clases)}: acierta {acuerdo:.1%} de {len(pares)} cajas")
-    if acuerdo < args.acuerdo_minimo:
+    fallas = []
+    for i, (aciertos, total) in por_id.items():
+        acierto = aciertos / total if total else 0.0
+        print(f"  id {i} = {mapa.clases[i]}: acierta {aciertos} de {total} ({acierto:.0%})")
+        if total < args.pares_minimos:
+            fallas.append(f"{mapa.clases[i]}: solo {total} contrastes (< {args.pares_minimos})")
+        elif acierto < args.acuerdo_minimo:
+            fallas.append(f"{mapa.clases[i]}: acierta {acierto:.0%} (< {args.acuerdo_minimo:.0%})")
+    if fallas:
         for clave, n in tabla.most_common():
-            print(f"  {clave}: {n}")
-        sys.exit(f"el mapa acierta {acuerdo:.1%} < {args.acuerdo_minimo:.0%}: no se exporta")
+            print(f"    {clave}: {n}")
+        sys.exit(f"el mapa no queda verificado ({'; '.join(fallas)}): no se exporta")
 
     # 2. Exportar y comparar con PyTorch.
     onnx = Path(modelo.export(output_dir=str(carpeta), output_name=nombre))
@@ -147,7 +162,11 @@ def main(argv: list[str] | None = None) -> int:
         "modelo": nombre,
         "onnx": onnx.name,
         "clases": {str(i): str(c) for i, c in mapa.clases.items()},
-        "acuerdo_de_clases": {"acierto": acuerdo, "cajas": len(pares), "detalle": dict(tabla)},
+        "mapa_verificado": {
+            "por_id": {str(i): {"aciertos": a, "contrastes": t} for i, (a, t) in por_id.items()},
+            "umbral": args.umbral_mapa,
+            "detalle": dict(tabla),
+        },
         "onnx_vs_pytorch": {
             "iguales": iguales,
             "imagenes": len(muestra),
