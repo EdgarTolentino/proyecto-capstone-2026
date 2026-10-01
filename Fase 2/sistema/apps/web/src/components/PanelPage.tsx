@@ -2,6 +2,7 @@ import { AlertTriangle, LoaderCircle } from "lucide-react";
 
 import type { Panel } from "../api/types";
 import { PanelCharts } from "./PanelCharts";
+import { PanelOperations } from "./PanelOperations";
 
 interface PanelPageProps {
   panel?: Panel;
@@ -67,6 +68,7 @@ export function PanelPage({ panel, isLoading, isError, sinPermiso, onRetry }: Pa
             ))}
           </section>
           <PanelCharts tendencia={panel.tendencia} rankingEpp={panel.ranking_epp} />
+          <PanelOperations criticos={panel.criticos_recientes} cobertura={panel.cobertura} />
         </>
       )}
     </main>
