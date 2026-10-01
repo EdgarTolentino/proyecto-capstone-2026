@@ -7,6 +7,9 @@ Las reglas de trabajo humano están en [`.github/CONTRIBUTING.md`](.github/CONTR
 decisiones de fondo en [`docs/arquitectura/adr/`](docs/arquitectura/adr/). Este archivo no las
 repite: dice cómo trabaja un asistente de IA aquí y cómo se valida lo que produce.
 
+Codex lee [`AGENTS.md`](AGENTS.md), no este archivo. Si cambias una regla que aplica a los dos,
+cámbiala en ambos.
+
 ## Dónde está cada cosa
 
 | Ruta | Qué es |
