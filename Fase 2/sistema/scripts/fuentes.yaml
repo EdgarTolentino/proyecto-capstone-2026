@@ -1,0 +1,40 @@
+# Datasets públicos con que se entrena el detector (#31). Cada uno tiene su fila en
+# docs/producto/07-datasets.md §2.bis, con la licencia verificada en la fuente primaria.
+#
+# clases: categoría tal como viene en el dataset -> clase propia (persona, casco, chaleco),
+#         o null para descartarla a propósito. Una categoría que no esté aquí DETIENE la
+#         preparación: así nada entra traducido por suposición.
+# exhaustivas: clases que el dataset marca en TODAS sus imágenes. Las personas que falten
+#         las completa el detector COCO (anotación `automatica`).
+#
+# Los nombres de categoría se confirman en la primera descarga: si el dataset trae otros,
+# la preparación se detiene y dice cuáles.
+
+fuentes:
+  - nombre: construction-site-safety
+    licencia: CC BY 4.0  # exige atribución en el README y el informe final
+    origen: {tipo: roboflow, proyecto: roboflow-universe-projects/construction-site-safety}
+    clases:
+      Hardhat: casco
+      Safety Vest: chaleco
+      Person: persona
+      NO-Hardhat: null      # la ausencia la deciden las reglas, no el detector (ADR-001)
+      NO-Safety Vest: null
+      Mask: null
+      NO-Mask: null
+      Safety Cone: null
+      machinery: null
+      vehicle: null
+    exhaustivas: [casco, chaleco]
+
+  # Son las imágenes de Hard Hat Workers (Roboflow, CC0), redistribuidas en Kaggle: archivos
+  # `hard_hat_workers*.png`. Por eso Hard Hat Workers no figura aparte: serían duplicados.
+  # Verificado el 2026-10-01: 5000 imágenes; `person` aparece en 158 (se completa).
+  - nombre: hard-hat-detection
+    licencia: CC0 1.0
+    origen: {tipo: kaggle, dataset: andrewmvd/hard-hat-detection, formato: voc}
+    clases:
+      helmet: casco
+      head: null
+      person: persona
+    exhaustivas: [casco]
