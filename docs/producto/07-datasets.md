@@ -24,7 +24,7 @@ proyecto sin nada que defender.
 
 ### Decisión del 2026-10-01: no hay grabación propia
 
-El equipo decidió **no grabar en obra** (#10 se cierra). Un video de YouTube de unos 15 min
+El equipo decidió **no grabar en obra** (#10 se cierra). Un video de YouTube (2 h 32 min, lote 3)
 ocupa el lugar de la grabación propia, con una regla que no cambia: **se usa solo para prueba y
 demostración, nunca para entrenar.** El detector se entrena únicamente con los datasets públicos
 de §2.bis. Lo que sale de esta decisión:
@@ -106,6 +106,34 @@ sobreimpresa y el sistema **no la lee**: el reloj sale de los metadatos o de la 
 (ADR-005). Los cortes de escena parten los tracks; para la demostración no importa, para el
 conjunto de prueba sí. El plan es unir estos clips en uno largo con la misma marca; los clips
 originales se conservan por separado, porque la partición es por video.
+
+### Lote 3 — 2026-10-01 · video de YouTube · **el conjunto de prueba**
+
+| Campo | Valor |
+|---|---|
+| Origen | <https://www.youtube.com/watch?v=GPCHfE_-XQE>, canal de un vendedor de cámaras de seguridad, subido el 2018-09-18 |
+| Licencia | No declara licencia de reutilización (licencia estándar de YouTube). Uso académico, fuera del repositorio, con esta salvedad (ver la decisión de arriba) |
+| Técnica | 1920×1080, 30 fps, 2 h 32 min (9.140 s), VP9 |
+| Cámara | **Fija**: se desplaza 0,2 px entre el minuto 5 y el 145 (correlación de fase sobre la pared del foso). `inventario_video.py` dice «se mueve», un falso positivo que probablemente provocan el reloj sobreimpreso y la cinta que flamea en el borde |
+| Escena | Un foso de obra visto desde arriba. Las personas del fondo miden **41-81 px** de alto, y un casco unos 8 px: por eso se analiza con `DetectorMosaico` (#31) |
+| Uso | **Solo prueba y demostración. Nunca entrenamiento** |
+
+**El lote de etiquetado** (`datos/lote0.csv`, versionado; las imágenes quedan fuera del
+repositorio):
+
+| Tramo | Archivo | Cuadros |
+|---|---|---|
+| Minutos 20-25 | `yt_GPCHfE_min020.mp4` | 60 |
+| Minutos 50-55 | `yt_GPCHfE_min050.mp4` | 60 |
+| Minutos 85-90 | `yt_GPCHfE_min085.mp4` | 60 |
+| Minutos 120-125 | `yt_GPCHfE_min120.mp4` | 60 |
+
+Son 240 cuadros, uno cada 5 s, todos en la partición `prueba`. Se armó con
+`lote0.py --sin-deduplicar`: con la deduplicación, 150 cuadros de un tramo quedaban en 1,
+porque en una cámara fija el fondo domina el dHash. Los tramos están repartidos en las dos
+horas y media para cubrir distintas fases de la obra. Uno cada 5 s da cuadros distintos
+(las personas se mueven), pero no independientes: es una muestra para medir detección, no
+un conjunto de miles.
 
 ## 2.bis Datasets públicos de imágenes — para entrenar (PT-03)
 
