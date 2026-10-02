@@ -76,7 +76,7 @@ def main(argv: list[str] | None = None) -> int:
     p.add_argument(
         "--sin-deduplicar",
         action="store_true",
-        help="conserva todos los cuadros muestreados (ver CAMARA_FIJA en el docstring)",
+        help="conserva todos los cuadros muestreados (ver «Cámara fija» en el docstring)",
     )
     args = p.parse_args(argv)
 

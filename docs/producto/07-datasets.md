@@ -24,7 +24,7 @@ proyecto sin nada que defender.
 
 ### Decisión del 2026-10-01: no hay grabación propia
 
-El equipo decidió **no grabar en obra** (#10 se cierra). Un video de YouTube de unos 15 min
+El equipo decidió **no grabar en obra** (#10 se cierra). Un video de YouTube (2 h 32 min, lote 3)
 ocupa el lugar de la grabación propia, con una regla que no cambia: **se usa solo para prueba y
 demostración, nunca para entrenar.** El detector se entrena únicamente con los datasets públicos
 de §2.bis. Lo que sale de esta decisión:

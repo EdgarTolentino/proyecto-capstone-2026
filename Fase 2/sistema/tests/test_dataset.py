@@ -177,19 +177,19 @@ def _correr_lote0(tmp_path: Path, particion: str, *extra: str) -> list[dict[str,
 
 
 @pytest.mark.integration
-@pytest.mark.parametrize(("extra", "minimo"), [((), 1), (("--sin-deduplicar",), 10)])
+@pytest.mark.parametrize(
+    ("extra", "minimo", "maximo"), [((), 0, 2), (("--sin-deduplicar",), 10, 10)]
+)
 def test_con_camara_fija_la_deduplicacion_vacia_el_lote(
-    tmp_path: Path, extra: tuple[str, ...], minimo: int
+    tmp_path: Path, extra: tuple[str, ...], minimo: int, maximo: int
 ) -> None:
     """En un CCTV fijo el fondo domina el dHash: 150 cuadros del video de prueba quedaron en 1
     (2026-10-01). Para un video que va entero a prueba, `--sin-deduplicar` conserva todos."""
     (tmp_path / "videos").mkdir()
     _video_camara_fija(tmp_path / "videos" / "fija.mp4")
     filas = _correr_lote0(tmp_path, "prueba: [fija.mp4]\n", *extra)
-    if extra:
-        assert len(filas) >= minimo
-    else:
-        assert len(filas) <= 2  # la deduplicación lo colapsa
+    # 10 s a 1 cuadro por segundo: sin deduplicar quedan los 10; con, se colapsa.
+    assert minimo <= len(filas) <= maximo
 
 
 @pytest.mark.integration
