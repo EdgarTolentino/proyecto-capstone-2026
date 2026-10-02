@@ -26,6 +26,7 @@ const destinoIndicador: Partial<Record<Panel["indicadores"][number]["clave"], De
 function variacionTexto(variacion: number | null | undefined): string {
   if (variacion === null || variacion === undefined) return "Sin comparación";
   const porcentaje = Math.round(Math.abs(variacion) * 100);
+  if (variacion === 0) return "0% sin variación vs. período anterior";
   return `${variacion >= 0 ? "↑ +" : "↓ −"}${porcentaje}% vs. período anterior`;
 }
 

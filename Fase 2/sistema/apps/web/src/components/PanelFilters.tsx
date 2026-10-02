@@ -12,7 +12,7 @@ export function PanelFilters({ filtros, catalogos, onChange }: PanelFiltersProps
   const limpiar = () => onChange({ obraId: undefined, desde: undefined, hasta: undefined, turno: undefined });
 
   return (
-    <div className="filters panel-filters" aria-label="Filtros del panel general">
+    <div className="filters panel-filters" role="group" aria-label="Filtros del panel general">
       <label className="select-filter">
         <span>Obra</span>
         <select

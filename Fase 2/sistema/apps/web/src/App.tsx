@@ -1,4 +1,4 @@
-import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
+import { keepPreviousData, useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { AlertTriangle, LoaderCircle } from "lucide-react";
 import { useMemo, useState } from "react";
 
@@ -44,7 +44,11 @@ export default function App() {
     queryKey: ["panel", filtrosPanel],
     queryFn: () => obtenerPanel(filtrosPanel),
     enabled: seccion === "panel" && (sesion.data?.permisos?.includes("ver_hallazgos") ?? false),
+    placeholderData: keepPreviousData,
   });
+  const panelSinPermiso = panel.error instanceof ApiError && [401, 403].includes(panel.error.status);
+  const mostrarAvisoObraSinFiltro = seccion === "hallazgos"
+    && new URL(window.location.href).searchParams.has("obra_no_filtrada");
   // El visor no cambia la consulta ni desmonta la tabla: así conserva el desplazamiento.
   const filtrosLista = { ...filtros, hallazgoId: undefined };
   const pagina = useQuery({
@@ -158,8 +162,8 @@ export default function App() {
           filtros={filtrosPanel}
           catalogos={catalogos.data}
           isLoading={sesion.isLoading || panel.isLoading}
-          isError={sesion.isError || panel.isError}
-          sinPermiso={Boolean(sesion.data && !permisos.has("ver_hallazgos"))}
+          isError={sesion.isError || (panel.isError && !panelSinPermiso)}
+          sinPermiso={Boolean((sesion.data && !permisos.has("ver_hallazgos")) || panelSinPermiso)}
           onRetry={() => { if (sesion.isError) void sesion.refetch(); else void panel.refetch(); }}
           onChangeFilters={actualizarFiltrosPanel}
           onNavigateHallazgos={navegarHallazgos}
@@ -167,6 +171,7 @@ export default function App() {
       )}
       {seccion === "hallazgos" && (
       <main className="findings-page">
+        {mostrarAvisoObraSinFiltro && <div className="state-message" role="status">La obra seleccionada en el panel no se aplica en esta bandeja: el contrato de Hallazgos no ofrece filtro por obra.</div>}
         {sesion.isLoading && <div className="state-message"><LoaderCircle className="spin" /> Cargando sesión…</div>}
         {sesion.isError && (
           <div className="state-message state-message--error" role="alert">

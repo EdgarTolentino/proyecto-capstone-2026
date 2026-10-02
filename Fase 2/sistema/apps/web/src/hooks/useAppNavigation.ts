@@ -1,6 +1,7 @@
 import { useCallback, useEffect, useRef, useState } from "react";
 
 import type { Severidad, TipoEpp, VistaTriage } from "../api/types";
+import { rangoDefectoPanel } from "../api/fechas";
 
 export type SeccionApp = "panel" | "hallazgos" | "reglas";
 
@@ -15,12 +16,20 @@ const parametrosCompartidos = ["desde", "hasta", "turno"] as const;
 const parametrosPanel = [...parametrosCompartidos, "obra_id"] as const;
 
 export function construirRutaHallazgos(destino: DestinoHallazgos): string {
-  const actuales = new URL(window.location.href).searchParams;
+  const urlActual = new URL(window.location.href);
+  const actuales = urlActual.searchParams;
   const parametros = new URLSearchParams();
   for (const nombre of parametrosCompartidos) {
     const valor = actuales.get(nombre);
     if (valor) parametros.set(nombre, valor);
   }
+  if (leerSeccion() === "panel" && !parametros.has("desde") && !parametros.has("hasta")) {
+    const rango = rangoDefectoPanel();
+    parametros.set("desde", rango.desde);
+    parametros.set("hasta", rango.hasta);
+  }
+  const obraSinFiltro = actuales.get("obra_id");
+  if (obraSinFiltro) parametros.set("obra_no_filtrada", obraSinFiltro);
   if (destino.vista) parametros.set("vista", destino.vista);
   if (destino.severidad) parametros.set("severidad", String(destino.severidad));
   if (destino.epp) parametros.set("epp", destino.epp);
@@ -60,6 +69,11 @@ export function useAppNavigation() {
   );
   const ultimaUbicacionPanel = useRef(ubicacionPanelActual());
 
+  const cambiarRuta = (ruta: string) => {
+    window.history.pushState({}, "", ruta);
+    window.dispatchEvent(new PopStateEvent("popstate"));
+  };
+
   useEffect(() => {
     const volver = () => {
       const siguiente = leerSeccion();
@@ -77,17 +91,22 @@ export function useAppNavigation() {
     if (actual === "hallazgos") ultimaUbicacionHallazgos.current = ubicacionHallazgosActual();
     if (actual === "panel") ultimaUbicacionPanel.current = ubicacionPanelActual();
 
-    const ruta = destino === "panel" ? ultimaUbicacionPanel.current : destino === "reglas" ? "/reglas" : ultimaUbicacionHallazgos.current;
-    window.history.pushState({}, "", ruta);
-    setSeccion(destino);
+    const ruta = destino === "panel"
+      ? ultimaUbicacionPanel.current
+      : destino === "reglas"
+        ? "/reglas"
+        : actual === "panel"
+          ? construirRutaHallazgos({})
+          : ultimaUbicacionHallazgos.current;
+    if (destino === "hallazgos") ultimaUbicacionHallazgos.current = ruta;
+    cambiarRuta(ruta);
   }, []);
 
   const navegarHallazgos = useCallback((destino: DestinoHallazgos) => {
     if (leerSeccion() === "panel") ultimaUbicacionPanel.current = ubicacionPanelActual();
     const ruta = construirRutaHallazgos(destino);
     ultimaUbicacionHallazgos.current = ruta;
-    window.history.pushState({}, "", ruta);
-    window.dispatchEvent(new PopStateEvent("popstate"));
+    cambiarRuta(ruta);
   }, []);
 
   return { seccion, navegar, navegarHallazgos };

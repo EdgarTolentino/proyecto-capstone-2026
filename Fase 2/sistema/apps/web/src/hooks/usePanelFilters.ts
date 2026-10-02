@@ -1,19 +1,44 @@
 import { useCallback, useEffect, useState } from "react";
 
 import type { FiltrosPanel } from "../api/types";
+import { esFechaValida, rangoDefectoPanel } from "../api/fechas";
 
-const formatoFecha = /^\d{4}-\d{2}-\d{2}$/;
+function esRutaPanel(): boolean {
+  return !window.location.pathname.startsWith("/hallazgos")
+    && !window.location.pathname.startsWith("/reglas");
+}
+
+function normalizarUrlPanel(url = new URL(window.location.href)): URL {
+  if (!esRutaPanel()) return url;
+
+  for (const nombre of ["desde", "hasta"] as const) {
+    const valor = url.searchParams.get(nombre);
+    if (valor && !esFechaValida(valor)) url.searchParams.delete(nombre);
+  }
+  const obraId = url.searchParams.get("obra_id");
+  if (obraId && (!Number.isSafeInteger(Number(obraId)) || Number(obraId) < 1)) {
+    url.searchParams.delete("obra_id");
+  }
+
+  if (!url.searchParams.has("desde") && !url.searchParams.has("hasta")) {
+    const rango = rangoDefectoPanel();
+    url.searchParams.set("desde", rango.desde);
+    url.searchParams.set("hasta", rango.hasta);
+  }
+
+  return url;
+}
 
 function leerFiltrosPanel(): FiltrosPanel {
-  const parametros = new URL(window.location.href).searchParams;
+  const parametros = normalizarUrlPanel().searchParams;
   const obraId = Number(parametros.get("obra_id"));
   const desde = parametros.get("desde");
   const hasta = parametros.get("hasta");
   const turno = parametros.get("turno");
 
   return {
-    ...(desde && formatoFecha.test(desde) ? { desde } : {}),
-    ...(hasta && formatoFecha.test(hasta) ? { hasta } : {}),
+    ...(desde && esFechaValida(desde) ? { desde } : {}),
+    ...(hasta && esFechaValida(hasta) ? { hasta } : {}),
     ...(turno ? { turno } : {}),
     ...(Number.isSafeInteger(obraId) && obraId > 0 ? { obraId } : {}),
   };
@@ -23,7 +48,12 @@ export function usePanelFilters() {
   const [filtros, setFiltros] = useState(leerFiltrosPanel);
 
   useEffect(() => {
-    const volver = () => setFiltros(leerFiltrosPanel());
+    const volver = () => {
+      const url = normalizarUrlPanel();
+      window.history.replaceState({}, "", url);
+      setFiltros(leerFiltrosPanel());
+    };
+    volver();
     window.addEventListener("popstate", volver);
     return () => window.removeEventListener("popstate", volver);
   }, []);
@@ -43,7 +73,8 @@ export function usePanelFilters() {
       else url.searchParams.set(nombre, String(valor));
     }
 
-    window.history.pushState({}, "", url);
+    const normalizada = normalizarUrlPanel(url);
+    window.history.pushState({}, "", normalizada);
     setFiltros(leerFiltrosPanel());
   }, []);
 

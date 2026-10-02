@@ -70,7 +70,6 @@ htmlcov/
 # Node / frontend
 # ─────────────────────────────────────────────────────────────
 node_modules/
-.pnpm-store/
 .next/
 .nuxt/
 .svelte-kit/

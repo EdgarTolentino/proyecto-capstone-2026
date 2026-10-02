@@ -29,6 +29,7 @@ it("muestra solo cuatro series y el top cinco de EPP más Otros", () => {
 
   expect(container.querySelectorAll(".panel-chart")).toHaveLength(2);
   expect(screen.getByRole("region", { name: "Tendencia semanal por severidad" })).toBeVisible();
+  expect(screen.getByRole("group", { name: "Leyenda de severidades" })).toBeVisible();
   expect(container.querySelectorAll(".panel-trend__line")).toHaveLength(4);
   expect(screen.getByRole("table", { name: "Datos de tendencia semanal por severidad" })).toHaveTextContent("Crítica");
   expect(screen.getByRole("table", { name: "Datos de tendencia semanal por severidad" })).toHaveTextContent("Baja");

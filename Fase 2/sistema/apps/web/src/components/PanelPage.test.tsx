@@ -33,6 +33,7 @@ it("presenta las cinco tarjetas con valor, variación y tendencia del contrato",
   expect(screen.getByRole("article", { name: "Hallazgos abiertos" })).toHaveTextContent("↑ +12% vs. período anterior");
   expect(screen.getByRole("article", { name: "Críticos sin revisar" })).toHaveTextContent("↓ −20% vs. período anterior");
   expect(screen.getByRole("article", { name: "Cumplimiento de EPP" })).toHaveTextContent("92.5%");
+  expect(screen.getByRole("article", { name: "Cumplimiento de EPP" })).toHaveTextContent("0% sin variación vs. período anterior");
   expect(screen.getByRole("article", { name: "Zona con más incumplimientos" })).toHaveTextContent("Sin comparación");
 
   expect(screen.getByRole("img", { name: "Tendencia de Hallazgos abiertos: 12, 15, 9, 18" })).toHaveAttribute("viewBox", "0 0 60 20");

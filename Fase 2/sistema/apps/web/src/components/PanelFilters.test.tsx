@@ -16,6 +16,7 @@ it("ofrece obra, fechas y turno y permite limpiarlos", () => {
     />,
   );
 
+  expect(screen.getByRole("group", { name: "Filtros del panel general" })).toBeVisible();
   expect(screen.getByRole("combobox", { name: "Obra" })).toHaveValue("7");
   expect(screen.getByLabelText("Desde")).toHaveAttribute("max", "2026-09-30");
   expect(screen.getByLabelText("Hasta")).toHaveAttribute("min", "2026-09-01");

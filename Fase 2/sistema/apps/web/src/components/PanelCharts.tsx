@@ -54,7 +54,7 @@ function TendenciaSemanal({ tendencia, onNavigateHallazgos }: { tendencia: Panel
     <section className="panel-chart" aria-labelledby="panel-trend-title">
       <header>
         <div><p className="eyebrow">EVOLUCIÓN</p><h3 id="panel-trend-title">Tendencia semanal por severidad</h3></div>
-        <div className="panel-chart__legend" aria-label="Leyenda de severidades">
+        <div className="panel-chart__legend" role="group" aria-label="Leyenda de severidades">
           {series.map((serie, indice) => <button className="panel-chart__filter" type="button" key={`${serie.severidad}-${indice}`} aria-label={`Ver hallazgos de severidad ${nombreSeveridad[serie.severidad]}`} onClick={() => onNavigateHallazgos({ vista: "todos", severidad: serie.severidad })}><SeverityBadge severidad={serie.severidad} /></button>)}
         </div>
       </header>

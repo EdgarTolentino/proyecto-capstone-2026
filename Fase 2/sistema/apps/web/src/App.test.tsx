@@ -5,7 +5,9 @@ import App from "./App";
 import * as api from "./api/client";
 
 vi.mock("./api/client", () => ({
-  ApiError: class extends Error {},
+  ApiError: class extends Error {
+    constructor(message: string, public readonly status: number) { super(message); }
+  },
   listarHallazgos: vi.fn(async () => ({ items: [{ id: 1 }, { id: 2 }], contadores: {} })),
   obtenerSesion: vi.fn(async () => ({ permisos: ["ver_hallazgos", "ver_evidencia", "triar_hallazgos"] })),
   obtenerCatalogos: vi.fn(async () => ({
@@ -53,23 +55,45 @@ async function iniciar() {
 }
 
 it("usa la raíz como panel general y permite volver a la bandeja", async () => {
-  window.history.replaceState({}, "", "/");
+  window.history.replaceState({}, "", "/?obra_id=7&desde=2026-09-01&hasta=2026-09-30&turno=A");
   const client = new QueryClient({ defaultOptions: { queries: { retry: false, staleTime: Infinity } } });
   render(<QueryClientProvider client={client}><App /></QueryClientProvider>);
 
   expect(await screen.findByRole("heading", { name: "Panel general" })).toBeVisible();
   expect(await screen.findByText("Hallazgos abiertos")).toBeVisible();
   expect(screen.getByRole("region", { name: "Indicadores del panel" }).querySelectorAll(".panel-indicator")).toHaveLength(5);
-  expect(api.obtenerPanel).toHaveBeenCalledWith({});
+  await waitFor(() => expect(api.obtenerPanel).toHaveBeenCalledWith({ obraId: 7, desde: "2026-09-01", hasta: "2026-09-30", turno: "A" }));
   expect(screen.getByRole("button", { name: "Panel general" })).toHaveAttribute("aria-current", "page");
 
-  fireEvent.click(within(screen.getByRole("navigation", { name: "Navegación principal" })).getByRole("button", { name: /Hallazgos/ }));
+  fireEvent.click(screen.getByRole("button", { name: "Ver Hallazgos abiertos en Hallazgos" }));
   expect(await screen.findByTestId("bandeja")).toBeVisible();
   expect(window.location.pathname).toBe("/hallazgos");
+  expect(window.location.search).toContain("desde=2026-09-01");
+  expect(window.location.search).toContain("hasta=2026-09-30");
+  expect(window.location.search).toContain("turno=A");
+  expect(window.location.search).not.toContain("obra_id=");
+  expect(screen.getByText(/no ofrece filtro por obra/)).toBeVisible();
+  await waitFor(() => expect(api.listarHallazgos).toHaveBeenCalledWith(expect.objectContaining({ desde: "2026-09-01", hasta: "2026-09-30", turno: "A" })));
 
   fireEvent.click(screen.getByRole("button", { name: "Panel general" }));
   expect(await screen.findByRole("heading", { name: "Panel general" })).toBeVisible();
   expect(window.location.pathname).toBe("/");
+  await waitFor(() => expect(screen.getByRole("combobox", { name: "Obra" })).toHaveValue("7"));
+  await waitFor(() => expect(api.obtenerPanel).toHaveBeenLastCalledWith({ obraId: 7, desde: "2026-09-01", hasta: "2026-09-30", turno: "A" }));
+});
+
+it("lleva fecha y turno a Hallazgos al navegar desde la barra", async () => {
+  window.history.replaceState({}, "", "/?desde=2026-09-01&hasta=2026-09-30&turno=A");
+  const client = new QueryClient({ defaultOptions: { queries: { retry: false, staleTime: Infinity } } });
+  render(<QueryClientProvider client={client}><App /></QueryClientProvider>);
+
+  await screen.findByRole("heading", { name: "Panel general" });
+  fireEvent.click(within(screen.getByRole("navigation", { name: "Navegación principal" })).getByRole("button", { name: /Hallazgos/ }));
+
+  await screen.findByTestId("bandeja");
+  expect(window.location.pathname).toBe("/hallazgos");
+  expect(window.location.search).toBe("?desde=2026-09-01&hasta=2026-09-30&turno=A");
+  await waitFor(() => expect(api.listarHallazgos).toHaveBeenCalledWith(expect.objectContaining({ desde: "2026-09-01", hasta: "2026-09-30", turno: "A" })));
 });
 
 it("restaura los filtros del panel y vuelve a consultar al cambiarlos", async () => {
@@ -129,6 +153,35 @@ it("muestra el error de sesión y permite reintentar cuando falla /yo", async ()
   expect(await screen.findByRole("alert")).toHaveTextContent("No fue posible cargar la sesión");
   expect(screen.getByRole("button", { name: "Reintentar" })).toBeEnabled();
   expect(api.listarHallazgos).not.toHaveBeenCalled();
+});
+
+it("muestra sin permiso si GET /panel responde 401 o 403", async () => {
+  vi.mocked(api.obtenerPanel).mockRejectedValueOnce(new api.ApiError("sin permiso", 403));
+  const client = new QueryClient({ defaultOptions: { queries: { retry: false } } });
+  render(<QueryClientProvider client={client}><App /></QueryClientProvider>);
+
+  expect(await screen.findByRole("alert")).toHaveTextContent("No tienes permiso para ver el panel general.");
+  expect(screen.queryByText("No fue posible cargar el panel general.")).not.toBeInTheDocument();
+});
+
+it("mantiene los indicadores anteriores mientras carga el nuevo filtro", async () => {
+  const client = new QueryClient({ defaultOptions: { queries: { retry: false, staleTime: Infinity } } });
+  render(<QueryClientProvider client={client}><App /></QueryClientProvider>);
+  const indicador = await screen.findByRole("article", { name: "Hallazgos abiertos" });
+  expect(indicador).toHaveTextContent("4");
+
+  let resolver!: (panel: Awaited<ReturnType<typeof api.obtenerPanel>>) => void;
+  vi.mocked(api.obtenerPanel).mockImplementationOnce(() => new Promise((resolve) => { resolver = resolve; }));
+  fireEvent.change(screen.getByRole("combobox", { name: "Obra" }), { target: { value: "8" } });
+
+  await waitFor(() => expect(api.obtenerPanel).toHaveBeenLastCalledWith(expect.objectContaining({ obraId: 8 })));
+  expect(screen.getByRole("article", { name: "Hallazgos abiertos" })).toHaveTextContent("4");
+
+  resolver({
+    indicadores: [{ clave: "hallazgos_abiertos", etiqueta: "Hallazgos abiertos", valor: 9, variacion: 0, serie: [] }],
+    tendencia: {}, ranking_epp: [], criticos_recientes: [], cobertura: {},
+  });
+  await waitFor(() => expect(screen.getByRole("article", { name: "Hallazgos abiertos" })).toHaveTextContent("9"));
 });
 
 it("navega a Reglas y permite volver a Hallazgos", async () => {
