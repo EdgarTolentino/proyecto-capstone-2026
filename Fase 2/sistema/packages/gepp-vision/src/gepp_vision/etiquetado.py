@@ -23,8 +23,9 @@ def combinar(
     del_mosaico: Sequence[Deteccion], del_cuadro: Sequence[Deteccion], recorte: Caja
 ) -> list[Deteccion]:
     """Lo del mosaico, que cubre el recorte, más lo del pase sobre el cuadro entero cuyo centro
-    cae fuera del recorte (personas junto a la cámara). Cerca del borde puede quedar alguna
-    repetida: es una sugerencia y se corrige al revisar."""
+    cae fuera del recorte (personas junto a la cámara). Puede quedar alguna caja repetida:
+    en el lote de prueba hubo 71 pares, del propio mosaico y no de esta unión (la tolerancia
+    de contención del #107 los reduce). Son sugerencias y se corrigen al revisar."""
     fuera = [d for d in del_cuadro if not recorte.contiene(d.caja.centro)]
     return [*del_mosaico, *fuera]
 

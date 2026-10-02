@@ -102,7 +102,9 @@ y el modelo normal fuera de él, descarta las cajas de menos de 10 px y escribe 
 importa en la tarea con *Actions → Upload annotations → COCO 1.0*. **Son sugerencias:** se
 revisa cada caja, se agrega lo que falta y se fijan los atributos, que el modelo no infiere
 (todas llegan con el valor por defecto: `puesto = si`, `ocluida = no`). Corregir una
-pre-etiqueta no exime de mirar la imagen entera.
+pre-etiqueta no exime de mirar la imagen entera. Las primeras pre-etiquetas del lote de
+prueba traen **71 pares de cajas repetidas** sobre la misma persona o casco: se borra una de
+cada par.
 
 ## 7. Casos decididos en sesión
 
