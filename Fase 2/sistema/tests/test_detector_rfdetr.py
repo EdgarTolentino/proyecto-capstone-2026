@@ -19,11 +19,9 @@ from datetime import UTC, datetime
 from pathlib import Path
 
 import cv2
-import numpy as np
 import pytest
-from gepp_core import Deteccion
 from gepp_vision import Detector
-from scipy.optimize import linear_sum_assignment
+from gepp_vision.entrenamiento import emparejar
 
 from .contrato_detector import ContratoDetector
 
@@ -49,15 +47,6 @@ class TestDetectorRFDETR(ContratoDetector):
 #: Solo se comparan las detecciones con margen sobre el corte del detector: una a 0,251 en un
 #: adaptador puede salir a 0,249 en el otro y caerse del corte, y eso no es una diferencia.
 MARGEN = 0.05
-
-
-def _emparejar(a: list[Deteccion], b: list[Deteccion]) -> list[tuple[Deteccion, Deteccion]]:
-    """Emparejamiento óptimo (húngaro) por IoU dentro de cada clase, con IoU >= 0,9."""
-    iou = np.array([[x.caja.iou(y.caja) if x.clase is y.clase else 0.0 for y in b] for x in a])
-    if iou.size == 0:
-        return []
-    filas, columnas = linear_sum_assignment(-iou)
-    return [(a[f], b[c]) for f, c in zip(filas, columnas, strict=True) if iou[f, c] >= 0.9]
 
 
 def test_onnx_y_pytorch_ven_lo_mismo() -> None:
@@ -86,7 +75,7 @@ def test_onnx_y_pytorch_ven_lo_mismo() -> None:
             d for d in onnx.detectar(imagen, cuadro_idx=idx, capture_ts=ts) if d.confianza >= firme
         ]
         assert de_pytorch, "el cuadro de prueba debería tener al menos una persona"
-        pares = _emparejar(de_onnx, de_pytorch)
+        pares = emparejar(de_onnx, de_pytorch)
         assert len(pares) == len(de_onnx) == len(de_pytorch), f"cuadro {idx}"
         for x, y in pares:
             assert x.confianza == pytest.approx(y.confianza, abs=0.02)

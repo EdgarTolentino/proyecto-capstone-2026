@@ -7,21 +7,27 @@ validación que infla la métrica.
 
 from __future__ import annotations
 
+from datetime import UTC, datetime
 from pathlib import Path
 
 import pytest
-from gepp_core import Caja, ClaseDetectada
+from gepp_core import Caja, ClaseDetectada, Deteccion
 from gepp_vision.dataset import UMBRAL_DUPLICADO, Particion
 from gepp_vision.entrenamiento import (
     CLASES_V1,
     CategoriaDesconocida,
     Fuente,
     a_coco,
+    acierto_por_id,
+    acuerdo_de_clases,
     cargar_fuentes,
     completar,
     desde_coco,
     desde_voc,
+    emparejar,
     grupo,
+    muestra_estratificada,
+    pares_con_verdad,
     particion_estable,
     quitar_fugas,
 )
@@ -268,3 +274,77 @@ def test_un_patron_sin_grupo_de_captura_falla_al_cargar(tmp_path: Path) -> None:
     )
     with pytest.raises(ValueError, match="grupo de captura"):
         cargar_fuentes(ruta)
+
+
+# --- verificación del modelo exportado -------------------------------------------------
+
+
+def _det(clase: ClaseDetectada, caja: Caja, confianza: float = 0.9) -> Deteccion:
+    return Deteccion(datetime(2026, 10, 1, tzinfo=UTC), 0, clase, caja, confianza)
+
+
+def test_emparejar_solo_dentro_de_la_misma_clase() -> None:
+    caja = Caja(0.1, 0.1, 0.5, 0.5)
+    a, b = [_det(P, caja)], [_det(C, caja)]
+    assert emparejar(a, b) == []
+    assert emparejar(a, [_det(P, caja)]) == [(a[0], _det(P, caja))]
+
+
+def test_emparejar_exige_iou_alto() -> None:
+    a = [_det(P, Caja(0.0, 0.0, 0.75, 0.5))]
+    b = [_det(P, Caja(0.25, 0.0, 1.0, 0.5))]  # IoU 0,5 exacto
+    assert emparejar(a, b) == []
+    assert emparejar(a, b, umbral_iou=0.5) == [(a[0], b[0])]
+
+
+def test_pares_con_verdad_ignora_la_clase_y_respeta_el_umbral() -> None:
+    verdad = [(C, Caja(0.0, 0.0, 0.75, 0.5)), (V, Caja(0.8, 0.8, 0.9, 0.9))]
+    predichas = [(1, Caja(0.25, 0.0, 1.0, 0.5)), (7, Caja(0.0, 0.9, 0.1, 1.0))]
+    # La primera se solapa justo 0,5 con el casco; la segunda no toca nada.
+    assert pares_con_verdad(predichas, verdad) == [(1, C)]
+    assert pares_con_verdad(predichas, verdad, umbral_iou=0.51) == []
+    assert pares_con_verdad([], verdad) == []
+
+
+def test_acuerdo_de_clases() -> None:
+    mapa = {0: P, 1: C, 2: V}
+    assert acuerdo_de_clases([(0, P), (1, C)], mapa) == 1.0
+    assert acuerdo_de_clases([(1, P), (0, C)], mapa) == 0.0
+    assert acuerdo_de_clases([(1, C), (9, C)], mapa) == 0.5  # un id fuera del mapa no acierta
+
+
+def test_sin_pares_no_hay_acuerdo_que_medir() -> None:
+    with pytest.raises(ValueError, match="sin pares"):
+        acuerdo_de_clases([], {0: P})
+
+
+def test_acierto_por_id_cuenta_cada_id_del_mapa_aunque_no_aparezca() -> None:
+    mapa = {0: P, 1: C, 2: V}
+    pares = [(1, C)] * 3 + [(0, P), (0, V)]
+    assert acierto_por_id(pares, mapa) == {0: (1, 2), 1: (3, 3), 2: (0, 0)}
+
+
+def test_un_mapa_con_clases_intercambiadas_no_pasa_por_id() -> None:
+    # Solo cascos en la muestra: el acuerdo global es 100 %, pero persona y chaleco
+    # nunca se contrastaron. Es el caso que la revisión reprodujo.
+    intercambiado = {0: V, 1: C, 2: P}
+    pares = [(1, C)] * 14
+    assert acuerdo_de_clases(pares, intercambiado) == 1.0
+    por_id = acierto_por_id(pares, intercambiado)
+    assert por_id[0] == (0, 0) and por_id[2] == (0, 0)
+    # Con evidencia de las tres clases, el intercambio se ve.
+    pares += [(0, P)] * 5 + [(2, V)] * 5
+    assert acierto_por_id(pares, intercambiado) == {0: (0, 5), 1: (14, 14), 2: (0, 5)}
+
+
+def test_muestra_estratificada_cubre_cada_clase() -> None:
+    imagenes = [(f"c{i}", [C]) for i in range(100)] + [("p", [P]), ("v", [V])]
+    elegidas = muestra_estratificada(imagenes, n=10, minimo_por_clase=1)
+    clases = {c for _, cs in imagenes if _ in elegidas for c in cs}
+    assert clases == {P, C, V}
+    assert len(elegidas) == 10
+
+
+def test_muestra_estratificada_es_reproducible() -> None:
+    imagenes = [(f"c{i}", [C if i % 3 else P]) for i in range(50)]
+    assert muestra_estratificada(imagenes, 10, 2) == muestra_estratificada(imagenes, 10, 2)

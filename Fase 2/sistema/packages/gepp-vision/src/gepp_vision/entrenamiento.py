@@ -23,6 +23,7 @@ el detector es trabajo de `scripts/preparar_dataset.py`.
 from __future__ import annotations
 
 import hashlib
+import random
 import re
 import xml.etree.ElementTree as ET
 from collections.abc import Iterable, Sequence
@@ -32,7 +33,8 @@ from typing import Any
 
 import numpy as np
 import yaml
-from gepp_core import Caja, ClaseDetectada
+from gepp_core import Caja, ClaseDetectada, Deteccion
+from scipy.optimize import linear_sum_assignment
 
 from gepp_vision.dataset import UMBRAL_DUPLICADO, Particion
 
@@ -237,3 +239,77 @@ def a_coco(imagenes: Iterable[tuple[Anotada, str, Sequence[Caja]]]) -> dict[str,
                 }
             )
     return salida
+
+
+# --- verificación del modelo exportado -------------------------------------------------
+
+
+def _asignar(iou: np.ndarray, umbral: float) -> list[tuple[int, int]]:
+    """Emparejamiento óptimo (húngaro) de filas y columnas con IoU >= `umbral`."""
+    if iou.size == 0:
+        return []
+    filas, columnas = linear_sum_assignment(-iou)
+    return [(int(f), int(c)) for f, c in zip(filas, columnas, strict=True) if iou[f, c] >= umbral]
+
+
+def emparejar(
+    a: Sequence[Deteccion], b: Sequence[Deteccion], umbral_iou: float = 0.9
+) -> list[tuple[Deteccion, Deteccion]]:
+    """Pares de detecciones de la misma clase que son la misma caja (ONNX contra PyTorch)."""
+    iou = np.array([[x.caja.iou(y.caja) if x.clase is y.clase else 0.0 for y in b] for x in a])
+    return [(a[f], b[c]) for f, c in _asignar(iou, umbral_iou)]
+
+
+def pares_con_verdad(
+    predichas: Sequence[tuple[int, Caja]],
+    verdad: Sequence[tuple[ClaseDetectada, Caja]],
+    umbral_iou: float = 0.5,
+) -> list[tuple[int, ClaseDetectada]]:
+    """(id que devolvió el modelo, clase verdadera) de cada predicción que cae sobre una caja.
+
+    Ignora la clase a propósito: sirve para averiguar qué significa cada id del modelo.
+    """
+    iou = np.array([[p.iou(v) for _, v in verdad] for _, p in predichas])
+    return [(predichas[f][0], verdad[c][0]) for f, c in _asignar(iou, umbral_iou)]
+
+
+def acuerdo_de_clases(
+    pares: Sequence[tuple[int, ClaseDetectada]], mapa: dict[int, ClaseDetectada]
+) -> float:
+    """Fracción de pares en que el mapa traduce el id a la clase verdadera."""
+    if not pares:
+        raise ValueError("sin pares: el modelo no acertó ninguna caja, no hay acuerdo que medir")
+    return sum(mapa.get(i) is clase for i, clase in pares) / len(pares)
+
+
+def acierto_por_id(
+    pares: Sequence[tuple[int, ClaseDetectada]], mapa: dict[int, ClaseDetectada]
+) -> dict[int, tuple[int, int]]:
+    """Por cada id del mapa: (aciertos, predicciones contrastadas con la verdad).
+
+    El acuerdo global no basta: si la muestra es casi toda casco, un mapa con persona y
+    chaleco intercambiados acierta el 100 %. Un id con 0 contrastes no está verificado.
+    """
+    return {
+        i: (sum(1 for j, c in pares if j == i and c is clase), sum(1 for j, _ in pares if j == i))
+        for i, clase in mapa.items()
+    }
+
+
+def muestra_estratificada[K](
+    imagenes: Sequence[tuple[K, Sequence[ClaseDetectada]]],
+    n: int,
+    minimo_por_clase: int,
+    semilla: int = 2026,
+) -> list[K]:
+    """`n` imágenes al azar (semilla fija), garantizando primero `minimo_por_clase` imágenes
+    con cada clase presente. Las primeras `n` en orden saldrían todas de una sola fuente."""
+    orden = list(range(len(imagenes)))
+    random.Random(semilla).shuffle(orden)
+    elegidas: list[int] = []
+    for clase in CLASES_V1:
+        con_clase = [i for i in orden if clase in imagenes[i][1] and i not in elegidas]
+        ya = sum(1 for i in elegidas if clase in imagenes[i][1])
+        elegidas += con_clase[: max(minimo_por_clase - ya, 0)]
+    elegidas += [i for i in orden if i not in elegidas][: max(n - len(elegidas), 0)]
+    return [imagenes[i][0] for i in elegidas]

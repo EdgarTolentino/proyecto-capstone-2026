@@ -15,8 +15,17 @@ Dos archivos, uno junto al otro:
 El `.clases.json` tiene esta forma. Los índices que no aparecen se ignoran:
 
 ```json
-{"version": "rfdetr-n-epp-v1", "clases": {"1": "persona", "2": "casco", "3": "chaleco"}}
+{"version": "rfdetr-n-epp-v1", "clases": {"0": "persona", "1": "casco", "2": "chaleco"}}
 ```
+
+**No se escribe a mano.** Lo genera `scripts/exportar_onnx.py`, que lo contrasta con las cajas
+verdaderas de validación, clase por clase, y se niega a exportar si alguna no queda verificada.
+La razón: un modelo entrenado por nosotros devuelve la **posición** de la clase, que empieza en
+0 (0 = persona). El RF-DETR preentrenado en COCO, en cambio, devuelve el **id de categoría COCO**
+(1 = persona). Así lo hace el código de rfdetr 1.11 (`remap_category_ids` en
+`datasets/coco.py`). En un modelo de prueba de 1 época se observó para casco: los 14 cascos
+contrastados salieron con id 1, con umbral 0,3. Un mapa que empezaba en 1 los habría
+convertido en personas.
 
 Clases válidas: `persona`, `casco`, `chaleco`, `lentes`, `guantes`, `arnes`, `calzado`.
 
@@ -52,12 +61,20 @@ Si el video falla, igual se levantan la API y la web. El motivo queda en la cola
 Un video queda en `error` después de 3 intentos. Corregida la causa, "Reprocesar" lo
 devuelve a la cola.
 
-## Exportar un modelo (solo en la máquina con GPU)
+## Entrenar y exportar un modelo (solo en la máquina con GPU)
 
 ```
 make setup-gpu
-uv run python -c "from rfdetr import RFDETRNano; RFDETRNano(pretrain_weights='pesos.pth').export(output_dir='modelos')"
+uv run python scripts/descargar_datasets.py ~/datos/gepp/crudos
+uv run python scripts/preparar_dataset.py ~/datos/gepp/crudos ~/datos/gepp/epp-v1 \
+    --pesos-coco ~/.roboflow/models/rf-detr-medium.pth --variante medium
+uv run python scripts/entrenar.py ~/datos/gepp/epp-v1 ~/modelos/rfdetr-n-epp-v1
+uv run python scripts/exportar_onnx.py ~/modelos/rfdetr-n-epp-v1 ~/datos/gepp/epp-v1
 ```
+
+`exportar_onnx.py` deja junto al modelo el `.onnx`, el `.clases.json` y `verificacion.json`
+con el acierto del mapa y la comparación ONNX contra PyTorch. Mientras se entrena no se corre la
+demo en la misma máquina (ADR-010).
 
 Para probar el recorrido antes de tener el modelo propio (#31), sirve el RF-DETR Nano de
 COCO con `{"version": "coco-nano", "clases": {"1": "persona"}}`: detecta personas y nada más,
