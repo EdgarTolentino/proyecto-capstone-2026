@@ -13,9 +13,11 @@ pasar el cuadro entero a 384, queda en 1-2 px, donde ningún detector lo ve.
    `objeto_max_px` quepa entero en al menos uno**;
 4. corre el detector en cada mosaico y descarta las cajas que tocan un borde interior:
    son pedazos de un objeto que otro mosaico ve entero;
-5. un objeto en el solape lo ven entero dos o cuatro mosaicos: de esos grupos (**solo entre
-   mosaicos distintos**, misma clase, centros a menos de medio lado del más chico) queda el
-   de mayor confianza;
+5. un objeto en el solape lo ven entero dos o cuatro mosaicos. Esas copias se emparejan
+   **uno a uno** (método húngaro sobre la distancia entre centros) y de cada par queda la
+   de mayor confianza. Solo se emparejan detecciones de mosaicos distintos, de la misma
+   clase, con centros a menos de medio lado de la más chica, y **solo si cada mosaico
+   debía ver entera a la otra**: si no la contiene, no puede ser su copia;
 6. devuelve las cajas a coordenadas del cuadro.
 
 Por qué así y no fusionando por IoU, como la primera versión. Esa fallaba en las dos
@@ -23,15 +25,18 @@ direcciones: con un solape fijo del 20 %, una persona de 60 px salía dos veces 
 #31); dos mosaicos que ven a la misma persona con contexto distinto dan cajas con IoU 0,60,
 justo en el umbral (visto en el video de prueba); y fusionar por contención borraba a una
 persona tapada por otra. Comparar centros tolera que cada mosaico dibuje la caja algo
-distinta, y lo que el modelo ve junto en un mismo mosaico (un casco dentro de su persona,
-una persona tapada por otra) nunca se compara.
+distinta; el emparejamiento uno a uno impide que una copia se coma a una persona vecina; y
+lo que el modelo ve junto en un mismo mosaico (un casco dentro de su persona) nunca se
+compara. Una segunda revisión encontró que, sin la condición de contención, una persona
+tapada en el solape se borraba al compararla con la del mosaico que no la veía.
 
-Los objetos más grandes que `objeto_max_px` (alguien que pasa junto a la cámara) quedan
-cortados en todos los mosaicos y se descartan: para eso está `con_cuadro_completo`, que
-además corre el detector sobre el cuadro entero. Los dos pases quedan **disjuntos**: el
-completo aporta lo que el mosaico no puede ver (lo que no cae entero dentro del recorte, o
-es más grande que `objeto_max_px`), y el mosaico, lo demás. Por eso, con pase completo, el
-borde del recorte cuenta como borde interior: lo que lo cruza lo aporta el pase completo.
+Solo se analiza el recorte: es la zona donde se evalúa EPP (las reglas trabajan por zonas).
+Hubo una opción para sumar un pase sobre el cuadro completo y se quitó: dos cajas del mismo
+objeto a escalas distintas nunca coinciden, y repartir objetos entre los dos pases perdía o
+duplicaba los que quedaban en el borde del recorte (segunda revisión del #31).
+
+Un objeto más grande que `objeto_max_px` puede quedar cortado en todos los mosaicos y
+perderse: `objeto_max_px` se elige con el objeto más grande de la zona.
 
 Con recorte del foso (~800 px), factor 2 y mosaicos de 384, un casco de 8 px llega al modelo
 con ~16 px. El costo es correr el modelo decenas de veces por cuadro (`MAX_MOSAICOS` pone
@@ -47,6 +52,7 @@ from datetime import datetime
 import cv2
 import numpy as np
 from gepp_core import Caja, Deteccion
+from scipy.optimize import linear_sum_assignment
 
 from gepp_vision.puertos import Detector
 
@@ -70,7 +76,6 @@ class Mosaico:
     lado: int
     #: Lado del objeto más grande que tiene que caber entero en un mosaico, en px del cuadro.
     objeto_max_px: int
-    con_cuadro_completo: bool = False
 
     def __post_init__(self) -> None:
         if self.factor <= 0:
@@ -101,31 +106,61 @@ def posiciones(largo: int, lado: int, solape: int) -> list[int]:
     return inicios
 
 
-def _mismo_objeto(a: Deteccion, b: Deteccion) -> bool:
-    if a.clase is not b.clase:
+def _contiene(region: Caja, caja: Caja) -> bool:
+    e = 1e-9
+    return (
+        caja.x1 >= region.x1 - e
+        and caja.y1 >= region.y1 - e
+        and caja.x2 <= region.x2 + e
+        and caja.y2 <= region.y2 + e
+    )
+
+
+def _copias(a: Deteccion, region_a: Caja, b: Deteccion, region_b: Caja) -> bool:
+    """¿Pueden ser el mismo objeto visto por dos mosaicos?"""
+    if a.clase is not b.clase or not (_contiene(region_a, b.caja) and _contiene(region_b, a.caja)):
         return False
     (ax, ay), (bx, by) = a.caja.centro, b.caja.centro
     chica = a.caja if a.caja.area <= b.caja.area else b.caja
-    # Las cajas están normalizadas: se compara en las mismas unidades por eje.
     return (
         abs(ax - bx) < DISTANCIA_MISMO_OBJETO * chica.ancho
         and abs(ay - by) < DISTANCIA_MISMO_OBJETO * chica.alto
     )
 
 
-def sin_repetidos(por_mosaico: list[list[Deteccion]]) -> list[Deteccion]:
-    """Une las detecciones de todos los mosaicos. Si dos de mosaicos DISTINTOS son el mismo
-    objeto, queda la de mayor confianza; las de un mismo mosaico nunca se comparan."""
-    ordenadas = sorted(
-        ((d, i) for i, ds in enumerate(por_mosaico) for d in ds),
-        key=lambda par: par[0].confianza,
-        reverse=True,
-    )
-    quedan: list[tuple[Deteccion, int]] = []
-    for d, i in ordenadas:
-        if not any(j != i and _mismo_objeto(d, q) for q, j in quedan):
-            quedan.append((d, i))
-    return [d for d, _ in quedan]
+def sin_repetidos(por_mosaico: list[tuple[Caja, list[Deteccion]]]) -> list[Deteccion]:
+    """Une las detecciones de todos los mosaicos (cada una con la región del cuadro que cubre
+    su mosaico). Las copias del mismo objeto en mosaicos distintos se emparejan uno a uno y
+    queda la de mayor confianza; las de un mismo mosaico nunca se comparan."""
+    quedan: list[tuple[Deteccion, Caja, int]] = []
+    for i, (region, detecciones) in enumerate(por_mosaico):
+        # Solo hay detecciones de mosaicos anteriores: las de este se agregan al final, así
+        # que dos del mismo mosaico nunca se comparan.
+        previas = list(enumerate(quedan))
+        posibles = [[_copias(d, region, q, rq) for _, (q, rq, _) in previas] for d in detecciones]
+        emparejadas: set[int] = set()
+        if previas and detecciones:
+            costo = np.array(
+                [
+                    [
+                        abs(d.caja.centro[0] - q.caja.centro[0])
+                        + abs(d.caja.centro[1] - q.caja.centro[1])
+                        if posibles[f][c]
+                        else 1e6
+                        for c, (_, (q, _, _)) in enumerate(previas)
+                    ]
+                    for f, d in enumerate(detecciones)
+                ]
+            )
+            for f, c in zip(*linear_sum_assignment(costo), strict=True):
+                if not posibles[f][c]:
+                    continue
+                k = previas[c][0]
+                if detecciones[f].confianza > quedan[k][0].confianza:
+                    quedan[k] = (detecciones[f], region, i)
+                emparejadas.add(int(f))
+        quedan += [(d, region, i) for f, d in enumerate(detecciones) if f not in emparejadas]
+    return [d for d, _, _ in quedan]
 
 
 class DetectorMosaico:
@@ -139,75 +174,71 @@ class DetectorMosaico:
     def version(self) -> str:
         m = self._mosaico
         r = m.recorte
-        completo = "+completo" if m.con_cuadro_completo else ""
         return (
             f"mosaico[{r.x1:.4f},{r.y1:.4f},{r.x2:.4f},{r.y2:.4f}"
-            f"x{m.factor:g}/{m.lado}/{m.objeto_max_px}px{completo}]:{self._interno.version}"
+            f"x{m.factor:g}/{m.lado}/{m.objeto_max_px}px]:{self._interno.version}"
+        )
+
+    def validar(self, ancho: int, alto: int) -> None:
+        """Falla si, para cuadros de este tamaño, la configuración pasa de `MAX_MOSAICOS`.
+        Para llamarla al abrir la fuente, antes del primer cuadro."""
+        _, _, columnas, filas = self._geometria(ancho, alto)
+        if len(columnas) * len(filas) > MAX_MOSAICOS:
+            raise ValueError(
+                f"{len(columnas) * len(filas)} mosaicos por cuadro (tope {MAX_MOSAICOS}): "
+                "achique el recorte, el factor u objeto_max_px"
+            )
+
+    def _geometria(self, ancho: int, alto: int) -> tuple[int, int, list[int], list[int]]:
+        """Tamaño de la zona ampliada y posiciones de los mosaicos."""
+        m = self._mosaico
+        x0, x1 = round(m.recorte.x1 * ancho), round(m.recorte.x2 * ancho)
+        y0, y1 = round(m.recorte.y1 * alto), round(m.recorte.y2 * alto)
+        ancho_z = max(round((x1 - x0) * m.factor), 1)
+        alto_z = max(round((y1 - y0) * m.factor), 1)
+        return (
+            ancho_z,
+            alto_z,
+            posiciones(ancho_z, m.lado, m.solape_px),
+            posiciones(alto_z, m.lado, m.solape_px),
         )
 
     def detectar(
         self, imagen: np.ndarray, *, cuadro_idx: int, capture_ts: datetime
     ) -> list[Deteccion]:
-        todas = sin_repetidos(self._en_mosaicos(imagen, cuadro_idx, capture_ts))
-        if self._mosaico.con_cuadro_completo:
-            alto, ancho = imagen.shape[:2]
-            todas += [
-                d
-                for d in self._interno.detectar(
-                    imagen, cuadro_idx=cuadro_idx, capture_ts=capture_ts
-                )
-                if not self._la_ve_el_mosaico(d.caja, ancho, alto)
-            ]
-        return todas
-
-    def _la_ve_el_mosaico(self, caja: Caja, ancho: int, alto: int) -> bool:
-        """Cae entera dentro del recorte y cabe entera en un mosaico."""
-        r = self._mosaico.recorte
-        dentro = caja.x1 >= r.x1 and caja.y1 >= r.y1 and caja.x2 <= r.x2 and caja.y2 <= r.y2
-        cabe = max(caja.ancho * ancho, caja.alto * alto) <= self._mosaico.objeto_max_px
-        return dentro and cabe
+        return sin_repetidos(self._en_mosaicos(imagen, cuadro_idx, capture_ts))
 
     def _en_mosaicos(
         self, imagen: np.ndarray, cuadro_idx: int, capture_ts: datetime
-    ) -> list[list[Deteccion]]:
-        """Las detecciones de cada mosaico, ya en coordenadas del cuadro."""
+    ) -> list[tuple[Caja, list[Deteccion]]]:
+        """Por mosaico: la región del cuadro que cubre y sus detecciones, en coordenadas del
+        cuadro."""
         alto, ancho = imagen.shape[:2]
         m = self._mosaico
         x0, y0 = round(m.recorte.x1 * ancho), round(m.recorte.y1 * alto)
         x1, y1 = round(m.recorte.x2 * ancho), round(m.recorte.y2 * alto)
         if x1 <= x0 or y1 <= y0:
             return []
-        ancho_z = max(round((x1 - x0) * m.factor), 1)
-        alto_z = max(round((y1 - y0) * m.factor), 1)
-        columnas = posiciones(ancho_z, m.lado, m.solape_px)
-        filas = posiciones(alto_z, m.lado, m.solape_px)
-        if len(columnas) * len(filas) > MAX_MOSAICOS:
-            raise ValueError(
-                f"{len(columnas) * len(filas)} mosaicos por cuadro (tope {MAX_MOSAICOS}): "
-                "achique el recorte, el factor u objeto_max_px"
-            )
+        self.validar(ancho, alto)
+        ancho_z, alto_z, columnas, filas = self._geometria(ancho, alto)
         ampliada = cv2.resize(
             imagen[y0:y1, x0:x1], (ancho_z, alto_z), interpolation=cv2.INTER_LINEAR
         )
         # Escala real tras redondear: píxel ampliado -> píxel del cuadro.
         ex, ey = (x1 - x0) / ancho_z, (y1 - y0) / alto_z
-        # Con pase completo, el borde del recorte es interior salvo donde coincide con el
-        # del cuadro: lo que lo cruza lo aporta el pase completo, entero.
-        borde_recorte = (
-            (x0 > 0, y0 > 0, x1 < ancho, y1 < alto) if m.con_cuadro_completo else (False,) * 4
-        )
 
-        por_mosaico: list[list[Deteccion]] = []
+        por_mosaico: list[tuple[Caja, list[Deteccion]]] = []
         for ty in filas:
             for tx in columnas:
                 parte = ampliada[ty : ty + m.lado, tx : tx + m.lado]
                 alto_p, ancho_p = parte.shape[:2]
                 # Un borde es interior si del otro lado sigue habiendo zona ampliada.
-                interior = (
-                    tx > 0 or borde_recorte[0],
-                    ty > 0 or borde_recorte[1],
-                    tx + ancho_p < ancho_z or borde_recorte[2],
-                    ty + alto_p < alto_z or borde_recorte[3],
+                interior = (tx > 0, ty > 0, tx + ancho_p < ancho_z, ty + alto_p < alto_z)
+                region = Caja(
+                    (x0 + tx * ex) / ancho,
+                    (y0 + ty * ey) / alto,
+                    (x0 + (tx + ancho_p) * ex) / ancho,
+                    (y0 + (ty + alto_p) * ey) / alto,
                 )
                 propias: list[Deteccion] = []
                 for d in self._interno.detectar(
@@ -224,9 +255,6 @@ class DetectorMosaico:
                     )
                     if any(t and i for t, i in zip(toca, interior, strict=True)):
                         continue  # un pedazo: el mosaico vecino lo ve entero
-                    lado_px = max((px2 - px1) * ex, (py2 - py1) * ey)
-                    if m.con_cuadro_completo and lado_px > m.objeto_max_px:
-                        continue  # más grande de lo previsto: lo aporta el pase completo
                     cx1 = max((x0 + (tx + px1) * ex) / ancho, 0.0)
                     cy1 = max((y0 + (ty + py1) * ey) / alto, 0.0)
                     cx2 = min((x0 + (tx + px2) * ex) / ancho, 1.0)
@@ -242,5 +270,5 @@ class DetectorMosaico:
                                 track_id=None,
                             )
                         )
-                por_mosaico.append(propias)
+                por_mosaico.append((region, propias))
         return por_mosaico

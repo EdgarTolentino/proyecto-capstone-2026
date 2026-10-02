@@ -175,77 +175,6 @@ def test_objetos_fuera_del_recorte_no_se_ven() -> None:
     assert mosaico.detectar(_cuadro((100, 100, 30)), cuadro_idx=0, capture_ts=T0) == []
 
 
-def test_con_cuadro_completo_tambien_ve_lo_que_queda_fuera_del_recorte() -> None:
-    """Una persona cerca de la cámara cae fuera del foso: el pase completo la recupera."""
-    m = Mosaico(Caja(0.5, 0.0, 1.0, 1.0), 1.0, 640, 100, con_cuadro_completo=True)
-    # Una dentro del recorte (la ven los dos pases: debe quedar una sola) y otra fuera.
-    detecciones = DetectorMosaico(Blancos(), m).detectar(
-        _cuadro((100, 100, 90), (1500, 100, 90)), cuadro_idx=0, capture_ts=T0
-    )
-    assert len(detecciones) == 2
-
-
-class DesplazadoEnCompleto(Blancos):
-    """Como `Blancos`, pero en el cuadro entero devuelve la caja corrida: así se comportan
-    dos pases a escalas distintas sobre la misma persona (IoU bajo entre ellas)."""
-
-    def detectar(
-        self, imagen: np.ndarray, *, cuadro_idx: int, capture_ts: datetime
-    ) -> list[Deteccion]:
-        salida = super().detectar(imagen, cuadro_idx=cuadro_idx, capture_ts=capture_ts)
-        if imagen.shape[:2] != (1080, 1920):
-            return salida
-        return [
-            Deteccion(
-                d.capture_ts,
-                d.cuadro_idx,
-                d.clase,
-                Caja(
-                    d.caja.x1 + d.caja.ancho / 2, d.caja.y1, d.caja.x2 + d.caja.ancho / 2, d.caja.y2
-                ),
-                d.confianza,
-            )
-            for d in salida
-        ]
-
-
-def test_dentro_del_recorte_el_pase_completo_no_duplica_lo_que_ve_el_mosaico() -> None:
-    m = Mosaico(Caja(0.25, 0.25, 0.75, 0.75), 1.0, 384, 100, con_cuadro_completo=True)
-    # Una persona chica dentro del foso: la ven los dos pases, con cajas distintas.
-    detecciones = DetectorMosaico(DesplazadoEnCompleto(), m).detectar(
-        _cuadro((900, 500, 40)), cuadro_idx=0, capture_ts=T0
-    )
-    [d] = detecciones
-    assert d.caja.x1 == pytest.approx(900 / 1920, abs=1e-3), "quedó la del pase completo"
-
-
-def test_una_persona_grande_dentro_del_recorte_la_aporta_el_pase_completo() -> None:
-    """Más grande que objeto_max_px: el mosaico la ve cortada y la descarta."""
-    m = Mosaico(Caja(0.25, 0.25, 0.75, 0.75), 2.0, 384, 60, con_cuadro_completo=True)
-    detecciones = DetectorMosaico(Blancos(), m).detectar(
-        _cuadro((800, 400, 250)), cuadro_idx=0, capture_ts=T0
-    )
-    assert len(detecciones) == 1
-
-
-def test_un_objeto_mas_grande_de_lo_previsto_que_cabe_en_un_mosaico_sale_una_vez() -> None:
-    """150 px > objeto_max_px, pero cabe entero en un mosaico de 384: lo ven el mosaico y el
-    pase completo. Debe aportarlo solo el pase completo."""
-    m = Mosaico(Caja(0.25, 0.25, 0.75, 0.75), 1.0, 384, 100, con_cuadro_completo=True)
-    detecciones = DetectorMosaico(Blancos(), m).detectar(
-        _cuadro((560, 330, 150)), cuadro_idx=0, capture_ts=T0
-    )
-    assert len(detecciones) == 1
-
-
-def test_un_recorte_vacio_igual_corre_el_pase_completo() -> None:
-    m = Mosaico(Caja(0.5, 0.5, 0.5001, 0.5001), 1.0, 640, 100, con_cuadro_completo=True)
-    detecciones = DetectorMosaico(Blancos(), m).detectar(
-        _cuadro((100, 100, 30)), cuadro_idx=0, capture_ts=T0
-    )
-    assert len(detecciones) == 1
-
-
 def test_demasiados_mosaicos_por_cuadro_se_rechazan() -> None:
     mosaico = DetectorMosaico(Blancos(), Mosaico(Caja(0, 0, 1, 1), 4.0, 384, 50))
     with pytest.raises(ValueError, match="mosaicos"):
@@ -300,14 +229,17 @@ def _p(x1: float, x2: float, conf: float = 0.9, clase: ClaseDetectada = P) -> De
     return Deteccion(T0, 0, clase, Caja(x1, 0.2, x2, 0.6), conf)
 
 
+TODO = Caja(0.0, 0.0, 1.0, 1.0)
+
+
 def test_sin_repetidos_une_el_mismo_objeto_visto_por_dos_mosaicos() -> None:
     a, b = _p(0.20, 0.30, 0.7), _p(0.23, 0.33, 0.9)  # centros a 0,3 del ancho
-    assert sin_repetidos([[a], [b]]) == [b]
+    assert sin_repetidos([(TODO, [a]), (TODO, [b])]) == [b]
 
 
 def test_sin_repetidos_no_compara_dentro_de_un_mismo_mosaico() -> None:
     a, b = _p(0.20, 0.30, 0.7), _p(0.23, 0.33, 0.9)
-    assert sorted(sin_repetidos([[a, b]]), key=lambda d: d.confianza) == [a, b]
+    assert sorted(sin_repetidos([(TODO, [a, b])]), key=lambda d: d.confianza) == [a, b]
 
 
 @pytest.mark.parametrize(
@@ -318,16 +250,72 @@ def test_sin_repetidos_no_compara_dentro_de_un_mismo_mosaico() -> None:
     ],
 )
 def test_sin_repetidos_respeta_objetos_distintos(otra: Deteccion, esperadas: int) -> None:
-    assert len(sin_repetidos([[_p(0.20, 0.30)], [otra]])) == esperadas
+    assert len(sin_repetidos([(TODO, [_p(0.20, 0.30)]), (TODO, [otra])])) == esperadas
 
 
-def test_un_objeto_que_cruza_el_borde_del_recorte_sale_entero_del_pase_completo() -> None:
-    m = Mosaico(Caja(0.5, 0.0, 1.0, 1.0), 1.0, 384, 100, con_cuadro_completo=True)
-    # De 940 a 990: la mitad izquierda queda fuera del recorte (que empieza en 960).
-    [d] = DetectorMosaico(Blancos(), m).detectar(
-        _cuadro((940, 300, 50)), cuadro_idx=0, capture_ts=T0
-    )
-    assert d.caja.x1 == pytest.approx(940 / 1920, abs=1e-3)
+def test_sin_repetidos_no_compara_con_un_mosaico_que_no_podia_verla_entera() -> None:
+    """Revisión del #31 (hallazgo A): p2 la ve entera solo el mosaico 2, y en ese mosaico el
+    modelo no detectó a p1. Sin la condición de contención, el emparejamiento tomaba a p2
+    por la copia de la p1 del mosaico 1 (están cerca) y p2 desaparecía."""
+    p1, p2 = _p(0.20, 0.30, 0.9), _p(0.22, 0.32, 0.8)
+    region1 = Caja(0.0, 0.0, 0.31, 1.0)  # contiene a p1, corta a p2
+    region2 = Caja(0.1, 0.0, 0.6, 1.0)  # contiene a las dos
+    resultado = sin_repetidos([(region1, [p1]), (region2, [p2])])
+    assert sorted(d.confianza for d in resultado) == [0.8, 0.9]
+
+
+def test_sin_repetidos_empareja_uno_a_uno() -> None:
+    """Dos personas cercanas vistas por dos mosaicos: cada una se empareja con su copia, y
+    ninguna se come a la otra aunque el orden de confianzas las cruce."""
+    a1, b1 = _p(0.20, 0.30, 0.95), _p(0.22, 0.32, 0.60)
+    a2, b2 = _p(0.20, 0.30, 0.70), _p(0.22, 0.32, 0.90)
+    resultado = sin_repetidos([(TODO, [a1, b1]), (TODO, [a2, b2])])
+    assert sorted(d.confianza for d in resultado) == [0.9, 0.95]
+
+
+class PorCanal(Blancos):
+    """Un objeto por canal de color (B, G, R): admite objetos superpuestos, como una
+    persona tapada por otra."""
+
+    def detectar(
+        self, imagen: np.ndarray, *, cuadro_idx: int, capture_ts: datetime
+    ) -> list[Deteccion]:
+        import cv2
+
+        alto, ancho = imagen.shape[:2]
+        salida = []
+        for canal in range(3):
+            mascara = (imagen[:, :, canal] == 255).astype(np.uint8)
+            n, _, stats, _ = cv2.connectedComponentsWithStats(mascara)
+            for x, y, w, h, _ in stats[1:n]:
+                caja = Caja(x / ancho, y / alto, (x + w) / ancho, (y + h) / alto)
+                salida.append(Deteccion(capture_ts, cuadro_idx, P, caja, 0.9 - canal / 10))
+        return salida
+
+
+def test_una_persona_tapada_en_el_solape_no_desaparece() -> None:
+    """El escenario exacto de la revisión: recorte (0, 0, 0,3, 0,2), factor 2, lado 384,
+    objeto_max 50; p1 de 50 px en x=135 y p2 de 50 px en x=155."""
+    imagen = np.zeros((1080, 1920, 3), dtype=np.uint8)
+    imagen[60:110, 135:185, 0] = 255
+    imagen[60:110, 155:205, 1] = 255
+    m = Mosaico(Caja(0.0, 0.0, 0.3, 0.2), 2.0, 384, 50)
+    detecciones = DetectorMosaico(PorCanal(), m).detectar(imagen, cuadro_idx=0, capture_ts=T0)
+    assert len(detecciones) == 2
+
+
+def test_un_recorte_vacio_no_ve_nada() -> None:
+    m = Mosaico(Caja(0.5, 0.5, 0.5001, 0.5001), 1.0, 640, 100)
+    assert DetectorMosaico(Blancos(), m).detectar(_cuadro(), cuadro_idx=0, capture_ts=T0) == []
+
+
+def test_validar_rechaza_la_configuracion_antes_del_primer_cuadro() -> None:
+    mosaico = DetectorMosaico(Blancos(), Mosaico(Caja(0, 0, 1, 1), 4.0, 384, 50))
+    with pytest.raises(ValueError, match="mosaicos"):
+        mosaico.validar(1920, 1080)
+    rx0, ry0, rx1, ry1 = FOSO_REAL
+    foso = Caja(rx0 / 1920, ry0 / 1080, rx1 / 1920, ry1 / 1080)
+    DetectorMosaico(Blancos(), Mosaico(foso, 2.0, 384, 100)).validar(1920, 1080)  # 60: pasa
 
 
 def test_la_version_dice_que_es_mosaico_y_de_que_modelo() -> None:
