@@ -22,6 +22,20 @@ tracks, no permite reglas en segundos, no puede correr
 entrenamiento y **jamás** conjunto de prueba. Confundir las dos cosas es el error que dejaría el
 proyecto sin nada que defender.
 
+### Decisión del 2026-10-01: no hay grabación propia
+
+El equipo decidió **no grabar en obra** (#10 se cierra). Un video de YouTube de unos 15 min
+ocupa el lugar de la grabación propia, con una regla que no cambia: **se usa solo para prueba y
+demostración, nunca para entrenar.** El detector se entrena únicamente con los datasets públicos
+de §2.bis. Lo que sale de esta decisión:
+
+- La métrica de prueba se mide en una escena que el modelo no vio. Es más débil que una
+  grabación propia, porque es una sola escena y una sola cámara, y así se declara en el informe.
+- El video no tiene licencia de reutilización declarada. Queda fuera del repositorio y se
+  registra en el lote 3 con su URL y esa salvedad.
+- Ya no aplican la autorización de la empresa ni el consentimiento de §3: no se graba a nadie.
+  Sigue aplicando el ADR-006 (rostro difuminado en todo recorte, sin identificación).
+
 ## 2. Inventario
 
 Se llena con `scripts/inventario_video.py`, que saca de cada archivo lo que aquí importa sin
@@ -129,6 +143,36 @@ el autor **no cuenta**.
 | [Construction-PPE](https://docs.ultralytics.com/datasets/detect/construction-ppe) (Ultralytics) | **AGPL-3.0**, la misma licencia que ADR-002 deja fuera |
 | CPPE-5 | Dominio médico: no tiene casco de obra ni chaleco |
 
+### Uso real — 2026-10-01 (`scripts/fuentes.yaml`)
+
+Los datasets se bajan con `scripts/descargar_datasets.py` y se unen con
+`scripts/preparar_dataset.py`, todo fuera del repositorio. Cada descarga deja un `ORIGEN.json`
+con la versión y el sha256.
+
+| Fuente | Estado | Lo que se verificó al descargar |
+|---|---|---|
+| Hard Hat Detection (Kaggle) | Descargado el 2026-10-01 | 5000 imágenes `hard_hat_workers*.png`: son las de **Hard Hat Workers**, que por eso no se baja aparte. Categorías `helmet` (18.966), `head` (5.785) y `person` (751, en solo 158 imágenes) |
+| Construction Site Safety (Roboflow) | Descargado el 2026-10-01, **versión 30** (fijada en `fuentes.yaml`) | 717 imágenes, licencia CC BY 4.0 en su `README.dataset.txt`. Trae 25 categorías: entran `Hardhat`, `Safety Vest` y `Person`; las otras 22 se descartan a propósito |
+
+**Personas completadas automáticamente.** Una persona sin caja le enseña al modelo que es
+fondo. En las fuentes que no marcan a todas las personas, el RF-DETR Medium preentrenado en
+COCO (Apache-2.0, umbral 0,6) propone las que faltan, y se agregan con `"automatica": true` en
+el COCO de salida. Así se pueden auditar y contar por separado. El 2026-10-01 se revisaron a
+ojo 6 imágenes dibujadas, de una corrida de 200 de Hard Hat Detection: cajas de cuerpo
+entero, sin duplicar las que ya venían. Es una muestra, no una auditoría.
+
+**Cuadros del mismo video.** Roboflow parte Construction Site Safety por cuadro, y la revisión
+independiente encontró cuadros del mismo video en entrenamiento y en prueba. El dHash no los
+detecta: quedan a más de 14 bits. `fuentes.yaml` declara patrones que reconocen el video en el
+nombre del archivo (159 imágenes `*_mp4-N` y `*_MOV-N`), y cada video va entero a una sola
+partición. Las 192 `youtube-N` no dicen de qué video vienen y van como un solo grupo.
+La validación y la prueba públicas sirven para elegir el checkpoint; la medición que se
+reporta es sobre el video de prueba.
+
+**Limitación conocida del chaleco.** Solo Construction Site Safety marca chaleco. En las demás
+fuentes, un chaleco visible sin caja también cuenta como fondo. La v1 lo acepta; la segunda
+ronda (#37) puede completar chalecos con el primer modelo, como se hizo con las personas.
+
 **Decisión propuesta:** partir con **Hard Hat Workers + Construction Site Safety + SHWD**, y
 sumar *Safety Vests* y los dos de Kaggle si falta volumen de chaleco. Las atribuciones de los CC BY
 van en el README del repositorio y en el informe final.
@@ -166,9 +210,9 @@ vuelve — y hay que arrancarlo con cinco semanas de anticipación.
 
 | # | Tarea | Cuándo | Estado |
 |---|---|---|---|
-| 1 | **Conseguir más video largo y de cámara fija** — hay 1,8 min de los 20-30 | **S5** | 🔴 |
-| 2 | Grabar los 20-30 min con el protocolo de arriba (#10) | S5 | 🔴 |
+| 1 | **Conseguir más video largo y de cámara fija** — hay 1,8 min de los 20-30 | **S5** | 🟢 Reemplazado por el video de YouTube (decisión del 2026-10-01) |
+| 2 | Grabar los 20-30 min con el protocolo de arriba (#10) | S5 | ⚪ No se hará (decisión del 2026-10-01) |
 | 3 | Recortar los verticales a 16:9 o dejarlos fuera del conjunto de prueba | S5 | 🟠 |
-| 4 | Conseguir los dos papeles de autorización antes de grabar | Antes de grabar | 🟠 |
+| 4 | Conseguir los dos papeles de autorización antes de grabar | Antes de grabar | ⚪ No aplica: no se graba |
 | 5 | Repetir la medición de píxeles sobre el video propio | Tras grabar | 🟠 |
 | 6 | Anotar cada lote nuevo en el inventario, con el script | Continuo | 🟡 |

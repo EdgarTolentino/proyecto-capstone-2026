@@ -7,6 +7,7 @@ dependencies = [
     "gepp-core",
     "numpy>=2.0",
     "opencv-python-headless>=4.10",
+    "pyyaml>=6.0",
     "onnxruntime>=1.20",
     "scipy>=1.13",
 ]

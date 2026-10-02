@@ -36,3 +36,12 @@ faena sale de la infraestructura controlada.
   final, y solo si hace falta**.
 - El repositorio es público: ni una imagen de faena entra en él. Lo fuerzan el `.gitignore` y un
   gancho de pre-commit que rechaza binarios grandes.
+
+## Actualización — 2026-10-01
+
+No habrá video de faena: el equipo decidió no grabar (ver `07-datasets.md`). El preentrenamiento
+con datasets públicos se hace en la **máquina local con GPU** (RTX 4070 Laptop, 8 GB), no en la
+nube. La razón de fondo de este ADR, que ningún dato de faena salga de la infraestructura, no se
+toca. Correrlo en local ahorra subir datasets y lidiar con cuotas. Sigue en pie la regla de no
+entrenar y servir a la vez en esa máquina.
+
