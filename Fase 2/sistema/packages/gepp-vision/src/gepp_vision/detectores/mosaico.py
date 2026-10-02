@@ -65,7 +65,7 @@ DISTANCIA_MISMO_OBJETO = 0.5
 #: grande o corrida, y una caja que toca el borde se descarta como pedazo.
 HOLGURA_SOLAPE = 1.2
 #: Mosaicos por cuadro sobre los que se rechaza la configuración: el costo se dispara sin
-#: avisar (con factor 2, lado 384 y sin recorte, 1920x1080 serían 231).
+#: avisar (con factor 2, lado 384, objeto_max_px 100 y sin recorte, 1920x1080 serían 364).
 MAX_MOSAICOS = 64
 
 
