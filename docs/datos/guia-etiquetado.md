@@ -87,6 +87,25 @@ momento y quedan escritas en la sección 7.
 entran al repositorio. Al repositorio llega solo el manifiesto `datos/lote0.csv`, con archivo,
 video, partición y hash perceptual; el hash no permite reconstruir la imagen.
 
+### CVAT en la máquina de Edgar (instalado el 2026-10-01)
+
+| Qué | Dónde |
+|---|---|
+| CVAT 2.77.0 | `~/herramientas/cvat`, fuera del repositorio. `docker compose up -d` lo levanta |
+| Dirección | <http://localhost:8180>. El 8080 lo ocupa otro proyecto: el puerto se cambia en `docker-compose.override.yml` |
+| Usuario administrador | `edgar`; la clave está en `~/.config/gepp/cvat.env` (permisos 600, nunca en el repositorio) |
+| Proyecto | `guardian-epp-v01`: `persona` (`ocluida`), `casco` y `chaleco` (`puesto`), y la etiqueta de imagen `tiene_pequenos` |
+| Tarea | `prueba-youtube-lote0`: los 240 cuadros de `datos/lote0.csv`, en **4 trabajos de 60, uno por tramo**, para repartirlos |
+
+**Pre-etiquetas.** `scripts/preetiquetar.py` corre el modelo con `DetectorMosaico` sobre el foso
+y el modelo normal fuera de él, descarta las cajas de menos de 10 px y escribe COCO 1.0. Se
+importa en la tarea con *Actions → Upload annotations → COCO 1.0*. **Son sugerencias:** se
+revisa cada caja, se agrega lo que falta y se fijan los atributos, que el modelo no infiere
+(todas llegan con el valor por defecto: `puesto = si`, `ocluida = no`). Corregir una
+pre-etiqueta no exime de mirar la imagen entera. Las primeras pre-etiquetas del lote de
+prueba traen **71 pares de cajas repetidas** sobre la misma persona o casco: se borra una de
+cada par.
+
 ## 7. Casos decididos en sesión
 
 Se completa en cada sesión: fecha, caso, decisión y quiénes estaban.

@@ -58,26 +58,43 @@ buscar la forma de esquivarlo.
 ## Cómo se trabaja con un asistente aquí
 
 **Explorar → planificar → implementar → verificar.** Si el cambio no se describe en una frase,
-primero un plan con los archivos que se tocan y cómo se comprobará. Un PR, una cosa, de menos de
-400 líneas.
+primero va un plan con los archivos que se tocan y cómo se comprobará. Un PR, una cosa, de menos
+de 400 líneas (CONTRIBUTING). Si no cabe, se dice antes de abrirlo, no después.
 
-Las reglas siguientes salieron de errores reales en este proyecto:
+**Antes de escribir:** si lo pedido choca con una regla, un ADR o un invariante, **se dice apenas
+se ve**, con la cita, y decide un humano. No se intenta esquivar en silencio. Tres intentos para
+esquivar una regla cuestan más que una pregunta.
 
-1. **No afirmar lo que no se miró.** Si el PR, el commit o un README dice que algo «funciona» o
-   «conserva» algo, se comprobó en la app o con un test, y se dice cómo. Repetir una afirmación
-   no la verifica.
-2. **Evidencia antes que afirmación.** «Pasa» significa: este comando, en este commit, con esta
-   salida. Toda cifra que entra a un PR (tests, módulos, métricas) se recalcula en el momento.
-3. **La suite completa va una vez, al final, antes de pedir revisión**, no después.
-4. **Un test se prueba inyectándole el defecto que dice cuidar.** Si no cae, no protege nada. Los
-   tests de navegación y filtros revisan el **estado** visible, no solo la URL.
-5. **Antes de cambiar de dónde sale un dato, `grep` de quién lo consume.**
-6. **Toda función con centinela o con límites** (fechas, ventanas, paginación, umbrales) se
-   prueba en sus dos extremos y con una entrada inválida.
-7. **Una guarda que se dispara** (test de AST, CI de licencias, mypy) **se entiende antes de
-   tocarla.** Si molesta, lo normal es que el defecto sea propio.
-8. **Fechas:** se cortan en la zona horaria de la faena (`config.zona_horaria`), no en la del
-   navegador. Los rangos son semiabiertos `[desde, hasta)`.
+### Las reglas
+
+Cada una salió de un error real en este proyecto. La columna «Se cumple cuando» es lo que un
+revisor puede comprobar.
+
+| # | Regla | Se cumple cuando |
+|---|---|---|
+| 1 | **No afirmar lo que no se miró.** Repetir una afirmación no la verifica | Cada «funciona», «conserva» o «pasa» del PR, del commit o de un README trae su evidencia: comando y salida, test o captura. Lo probado solo contra el mock o con una muestra lo dice |
+| 2 | **Las cifras se copian de una salida, no se calculan de memoria** | Cada número del PR (tests, imágenes, métricas) se puede rastrear hasta un comando corrido en ese commit. Se recalculan justo antes de publicar |
+| 3 | **La suite completa va una vez, al final, antes de pedir revisión** | El PR pega la salida de esa corrida (`make lint tipos test` o `npm run lint typecheck test build`) |
+| 4 | **Un test se valida inyectándole el defecto que dice cuidar** | Se rompió el código a propósito y el test cayó. Los tests de interfaz miran el estado visible, no solo la URL |
+| 5 | **Toda función con umbral o centinela se prueba en sus dos extremos y con una entrada inválida** | Hay un caso justo en el umbral, uno a cada lado y uno inválido. Para umbrales en coma flotante, valores diádicos (0,25; 0,5; 0,75) que dan resultados exactos |
+| 6 | **Una guarda que se dispara se entiende antes de tocarla** (tests de AST, CI de licencias, mypy, `CategoriaDesconocida`) | El commit explica por qué se disparó. Si molesta, lo normal es que el defecto sea propio |
+| 7 | **El significado de un dato se comprueba con una ejecución real**, no con su nombre ni con la documentación | Ids de clase, unidades, zonas horarias y formatos de caja se verifican con datos de verdad. Ejemplo: en RF-DETR COCO, `class_names[1]` es `bicycle`, pero `predict` devuelve `1` para persona |
+| 8 | **Antes de cambiar de dónde sale un dato, `grep` de quién lo consume** | El PR lista los consumidores revisados |
+| 9 | **Dos intentos fallidos con el mismo enfoque: se para y se vuelve a explorar** | No hay un tercer parche sobre el mismo síntoma. Se relee el código o se abre una sesión limpia |
+| 10 | **Un comando que reinstala o borra se lee antes de correrlo** | En la máquina con GPU, `make setup-gpu` y nunca un `uv sync` pelado, que desinstala `rfdetr` y `torch`. Se mira el destino antes de borrar o sobrescribir |
+
+### Datos y modelos
+
+- **Ningún dato entra a entrenar ni a evaluar sin una fila en `docs/producto/07-datasets.md`.**
+- **Lo que se entrena no se evalúa.** El video de prueba nunca entra a entrenamiento, y la
+  partición es por video y escena, nunca por cuadro (`dataset.verificar_particion`).
+- **Las métricas de un modelo van con el commit, los datos y los pesos que las produjeron.**
+  Sin eso no se pueden reproducir.
+
+### Fechas
+
+Se cortan en la zona horaria de la faena (`config.zona_horaria`), no en la del navegador. Los
+rangos son semiabiertos: `[desde, hasta)`.
 
 ## Validación cruzada entre IA
 
