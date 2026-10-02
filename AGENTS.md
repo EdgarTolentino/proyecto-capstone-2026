@@ -46,6 +46,30 @@ Un cambio está terminado cuando se cumplen las cinco condiciones:
    último elemento, valor cero.
 5. **La plantilla del PR está completa:** «Cómo lo verificaste» lleva comandos y salida.
 
+## Hábitos que evitan errores
+
+- **Si la tarea choca con una regla de este archivo o con un ADR, se avisa antes de escribir
+  código**, citando la regla. No se busca la forma de esquivarla.
+- **Las cifras se copian de una salida, no se calculan de memoria.** Antes de publicar, se
+  recalculan.
+- **El significado de un dato se comprueba con una ejecución real**, no con su nombre: qué id
+  es cada clase, en qué unidad viene un número, en qué zona horaria está una fecha.
+- **Dos intentos fallidos con el mismo enfoque: se para.** Se relee el código o se empieza
+  limpio, en vez de un tercer parche sobre el mismo síntoma.
+- **Antes de cambiar de dónde sale un dato, se busca quién lo consume** (`grep`).
+- **Un comando que reinstala o borra se lee antes de correrlo.** En la máquina con GPU se usa
+  `make setup-gpu`, nunca un `uv sync` pelado: desinstala `rfdetr` y `torch`. Antes de borrar
+  o sobrescribir, se mira qué hay.
+
+## Datos y modelos
+
+- **Ningún dato entra a entrenar ni a evaluar sin una fila en
+  `docs/producto/07-datasets.md`.**
+- **Lo que se entrena no se evalúa.** El video de prueba nunca entra a entrenamiento, y la
+  partición es por video y escena, nunca por cuadro (`dataset.verificar_particion`).
+- **Las métricas de un modelo van con el commit, los datos y los pesos que las produjeron.**
+  Sin eso no se pueden reproducir.
+
 ## Frontend: errores que ya ocurrieron aquí
 
 - **La URL y el estado deben coincidir siempre.** Si un filtro vive en la URL, el estado se
