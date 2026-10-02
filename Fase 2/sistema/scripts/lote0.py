@@ -11,6 +11,12 @@
    doble etiquetado sale con semilla fija: la misma corrida elige las mismas imágenes.
 4. Verifica la partición: ningún video ni escena en dos particiones.
 
+**Cámara fija (`--sin-deduplicar`).** En un CCTV fijo el fondo domina el dHash y todos los
+cuadros "se parecen" aunque las personas se muevan: 150 cuadros del video de prueba quedaron
+en 1 (2026-10-01). Para un video que va entero a una sola partición, `--sin-deduplicar`
+conserva todos los cuadros muestreados; el espaciado lo da `--cada-s`. La verificación del
+paso 4 se hace igual: si una escena aparece en dos particiones, falla.
+
 `particion.yaml` lo escribe una persona, no el script: la regla de dejar cámaras completas y
 un día completo en prueba necesita saber qué cámara y qué día es cada video. Formato:
 
@@ -67,6 +73,11 @@ def main(argv: list[str] | None = None) -> int:
     p.add_argument("--particion", type=Path, required=True)
     p.add_argument("--cada-s", type=float, default=2.0)
     p.add_argument("--manifiesto", type=Path, default=Path("lote0.csv"))
+    p.add_argument(
+        "--sin-deduplicar",
+        action="store_true",
+        help="conserva todos los cuadros muestreados (ver CAMARA_FIJA en el docstring)",
+    )
     args = p.parse_args(argv)
 
     asignacion = leer_particion(args.particion)
@@ -89,7 +100,7 @@ def main(argv: list[str] | None = None) -> int:
             fuente.cerrar()
 
     hashes = [dhash(img) for _, _, img in candidatos]  # type: ignore[arg-type]
-    conservados = deduplicar(hashes)
+    conservados = list(range(len(hashes))) if args.sin_deduplicar else deduplicar(hashes)
     imagenes: list[Imagen] = []
     for i in conservados:
         video, indice, img = candidatos[i]
@@ -110,7 +121,8 @@ def main(argv: list[str] | None = None) -> int:
 
     por_particion = {p.value: sum(1 for i in imagenes if i.particion == p) for p in Particion}
     print(
-        f"{len(candidatos)} cuadros muestreados, {len(imagenes)} tras deduplicar "
+        f"{len(candidatos)} cuadros muestreados, {len(imagenes)} "
+        f"{'sin deduplicar' if args.sin_deduplicar else 'tras deduplicar'} "
         f"→ {por_particion}. Manifiesto: {args.manifiesto}"
     )
     return 0

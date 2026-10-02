@@ -139,3 +139,63 @@ def test_el_doble_etiquetado_toma_el_diez_por_ciento_y_nunca_cero(n: int, espera
     assert len(elegidos) == esperado
     assert elegidos == elegir_doble(n)  # misma semilla, misma elección
     assert all(0 <= i < n for i in elegidos)
+
+
+def _video_camara_fija(ruta: Path, segundos: int = 10, fps: int = 5) -> None:
+    """Fondo quieto con textura y un cuadrado chico que se mueve: así se ve un CCTV fijo."""
+    import cv2
+
+    fondo = np.random.default_rng(7).integers(0, 256, (120, 160, 3), dtype=np.uint8)
+    escritor = cv2.VideoWriter(str(ruta), cv2.VideoWriter_fourcc(*"mp4v"), fps, (160, 120))
+    for i in range(segundos * fps):
+        cuadro = fondo.copy()
+        x = (i * 3) % 140
+        cuadro[50:60, x : x + 10] = 255
+        escritor.write(cuadro)
+    escritor.release()
+
+
+def _correr_lote0(tmp_path: Path, particion: str, *extra: str) -> list[dict[str, str]]:
+    from scripts.lote0 import main  # type: ignore[import-not-found]
+
+    (tmp_path / "particion.yaml").write_text(particion, encoding="utf-8")
+    manifiesto = tmp_path / "lote.csv"
+    main(
+        [
+            str(tmp_path / "videos"),
+            str(tmp_path / "salida"),
+            "--particion",
+            str(tmp_path / "particion.yaml"),
+            "--cada-s",
+            "1",
+            "--manifiesto",
+            str(manifiesto),
+            *extra,
+        ]
+    )
+    return list(csv.DictReader(manifiesto.open(encoding="utf-8")))
+
+
+@pytest.mark.integration
+@pytest.mark.parametrize(("extra", "minimo"), [((), 1), (("--sin-deduplicar",), 10)])
+def test_con_camara_fija_la_deduplicacion_vacia_el_lote(
+    tmp_path: Path, extra: tuple[str, ...], minimo: int
+) -> None:
+    """En un CCTV fijo el fondo domina el dHash: 150 cuadros del video de prueba quedaron en 1
+    (2026-10-01). Para un video que va entero a prueba, `--sin-deduplicar` conserva todos."""
+    (tmp_path / "videos").mkdir()
+    _video_camara_fija(tmp_path / "videos" / "fija.mp4")
+    filas = _correr_lote0(tmp_path, "prueba: [fija.mp4]\n", *extra)
+    if extra:
+        assert len(filas) >= minimo
+    else:
+        assert len(filas) <= 2  # la deduplicación lo colapsa
+
+
+@pytest.mark.integration
+def test_sin_deduplicar_igual_impide_la_fuga_entre_particiones(tmp_path: Path) -> None:
+    (tmp_path / "videos").mkdir()
+    _video_camara_fija(tmp_path / "videos" / "a.mp4")
+    _video_camara_fija(tmp_path / "videos" / "b.mp4")  # la misma escena
+    with pytest.raises(ParticionInvalida):
+        _correr_lote0(tmp_path, "entrenamiento: [a.mp4]\nprueba: [b.mp4]\n", "--sin-deduplicar")
