@@ -6,11 +6,14 @@ import type {
   Hallazgo,
   HallazgoDetalle,
   PaginaHallazgos,
+  Panel,
+  FiltrosPanel,
   Regla,
   ReglaEntrada,
   ResultadoSimulacion,
   Sesion,
 } from "./types";
+import { esFechaValida, inicioDelDiaEnFaena, sumarDias } from "./fechas";
 
 // En desarrollo usamos el mock. En producción esta URL se cambia con VITE_API_URL.
 const API_URL = import.meta.env.VITE_API_URL ?? "http://127.0.0.1:4010";
@@ -63,6 +66,14 @@ async function api<T>(ruta: string, opciones?: RequestInit): Promise<T> {
 function parametrosDeApi(filtros: FiltrosHallazgos): URLSearchParams {
   const parametros = new URLSearchParams({ limite: "200" });
 
+  const instanteFecha = (valor: string, fin = false) => {
+    if (/^\d{4}-\d{2}-\d{2}$/.test(valor)) {
+      if (!esFechaValida(valor)) return undefined;
+      return inicioDelDiaEnFaena(fin ? sumarDias(valor, 1) : valor);
+    }
+    return Number.isFinite(Date.parse(valor)) ? valor : undefined;
+  };
+
   // Las pestañas se traducen a filtros del contrato.
   if (filtros.vista === "por_revisar") parametros.set("estado", "por_revisar");
   if (filtros.vista === "confirmados") parametros.set("estado", "confirmado");
@@ -73,8 +84,14 @@ function parametrosDeApi(filtros: FiltrosHallazgos): URLSearchParams {
   if (filtros.areaId) parametros.set("area_id", filtros.areaId);
   if (filtros.fuenteId) parametros.set("fuente_id", filtros.fuenteId);
   if (filtros.epp) parametros.set("epp", filtros.epp);
-  if (filtros.desde) parametros.set("desde", new Date(`${filtros.desde}T00:00:00`).toISOString());
-  if (filtros.hasta) parametros.set("hasta", new Date(`${filtros.hasta}T23:59:59`).toISOString());
+  if (filtros.desde) {
+    const desde = instanteFecha(filtros.desde);
+    if (desde) parametros.set("desde", desde);
+  }
+  if (filtros.hasta) {
+    const hasta = instanteFecha(filtros.hasta, true);
+    if (hasta) parametros.set("hasta", hasta);
+  }
   if (filtros.turno) parametros.set("turno", filtros.turno);
   if (filtros.orden) parametros.set("orden", filtros.orden);
 
@@ -98,6 +115,36 @@ export const obtenerHallazgo = (id: number) => api<HallazgoDetalle>(`/hallazgos/
 export const obtenerCatalogos = () => api<Catalogos>("/catalogos");
 export const obtenerEstado = () => api<EstadoSistema>("/estado");
 export const obtenerSesion = () => api<Sesion>("/yo");
+
+function parametrosDelPanel(filtros: FiltrosPanel = {}): URLSearchParams {
+  const parametros = new URLSearchParams();
+
+  const instante = (valor: string, fin = false) => {
+    if (/^\d{4}-\d{2}-\d{2}$/.test(valor)) {
+      if (!esFechaValida(valor)) return undefined;
+      return inicioDelDiaEnFaena(fin ? sumarDias(valor, 1) : valor);
+    }
+    return Number.isFinite(Date.parse(valor)) ? valor : undefined;
+  };
+
+  if (filtros.desde) {
+    const desde = instante(filtros.desde);
+    if (desde) parametros.set("desde", desde);
+  }
+  if (filtros.hasta) {
+    const hasta = instante(filtros.hasta, true);
+    if (hasta) parametros.set("hasta", hasta);
+  }
+  if (filtros.turno) parametros.set("turno", filtros.turno);
+  if (filtros.obraId !== undefined) parametros.set("obra_id", String(filtros.obraId));
+
+  return parametros;
+}
+
+export function obtenerPanel(filtros: FiltrosPanel = {}): Promise<Panel> {
+  const consulta = parametrosDelPanel(filtros).toString();
+  return api<Panel>(`/panel${consulta ? `?${consulta}` : ""}`);
+}
 
 export function listarReglas(areaId?: string): Promise<Regla[]> {
   const parametros = new URLSearchParams();

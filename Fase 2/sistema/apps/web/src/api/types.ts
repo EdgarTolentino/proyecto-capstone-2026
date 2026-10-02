@@ -13,6 +13,14 @@ export type EstadoHallazgo = components["schemas"]["EstadoHallazgo"];
 export type Regla = components["schemas"]["Regla"];
 export type ReglaEntrada = components["schemas"]["ReglaEntrada"];
 export type ResultadoSimulacion = components["schemas"]["ResultadoSimulacion"];
+export type Panel = components["schemas"]["Panel"];
+
+export interface FiltrosPanel {
+  desde?: string;
+  hasta?: string;
+  turno?: string;
+  obraId?: number;
+}
 
 // El contrato define este objeto dentro de GET /estado y no le da un nombre propio.
 export interface EstadoSistema {

@@ -1,4 +1,4 @@
-import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
+import { keepPreviousData, useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { AlertTriangle, LoaderCircle } from "lucide-react";
 import { useMemo, useState } from "react";
 
@@ -6,6 +6,7 @@ import {
   ApiError,
   listarHallazgos,
   obtenerCatalogos,
+  obtenerPanel,
   obtenerEstado,
   obtenerSesion,
   triarHallazgo,
@@ -19,15 +20,18 @@ import { FalsePositiveDialog } from "./components/FalsePositiveDialog";
 import { HallazgoFilters } from "./components/HallazgoFilters";
 import { HallazgosGrid } from "./components/HallazgosGrid";
 import { ReglasPage } from "./components/ReglasPage";
+import { PanelPage } from "./components/PanelPage";
 import { TriageTabs } from "./components/TriageTabs";
 import { useAppNavigation } from "./hooks/useAppNavigation";
 import { useHallazgoFilters } from "./hooks/useHallazgoFilters";
 import { useHallazgoShortcuts } from "./hooks/useHallazgoShortcuts";
+import { usePanelFilters } from "./hooks/usePanelFilters";
 
 export default function App() {
   const queryClient = useQueryClient();
-  const { seccion, navegar } = useAppNavigation();
+  const { seccion, navegar, navegarHallazgos } = useAppNavigation();
   const { filtros, actualizar } = useHallazgoFilters();
+  const { filtros: filtrosPanel, actualizar: actualizarFiltrosPanel } = usePanelFilters();
   const [activoId, setActivoId] = useState<number>();
   const [seleccionados, setSeleccionados] = useState<Set<number>>(new Set());
   const [mostrarMotivo, setMostrarMotivo] = useState(false);
@@ -36,6 +40,15 @@ export default function App() {
   const sesion = useQuery({ queryKey: ["sesion"], queryFn: obtenerSesion });
   const catalogos = useQuery({ queryKey: ["catalogos"], queryFn: obtenerCatalogos, staleTime: Infinity });
   const estado = useQuery({ queryKey: ["estado"], queryFn: obtenerEstado, refetchInterval: 5_000 });
+  const panel = useQuery({
+    queryKey: ["panel", filtrosPanel],
+    queryFn: () => obtenerPanel(filtrosPanel),
+    enabled: seccion === "panel" && (sesion.data?.permisos?.includes("ver_hallazgos") ?? false),
+    placeholderData: keepPreviousData,
+  });
+  const panelSinPermiso = panel.error instanceof ApiError && [401, 403].includes(panel.error.status);
+  const mostrarAvisoObraSinFiltro = seccion === "hallazgos"
+    && new URL(window.location.href).searchParams.has("obra_no_filtrada");
   // El visor no cambia la consulta ni desmonta la tabla: así conserva el desplazamiento.
   const filtrosLista = { ...filtros, hallazgoId: undefined };
   const pagina = useQuery({
@@ -143,8 +156,22 @@ export default function App() {
 
   return (
     <AppShell catalogos={catalogos.data} estado={estado.data} sesion={sesion.data} sesionError={sesion.isError} seccion={seccion} onNavigate={navegar}>
+      {seccion === "panel" && (
+        <PanelPage
+          panel={panel.data}
+          filtros={filtrosPanel}
+          catalogos={catalogos.data}
+          isLoading={sesion.isLoading || panel.isLoading}
+          isError={sesion.isError || (panel.isError && !panelSinPermiso)}
+          sinPermiso={Boolean((sesion.data && !permisos.has("ver_hallazgos")) || panelSinPermiso)}
+          onRetry={() => { if (sesion.isError) void sesion.refetch(); else void panel.refetch(); }}
+          onChangeFilters={actualizarFiltrosPanel}
+          onNavigateHallazgos={navegarHallazgos}
+        />
+      )}
       {seccion === "hallazgos" && (
       <main className="findings-page">
+        {mostrarAvisoObraSinFiltro && <div className="state-message" role="status">La obra seleccionada en el panel no se aplica en esta bandeja: el contrato de Hallazgos no ofrece filtro por obra.</div>}
         {sesion.isLoading && <div className="state-message"><LoaderCircle className="spin" /> Cargando sesión…</div>}
         {sesion.isError && (
           <div className="state-message state-message--error" role="alert">

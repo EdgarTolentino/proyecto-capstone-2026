@@ -25,7 +25,7 @@ interface AppShellProps {
 }
 
 const navegacion = [
-  { texto: "Panel general", icono: BarChart3 },
+  { texto: "Panel general", icono: BarChart3, seccion: "panel" },
   { texto: "Hallazgos", icono: SearchCheck, seccion: "hallazgos" },
   { texto: "Videos", icono: FileVideo },
   { texto: "Reglas", icono: Settings2, seccion: "reglas" },
