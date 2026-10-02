@@ -334,3 +334,53 @@ class TestDetectorMosaico(ContratoDetector):
         caja = Caja(0.4, 0.4, 0.6, 0.6)
         guion = [Segmento(0.0, 10.0, (DeteccionGuionada(P, caja, 0.8),))]
         return DetectorMosaico(DetectorFalso(guion), Mosaico(Caja(0, 0, 1, 1), 2.0, 64, 10))
+
+
+def _px(x1: float, y1: float, x2: float, y2: float) -> Caja:
+    return Caja(x1 / 1920, y1 / 1080, x2 / 1920, y2 / 1080)
+
+
+def test_dos_copias_que_difieren_en_menos_de_un_pixel_se_emparejan() -> None:
+    """Caso real del video de prueba (2026-10-01): la copia del mosaico A empieza en x=669,6 y
+    la región del mosaico B en x=670,0. Con contención exacta, B «no podía verla» por 0,4 px,
+    no se emparejaban y la misma persona salía dos veces (IoU 0,87)."""
+    a = Deteccion(T0, 0, P, _px(669.6, 668.9, 702.2, 722.8), 0.8)
+    b = Deteccion(T0, 0, P, _px(670.9, 665.5, 700.9, 722.9), 0.7)
+    region_a, region_b = _px(600, 538, 792, 730), _px(670, 538, 862, 730)
+    assert sin_repetidos([(region_a, [a]), (region_b, [b])], tolerancia=(4 / 1920, 4 / 1080)) == [a]
+
+
+def test_la_tolerancia_no_alcanza_a_un_objeto_cortado_de_verdad() -> None:
+    """La tolerancia es para diferencias de dibujo, no para un corte: p2 se sale ~19 px de la
+    región 1, así que el mosaico 1 no podía verla y no se compara con su p1."""
+    p1, p2 = _p(0.20, 0.30, 0.9), _p(0.22, 0.32, 0.8)
+    region1, region2 = Caja(0.0, 0.0, 0.31, 1.0), Caja(0.1, 0.0, 0.6, 1.0)
+    resultado = sin_repetidos([(region1, [p1]), (region2, [p2])], tolerancia=(4 / 1920, 4 / 1080))
+    assert len(resultado) == 2
+
+
+def test_detectar_empareja_con_la_tolerancia_en_px_del_cuadro(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    from gepp_vision.detectores import mosaico as modulo
+
+    recibida: list[tuple[float, float]] = []
+
+    def espia(_por_mosaico, tolerancia=(0.0, 0.0)):  # type: ignore[no-untyped-def]
+        recibida.append(tolerancia)
+        return []
+
+    monkeypatch.setattr(modulo, "sin_repetidos", espia)
+    DetectorMosaico(Blancos(), Mosaico(Caja(0, 0, 0.2, 0.2), 1.0, 384, 50)).detectar(
+        _cuadro(), cuadro_idx=0, capture_ts=T0
+    )
+    px = modulo.TOLERANCIA_CONTENCION_PX
+    assert recibida == [(px / 1920, px / 1080)]
+
+
+def test_la_tolerancia_queda_entre_la_diferencia_de_dibujo_y_un_corte() -> None:
+    """Más que la diferencia de dibujo vista entre mosaicos (0,4 px) y bastante menos que lo
+    que corta un borde a una persona tapada en el solape (~19 px en la revisión del #104)."""
+    from gepp_vision.detectores.mosaico import TOLERANCIA_CONTENCION_PX
+
+    assert 0.4 * 2 <= TOLERANCIA_CONTENCION_PX <= 19 / 2

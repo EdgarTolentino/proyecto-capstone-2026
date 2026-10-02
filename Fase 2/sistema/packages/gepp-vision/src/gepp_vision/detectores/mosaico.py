@@ -61,6 +61,12 @@ MARGEN_BORDE = 1
 #: Dos detecciones de mosaicos distintos con los centros a menos de esta fracción del lado
 #: más corto de la más chica son el mismo objeto.
 DISTANCIA_MISMO_OBJETO = 0.5
+#: Cuánto puede salirse una caja (px del cuadro) de la región de otro mosaico y seguir contando
+#: como «ese mosaico la veía entera». Dos mosaicos dibujan el mismo objeto con diferencias de
+#: un píxel: con contención exacta, en el video de prueba una copia se salía 0,4 px, no se
+#: emparejaba y la persona salía dos veces. Un objeto cortado de verdad por el borde se sale
+#: mucho más (una persona tapada en el solape, ~19 px).
+TOLERANCIA_CONTENCION_PX = 4
 #: Holgura del solape sobre el objeto más grande: el modelo puede dibujar la caja algo más
 #: grande o corrida, y una caja que toca el borde se descarta como pedazo.
 HOLGURA_SOLAPE = 1.2
@@ -106,19 +112,23 @@ def posiciones(largo: int, lado: int, solape: int) -> list[int]:
     return inicios
 
 
-def _contiene(region: Caja, caja: Caja) -> bool:
-    e = 1e-9
+def _contiene(region: Caja, caja: Caja, tolerancia: tuple[float, float]) -> bool:
+    tx, ty = tolerancia[0] + 1e-9, tolerancia[1] + 1e-9
     return (
-        caja.x1 >= region.x1 - e
-        and caja.y1 >= region.y1 - e
-        and caja.x2 <= region.x2 + e
-        and caja.y2 <= region.y2 + e
+        caja.x1 >= region.x1 - tx
+        and caja.y1 >= region.y1 - ty
+        and caja.x2 <= region.x2 + tx
+        and caja.y2 <= region.y2 + ty
     )
 
 
-def _copias(a: Deteccion, region_a: Caja, b: Deteccion, region_b: Caja) -> bool:
+def _copias(
+    a: Deteccion, region_a: Caja, b: Deteccion, region_b: Caja, tolerancia: tuple[float, float]
+) -> bool:
     """¿Pueden ser el mismo objeto visto por dos mosaicos?"""
-    if a.clase is not b.clase or not (_contiene(region_a, b.caja) and _contiene(region_b, a.caja)):
+    if a.clase is not b.clase or not (
+        _contiene(region_a, b.caja, tolerancia) and _contiene(region_b, a.caja, tolerancia)
+    ):
         return False
     (ax, ay), (bx, by) = a.caja.centro, b.caja.centro
     chica = a.caja if a.caja.area <= b.caja.area else b.caja
@@ -128,7 +138,9 @@ def _copias(a: Deteccion, region_a: Caja, b: Deteccion, region_b: Caja) -> bool:
     )
 
 
-def sin_repetidos(por_mosaico: list[tuple[Caja, list[Deteccion]]]) -> list[Deteccion]:
+def sin_repetidos(
+    por_mosaico: list[tuple[Caja, list[Deteccion]]], tolerancia: tuple[float, float] = (0.0, 0.0)
+) -> list[Deteccion]:
     """Une las detecciones de todos los mosaicos (cada una con la región del cuadro que cubre
     su mosaico). Las copias del mismo objeto en mosaicos distintos se emparejan uno a uno y
     queda la de mayor confianza; las de un mismo mosaico nunca se comparan."""
@@ -137,7 +149,10 @@ def sin_repetidos(por_mosaico: list[tuple[Caja, list[Deteccion]]]) -> list[Detec
         # Solo hay detecciones de mosaicos anteriores: las de este se agregan al final, así
         # que dos del mismo mosaico nunca se comparan.
         previas = list(enumerate(quedan))
-        posibles = [[_copias(d, region, q, rq) for _, (q, rq, _) in previas] for d in detecciones]
+        posibles = [
+            [_copias(d, region, q, rq, tolerancia) for _, (q, rq, _) in previas]
+            for d in detecciones
+        ]
         emparejadas: set[int] = set()
         if previas and detecciones:
             costo = np.array(
@@ -206,7 +221,9 @@ class DetectorMosaico:
     def detectar(
         self, imagen: np.ndarray, *, cuadro_idx: int, capture_ts: datetime
     ) -> list[Deteccion]:
-        return sin_repetidos(self._en_mosaicos(imagen, cuadro_idx, capture_ts))
+        alto, ancho = imagen.shape[:2]
+        tolerancia = (TOLERANCIA_CONTENCION_PX / ancho, TOLERANCIA_CONTENCION_PX / alto)
+        return sin_repetidos(self._en_mosaicos(imagen, cuadro_idx, capture_ts), tolerancia)
 
     def _en_mosaicos(
         self, imagen: np.ndarray, cuadro_idx: int, capture_ts: datetime
