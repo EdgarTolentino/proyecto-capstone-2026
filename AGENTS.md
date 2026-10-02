@@ -57,6 +57,18 @@ Un cambio está terminado cuando se cumplen las cinco condiciones:
 - **Dos intentos fallidos con el mismo enfoque: se para.** Se relee el código o se empieza
   limpio, en vez de un tercer parche sobre el mismo síntoma.
 - **Antes de cambiar de dónde sale un dato, se busca quién lo consume** (`grep`).
+- **Un comando que reinstala o borra se lee antes de correrlo.** En la máquina con GPU se usa
+  `make setup-gpu`, nunca un `uv sync` pelado: desinstala `rfdetr` y `torch`. Antes de borrar
+  o sobrescribir, se mira qué hay.
+
+## Datos y modelos
+
+- **Ningún dato entra a entrenar ni a evaluar sin una fila en
+  `docs/producto/07-datasets.md`.**
+- **Lo que se entrena no se evalúa.** El video de prueba nunca entra a entrenamiento, y la
+  partición es por video y escena, nunca por cuadro (`dataset.verificar_particion`).
+- **Las métricas de un modelo van con el commit, los datos y los pesos que las produjeron.**
+  Sin eso no se pueden reproducir.
 
 ## Frontend: errores que ya ocurrieron aquí
 
