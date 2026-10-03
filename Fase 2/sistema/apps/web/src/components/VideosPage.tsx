@@ -1,7 +1,8 @@
-import { useInfiniteQuery } from "@tanstack/react-query";
-import { AlertTriangle, LoaderCircle } from "lucide-react";
+import { useInfiniteQuery, useMutation, useQueryClient } from "@tanstack/react-query";
+import { AlertTriangle, LoaderCircle, RotateCcw } from "lucide-react";
+import { useState } from "react";
 
-import { ApiError, listarVideos } from "../api/client";
+import { ApiError, listarVideos, reprocesarVideo } from "../api/client";
 import type { Video } from "../api/types";
 import "./VideosPage.css";
 
@@ -23,7 +24,9 @@ function EstadoVideo({ estado }: { estado: Video["estado"] }) {
     );
 }
 
-export function VideosPage() {
+export function VideosPage({ puedeEditarReglas = false }: { puedeEditarReglas?: boolean }) {
+    const queryClient = useQueryClient();
+    const [mensaje, setMensaje] = useState("");
     const consulta = useInfiniteQuery({
         queryKey: ["videos"],
         queryFn: ({ pageParam }) => listarVideos(pageParam),
@@ -39,6 +42,23 @@ export function VideosPage() {
     }
     const videos = [...videosPorId.values()];
     const sinPermiso = consulta.error instanceof ApiError && [401, 403].includes(consulta.error.status);
+    const reproceso = useMutation({
+        mutationFn: (id: number) => reprocesarVideo(id),
+        onSuccess: async (video) => {
+            setMensaje(video.estado === "en_cola"
+                ? "El video volvió a la cola."
+                : "Las reglas del video se recalcularon sin usar la GPU.");
+            await queryClient.invalidateQueries({ queryKey: ["videos"] });
+        },
+        onError: (error) => {
+            const conflicto = error instanceof ApiError && error.status === 409;
+            setMensaje(conflicto
+                ? "El video ya se está procesando."
+                : "No fue posible reprocesar el video. Intenta nuevamente.");
+            if (conflicto) void queryClient.invalidateQueries({ queryKey: ["videos"] });
+        },
+    });
+
     return (
         <main className="videos-page" aria-labelledby="videos-page-title" aria-busy={consulta.isLoading}>
             <div className="review-heading panel-heading">
@@ -75,6 +95,7 @@ export function VideosPage() {
                                     <th scope="col">Estado</th>
                                     <th scope="col">Intentos</th>
                                     <th scope="col">Motivo del error</th>
+                                    {puedeEditarReglas && <th scope="col">Acciones</th>}
                                 </tr>
                             </thead>
                             <tbody>
@@ -85,6 +106,20 @@ export function VideosPage() {
                                         <td><EstadoVideo estado={video.estado} /></td>
                                         <td className="mono video-attempts">{video.intentos ?? 0}</td>
                                         <td className="video-error">{video.error_motivo || "—"}</td>
+                                        {puedeEditarReglas && (
+                                            <td>
+                                                <button
+                                                    type="button"
+                                                    className="video-reprocess"
+                                                    aria-label={`Reprocesar ${video.archivo}`}
+                                                    disabled={reproceso.isPending}
+                                                    onClick={() => reproceso.mutate(video.id)}
+                                                >
+                                                    <RotateCcw size={14} aria-hidden="true" />
+                                                    Reprocesar
+                                                </button>
+                                            </td>
+                                        )}
                                     </tr>
                                 ))}
                             </tbody>
@@ -99,6 +134,7 @@ export function VideosPage() {
                     )}
                 </>
             )}
+            {mensaje && <div className="video-message" role="status" aria-live="polite">{mensaje}</div>}
         </main>
     );
 }

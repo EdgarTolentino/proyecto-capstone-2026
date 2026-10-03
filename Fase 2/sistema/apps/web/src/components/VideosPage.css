@@ -108,6 +108,33 @@
     color: var(--gepp-critica);
 }
 
+.video-reprocess {
+    display: inline-flex;
+    align-items: center;
+    gap: 6px;
+    min-height: 34px;
+    padding: 0 10px;
+    border-color: var(--gepp-borde-fuerte);
+    background: var(--gepp-superficie);
+    color: var(--gepp-texto-2);
+    font-size: 11px;
+    white-space: nowrap;
+}
+
+.video-reprocess:hover:not(:disabled) {
+    border-color: var(--gepp-acento);
+    color: var(--gepp-acento);
+}
+
+.video-message {
+    margin-top: 12px;
+    padding: 10px 12px;
+    border-left: 3px solid var(--gepp-acento);
+    background: var(--gepp-superficie-alta);
+    color: var(--gepp-texto-2);
+    font-size: 11px;
+}
+
 .videos-pagination {
     display: flex;
     justify-content: center;
