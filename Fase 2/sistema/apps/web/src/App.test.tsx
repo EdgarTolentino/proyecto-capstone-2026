@@ -10,6 +10,7 @@ vi.mock("./api/client", () => ({
   },
   listarHallazgos: vi.fn(async () => ({ items: [{ id: 1 }, { id: 2 }], contadores: {} })),
   listarVideos: vi.fn(async () => ({ items: [] })),
+  reprocesarVideo: vi.fn(async () => ({ estado: "listo" })),
   obtenerSesion: vi.fn(async () => ({ permisos: ["ver_hallazgos", "ver_evidencia", "triar_hallazgos"] })),
   obtenerCatalogos: vi.fn(async () => ({
     obras: [{ id: 7, nombre: "Edificio Norte" }, { id: 8, nombre: "Edificio Sur" }],
@@ -219,4 +220,6 @@ it("abre la cola de videos desde la navegación y consulta listarVideos", async 
   expect(window.location.pathname).toBe("/videos");
   expect(screen.getByRole("button", { name: "Videos" })).toHaveAttribute("aria-current", "page");
   await waitFor(() => expect(api.listarVideos).toHaveBeenCalledWith(undefined));
+  expect(screen.queryByRole("button", { name: "Reprocesar video.mp4" })).not.toBeInTheDocument();
+  expect(api.reprocesarVideo).not.toHaveBeenCalled();
 });

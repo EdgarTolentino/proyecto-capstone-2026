@@ -13,6 +13,7 @@ import type {
   ReglaEntrada,
   ResultadoSimulacion,
   Sesion,
+  Video,
 } from "./types";
 import { esFechaValida, inicioDelDiaEnFaena, sumarDias } from "./fechas";
 
@@ -122,6 +123,9 @@ export function listarVideos(cursor?: string): Promise<PaginaVideos> {
   if (cursor) parametros.set("cursor", cursor);
   return api<PaginaVideos>(`/videos?${parametros}`);
 }
+
+export const reprocesarVideo = (id: number) =>
+  api<Video>(`/videos/${id}/reprocesar`, { method: "POST" });
 
 function parametrosDelPanel(filtros: FiltrosPanel = {}): URLSearchParams {
   const parametros = new URLSearchParams();
