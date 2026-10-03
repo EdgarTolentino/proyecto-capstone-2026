@@ -14,6 +14,12 @@ export type Regla = components["schemas"]["Regla"];
 export type ReglaEntrada = components["schemas"]["ReglaEntrada"];
 export type ResultadoSimulacion = components["schemas"]["ResultadoSimulacion"];
 export type Panel = components["schemas"]["Panel"];
+export type Video = components["schemas"]["Video"];
+
+export interface PaginaVideos {
+  items: Video[];
+  siguiente_cursor?: string | null;
+}
 
 export interface FiltrosPanel {
   desde?: string;

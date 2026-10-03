@@ -9,6 +9,7 @@ vi.mock("./api/client", () => ({
     constructor(message: string, public readonly status: number) { super(message); }
   },
   listarHallazgos: vi.fn(async () => ({ items: [{ id: 1 }, { id: 2 }], contadores: {} })),
+  listarVideos: vi.fn(async () => ({ items: [] })),
   obtenerSesion: vi.fn(async () => ({ permisos: ["ver_hallazgos", "ver_evidencia", "triar_hallazgos"] })),
   obtenerCatalogos: vi.fn(async () => ({
     obras: [{ id: 7, nombre: "Edificio Norte" }, { id: 8, nombre: "Edificio Sur" }],
@@ -196,4 +197,26 @@ it("navega a Reglas y permite volver a Hallazgos", async () => {
   expect(await screen.findByTestId("bandeja")).toBeVisible();
   expect(window.location.pathname).toBe("/hallazgos");
   expect(window.location.search).toBe("?area_id=5");
+});
+
+it("abre la cola de videos desde la navegación y consulta listarVideos", async () => {
+  window.history.replaceState({}, "", "/");
+  vi.mocked(api.listarVideos).mockResolvedValueOnce({
+    items: [{
+      id: 22,
+      archivo: "video.mp4",
+      capture_ts_inicio: "2026-10-02T08:00:00Z",
+      estado: "listo",
+    }],
+  });
+  const client = new QueryClient({ defaultOptions: { queries: { retry: false, staleTime: Infinity } } });
+  render(<QueryClientProvider client={client}><App /></QueryClientProvider>);
+
+  await screen.findByRole("heading", { name: "Panel general" });
+  fireEvent.click(screen.getByRole("button", { name: "Videos" }));
+
+  expect(await screen.findByRole("heading", { name: "Cola de videos" })).toBeVisible();
+  expect(window.location.pathname).toBe("/videos");
+  expect(screen.getByRole("button", { name: "Videos" })).toHaveAttribute("aria-current", "page");
+  await waitFor(() => expect(api.listarVideos).toHaveBeenCalledWith(undefined));
 });
