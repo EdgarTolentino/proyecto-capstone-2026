@@ -79,3 +79,24 @@ def test_onnx_y_pytorch_ven_lo_mismo() -> None:
         assert len(pares) == len(de_onnx) == len(de_pytorch), f"cuadro {idx}"
         for x, y in pares:
             assert x.confianza == pytest.approx(y.confianza, abs=0.02)
+
+
+def test_pytorch_calcula_con_precision_completa_como_onnx() -> None:
+    """Con TF32 en la GPU, PyTorch se aparta del ONNX en CPU hasta 0,146 de confianza: 558 de
+    574 imágenes iguales en la validación del modelo v1. Con precisión completa, 574 de 574
+    (#109). TF32 tiene dos interruptores y los dos importan: el de matmul lo enciende
+    `import rfdetr` y el de cuDNN viene encendido en torch. La paridad de arriba no lo detecta,
+    así que se mira el estado al crear el detector y después de detectar."""
+    import numpy as np
+    import torch
+    from gepp_vision.detectores.rfdetr import DetectorRFDETR
+
+    torch.set_float32_matmul_precision("high")
+    torch.backends.cudnn.allow_tf32 = True
+    detector = DetectorRFDETR(_ruta("GEPP_PESOS_RFDETR"))
+    assert torch.get_float32_matmul_precision() == "highest"
+    assert torch.backends.cudnn.allow_tf32 is False
+    negro = np.zeros((64, 64, 3), dtype=np.uint8)
+    detector.detectar(negro, cuadro_idx=0, capture_ts=datetime(2026, 10, 2, tzinfo=UTC))
+    assert torch.get_float32_matmul_precision() == "highest"
+    assert torch.backends.cudnn.allow_tf32 is False
