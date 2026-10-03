@@ -44,7 +44,13 @@ class DetectorRFDETR:
         if not 0 < umbral < 1:
             raise ValueError("umbral debe estar entre 0 y 1")
         import rfdetr  # extra `gpu`: ver el docstring del módulo
+        import torch
 
+        # `import rfdetr` enciende TF32 (`set_float32_matmul_precision("high")`, en su
+        # `detr.py`) y la GPU se aparta del ONNX en CPU hasta 0,146 de confianza: se evaluaría
+        # un modelo distinto del que se despliega. Con precisión completa coinciden (#109).
+        torch.set_float32_matmul_precision("highest")
+        torch.backends.cudnn.allow_tf32 = False
         self._mapa = mapa or MapaDeClases.desde_json(MapaDeClases.junto_a(pesos))
         self._umbral = umbral
         self._modelo: Any = getattr(rfdetr, VARIANTES[variante])(pretrain_weights=str(pesos))

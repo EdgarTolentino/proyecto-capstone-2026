@@ -79,3 +79,18 @@ def test_onnx_y_pytorch_ven_lo_mismo() -> None:
         assert len(pares) == len(de_onnx) == len(de_pytorch), f"cuadro {idx}"
         for x, y in pares:
             assert x.confianza == pytest.approx(y.confianza, abs=0.02)
+
+
+def test_pytorch_calcula_con_precision_completa_como_onnx() -> None:
+    """`import rfdetr` deja TF32 encendido en la GPU (`set_float32_matmul_precision("high")`)
+    y PyTorch se aparta del ONNX en CPU hasta 0,146 de confianza: 558 de 574 imágenes iguales
+    en la validación del modelo v1. Con precisión completa, 574 de 574 (#109). El detector la
+    restablece cada vez que se crea, aunque otro código la haya bajado antes."""
+    import torch
+    from gepp_vision.detectores.rfdetr import DetectorRFDETR
+
+    torch.set_float32_matmul_precision("high")
+    torch.backends.cudnn.allow_tf32 = True
+    DetectorRFDETR(_ruta("GEPP_PESOS_RFDETR"))
+    assert torch.get_float32_matmul_precision() == "highest"
+    assert torch.backends.cudnn.allow_tf32 is False
