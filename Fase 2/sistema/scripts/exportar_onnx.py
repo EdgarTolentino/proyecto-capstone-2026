@@ -86,7 +86,10 @@ def main(argv: list[str] | None = None) -> int:
         sys.exit(f"no está {pesos}: ¿terminó entrenar.py?")
 
     import rfdetr  # extra `gpu`
+    from gepp_vision.detectores.rfdetr import usar_precision_completa
     from PIL import Image
+
+    usar_precision_completa()  # el mapa se verifica con el mismo cálculo que se despliega (#109)
 
     modelo = getattr(rfdetr, VARIANTES[args.variante])(pretrain_weights=str(pesos))
     mapa = MapaDeClases(nombre, {i: ClaseDetectada(n) for i, n in enumerate(modelo.class_names)})
