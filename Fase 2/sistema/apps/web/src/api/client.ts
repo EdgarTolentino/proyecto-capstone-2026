@@ -6,6 +6,7 @@ import type {
   Hallazgo,
   HallazgoDetalle,
   PaginaHallazgos,
+  PaginaVideos,
   Panel,
   FiltrosPanel,
   Regla,
@@ -115,6 +116,12 @@ export const obtenerHallazgo = (id: number) => api<HallazgoDetalle>(`/hallazgos/
 export const obtenerCatalogos = () => api<Catalogos>("/catalogos");
 export const obtenerEstado = () => api<EstadoSistema>("/estado");
 export const obtenerSesion = () => api<Sesion>("/yo");
+
+export function listarVideos(cursor?: string): Promise<PaginaVideos> {
+  const parametros = new URLSearchParams({ limite: "200" });
+  if (cursor) parametros.set("cursor", cursor);
+  return api<PaginaVideos>(`/videos?${parametros}`);
+}
 
 function parametrosDelPanel(filtros: FiltrosPanel = {}): URLSearchParams {
   const parametros = new URLSearchParams();
