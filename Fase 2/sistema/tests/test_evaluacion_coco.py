@@ -126,10 +126,26 @@ def test_imagenes_comunes_detiene(
         imagenes_comunes(v, p, solo)
 
 
-def test_el_borde_del_recorte_es_de_adentro_y_cada_caja_va_a_un_solo_lado() -> None:
+@pytest.mark.parametrize(
+    ("en_el_borde", "medio_px_afuera"),
+    [
+        ((100.0, 150.0), (99.5, 150.0)),  # x1
+        ((150.0, 100.0), (150.0, 99.5)),  # y1
+        ((200.0, 150.0), (200.5, 150.0)),  # x2
+        ((150.0, 200.0), (150.0, 200.5)),  # y2
+    ],
+    ids=["x1", "y1", "x2", "y2"],
+)
+def test_el_borde_del_recorte_es_de_adentro_y_cada_caja_va_a_un_solo_lado(
+    en_el_borde: tuple[float, float], medio_px_afuera: tuple[float, float]
+) -> None:
     recorte = (100.0, 100.0, 200.0, 200.0)
-    borde = CajaPx("a.jpg", "persona", 150.0, 140.0, 100.0, 20.0)  # centro x = 200
-    afuera = CajaPx("a.jpg", "persona", 150.5, 140.0, 100.0, 20.0)  # centro x = 200,5
+
+    def caja(centro: tuple[float, float]) -> CajaPx:  # 20x20 px con ese centro
+        return CajaPx("a.jpg", "persona", centro[0] - 10.0, centro[1] - 10.0, 20.0, 20.0)
+
+    borde, afuera = caja(en_el_borde), caja(medio_px_afuera)
+    assert borde.centro == en_el_borde and afuera.centro == medio_px_afuera
     assert en_region([borde, afuera], recorte, dentro=True) == [borde]
     assert en_region([borde, afuera], recorte, dentro=False) == [afuera]
 
