@@ -98,15 +98,29 @@ def tabla_markdown(datos: Mapping[str, Any]) -> str:
         "|---|---|---|---|---|---|---|---|---|---|---|",
     ]
     for region, m in datos["regiones"].items():
-        filas = [*m["clases"], {"clase": "**total**", **m}]
+        total = {
+            "clase": "**total**",
+            "n_verdad": sum(c["n_verdad"] for c in m["clases"]),
+            "n_predichas": sum(c["n_predichas"] for c in m["clases"]),
+            **m,
+        }
+        filas = [*m["clases"], total]
         for c in filas:
             t = c["map50_95_por_tamano"]
             lineas.append(
-                f"| {region} | {c['clase']} | {c.get('n_verdad', '')} | "
-                f"{c.get('n_predichas', '')} | {_n(c['map50'])} | {_n(c['map50_95'])} | "
+                f"| {region} | {c['clase']} | {c['n_verdad']} | "
+                f"{c['n_predichas']} | {_n(c['map50'])} | {_n(c['map50_95'])} | "
                 f"{_n(t['chico'])} | {_n(t['mediano'])} | {_n(t['grande'])} | "
                 f"{_n(c.get('precision'))} | {_n(c.get('recall'))} |"
             )
+    for region, m in datos["regiones"].items():
+        if m["max_predicciones"] > par["max_dets"]:
+            lineas += [
+                "",
+                f"Aviso: en la región {region} una imagen tuvo {m['max_predicciones']} "
+                f"predicciones en una clase; las que pasan de maxDets {par['max_dets']} no se "
+                "evaluaron y el mAP de esa región queda subestimado.",
+            ]
     sucio = " (con cambios sin confirmar)" if datos["cambios_sin_confirmar"] else ""
     lineas += [
         "",

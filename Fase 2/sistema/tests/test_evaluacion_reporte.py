@@ -10,7 +10,7 @@ from typing import Any
 
 import pytest
 from gepp_vision.evaluacion.coco import CajaPx
-from gepp_vision.evaluacion.deteccion import evaluar
+from gepp_vision.evaluacion.deteccion import MAX_DETS, evaluar
 from gepp_vision.evaluacion.reporte import estado_git, reporte, sha256, tabla_markdown
 
 HD = (1920, 1080)
@@ -64,8 +64,20 @@ def test_el_json_lleva_lo_necesario_para_reproducir(tmp_path: Path) -> None:
 def test_la_tabla_usa_coma_decimal_y_raya_para_lo_que_no_existe(tmp_path: Path) -> None:
     tabla = tabla_markdown(_datos(tmp_path, "con-preetiquetas"))
     assert "| dentro | persona | 1 | 1 | 1,000 | 1,000 |" in tabla
-    assert "| fuera | persona | 0 | 0 | — | — |" in tabla
+    assert "| dentro | **total** | 1 | 1 | 1,000 | 1,000 |" in tabla
+    assert "| fuera | persona | 0 | 0 | — | — | — | — | — | — | — |" in tabla
+    assert "| fuera | **total** | 0 | 0 | — | — | — | — | — | — | — |" in tabla
     assert "aaaaaaa" in tabla and "con-preetiquetas" in tabla
+
+
+def test_el_aviso_de_max_dets_solo_si_se_pasa(tmp_path: Path) -> None:
+    datos = _datos(tmp_path, "con-preetiquetas")
+    datos["regiones"]["fuera"]["max_predicciones"] = MAX_DETS
+    assert not any(li.startswith("Aviso") for li in tabla_markdown(datos).splitlines())
+    datos["regiones"]["fuera"]["max_predicciones"] = MAX_DETS + 1
+    aviso = [li for li in tabla_markdown(datos).splitlines() if li.startswith("Aviso")]
+    assert len(aviso) == 1
+    assert "fuera" in aviso[0] and str(MAX_DETS + 1) in aviso[0] and "no se evaluaron" in aviso[0]
 
 
 def test_sha256_lee_por_bloques(tmp_path: Path) -> None:
