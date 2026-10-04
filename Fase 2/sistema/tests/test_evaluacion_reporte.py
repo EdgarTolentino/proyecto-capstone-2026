@@ -17,7 +17,7 @@ HD = (1920, 1080)
 GIT = {"commit": "a" * 40, "cambios_sin_confirmar": False}
 
 
-def _datos(tmp_path: Path, origen: str) -> dict[str, Any]:
+def _datos(tmp_path: Path, origen: str, score_minimo: float | None = 0.05) -> dict[str, Any]:
     entrada = tmp_path / "verdad.json"
     entrada.write_text("{}", encoding="utf-8")
     persona = CajaPx("a.jpg", "persona", 0, 0, 50, 100)
@@ -29,6 +29,7 @@ def _datos(tmp_path: Path, origen: str) -> dict[str, Any]:
         imagenes=["a.jpg"],
         recorte=(600.0, 220.0, 1400.0, 730.0),
         umbral=0.45,
+        score_minimo=score_minimo,
         entradas={"verdad": entrada},
         git=GIT,
     )
@@ -54,6 +55,7 @@ def test_el_json_lleva_lo_necesario_para_reproducir(tmp_path: Path) -> None:
     assert datos["parametros"] == {
         "recorte_px": [600.0, 220.0, 1400.0, 730.0],
         "umbral_confianza": 0.45,
+        "score_minimo": 0.05,
         "umbral_iou": 0.5,
         "max_dets": 300,
         "imagenes": 1,
@@ -78,6 +80,34 @@ def test_el_aviso_de_max_dets_solo_si_se_pasa(tmp_path: Path) -> None:
     aviso = [li for li in tabla_markdown(datos).splitlines() if li.startswith("Aviso")]
     assert len(aviso) == 1
     assert "fuera" in aviso[0] and str(MAX_DETS + 1) in aviso[0] and "no se evaluaron" in aviso[0]
+
+
+@pytest.mark.parametrize(
+    ("score_minimo", "avisa"),
+    [
+        (None, False),
+        (0.05, False),
+        (0.050000179, False),  # el mínimo real de un archivo hecho con --umbral 0.05 (float32)
+        (0.0546875, False),  # 7/128, justo bajo el aviso
+        (0.0625, True),  # 1/16: desde aquí avisa
+        (0.40, True),  # el --umbral por defecto de preetiquetar.py
+    ],
+)
+def test_el_aviso_de_score_minimo_solo_si_la_curva_quedo_cortada(
+    tmp_path: Path, score_minimo: float | None, avisa: bool
+) -> None:
+    datos = _datos(tmp_path, "con-preetiquetas", score_minimo)
+    assert datos["parametros"]["score_minimo"] == score_minimo
+    aviso = [li for li in tabla_markdown(datos).splitlines() if li.startswith("Aviso")]
+    assert len(aviso) == (1 if avisa else 0)
+    if avisa:
+        assert "preetiquetar.py --umbral 0.05" in aviso[0] and "subestimado" in aviso[0]
+
+
+def test_la_tabla_dice_que_predichas_cuenta_sobre_el_umbral(tmp_path: Path) -> None:
+    tabla = tabla_markdown(_datos(tmp_path, "con-preetiquetas"))
+    assert "| Predichas ≥ umbral |" in tabla
+    assert "· confianza ≥ 0.45 ·" in tabla
 
 
 def test_sha256_lee_por_bloques(tmp_path: Path) -> None:

@@ -24,6 +24,13 @@ LIMITACIONES: tuple[str, ...] = (
     "remuestreo de video (02-plan-de-evaluacion.md).",
     "El nivel 1 mide objetos, no eventos: no hay prevalencia de incumplimiento.",
 )
+#: El mAP recorre la curva completa: necesita predicciones desde este score (`preetiquetar.py
+#: --umbral 0.05`). Con un mínimo más alto la curva se corta y el mAP sale bajo sin error.
+SCORE_MINIMO_MAP = 0.05
+#: Desde aquí avisa. No en 0,05 justo: el score sale en float32 y el mínimo de un archivo bien
+#: hecho queda apenas encima (0,050000179 en las predicciones reales de los 240 cuadros del
+#: 4-oct). 1/16 es diádico y deja fuera los umbrales de verdad altos (0,25; 0,4).
+AVISO_SCORE_MINIMO = 0.0625
 SESGO = (
     "La verdad se hizo corrigiendo pre-etiquetas de este mismo modelo: la cifra está inflada "
     "(04-evaluar-niveles-0-1.md, «El sesgo de las pre-etiquetas»)."
@@ -58,9 +65,12 @@ def reporte(
     imagenes: Sequence[str],
     recorte: Recorte,
     umbral: float,
+    score_minimo: float | None,
     entradas: Mapping[str, Path],
     git: Mapping[str, Any],
 ) -> dict[str, Any]:
+    """`umbral` es el de confianza, el mismo para las tres clases. `score_minimo` es el menor
+    score de las predicciones evaluadas, None si no hubo ninguna."""
     if origen_verdad not in ORIGENES:
         raise ValueError(f"origen de la verdad desconocido: {origen_verdad!r}")
     return {
@@ -72,6 +82,7 @@ def reporte(
         "parametros": {
             "recorte_px": list(recorte),
             "umbral_confianza": umbral,
+            "score_minimo": score_minimo,
             "umbral_iou": UMBRAL_IOU,
             "max_dets": MAX_DETS,
             "imagenes": len(imagenes),
@@ -93,8 +104,8 @@ def tabla_markdown(datos: Mapping[str, Any]) -> str:
         f"### Nivel 1 · {datos['modelo']} · verdad {datos['origen_verdad']} · "
         f"{par['imagenes']} imágenes",
         "",
-        "| Región | Clase | Verdad | Predichas | mAP50 | mAP50-95 | Chico | Mediano | Grande "
-        "| Precisión | Recall |",
+        "| Región | Clase | Verdad | Predichas ≥ umbral | mAP50 | mAP50-95 | Chico | Mediano "
+        "| Grande | Precisión | Recall |",
         "|---|---|---|---|---|---|---|---|---|---|---|",
     ]
     for region, m in datos["regiones"].items():
@@ -121,6 +132,13 @@ def tabla_markdown(datos: Mapping[str, Any]) -> str:
                 f"predicciones en una clase; las que pasan de maxDets {par['max_dets']} no se "
                 "evaluaron y el mAP de esa región queda subestimado.",
             ]
+    if par["score_minimo"] is not None and par["score_minimo"] >= AVISO_SCORE_MINIMO:
+        lineas += [
+            "",
+            f"Aviso: la predicción de menor score tiene {_n(par['score_minimo'])}; el mAP "
+            f"necesita predicciones desde {_n(SCORE_MINIMO_MAP)}: corre preetiquetar.py "
+            f"--umbral {SCORE_MINIMO_MAP}. Con la curva cortada el mAP queda subestimado.",
+        ]
     sucio = " (con cambios sin confirmar)" if datos["cambios_sin_confirmar"] else ""
     lineas += [
         "",
