@@ -245,10 +245,17 @@ def a_coco(imagenes: Iterable[tuple[Anotada, str, Sequence[Caja]]]) -> dict[str,
 
 
 def _asignar(iou: np.ndarray, umbral: float) -> list[tuple[int, int]]:
-    """Emparejamiento óptimo (húngaro) de filas y columnas con IoU >= `umbral`."""
+    """Emparejamiento óptimo (húngaro) de filas y columnas con IoU >= `umbral`.
+
+    Óptimo quiere decir: el máximo de pares con IoU >= `umbral`; a igual cantidad de pares, la
+    mayor suma de IoU. Resolver sobre `-iou` a secas maximiza la suma de IoU y puede cambiar un
+    par válido por dos inválidos de suma mayor. Por eso cada par válido pesa `min(forma) + iou`,
+    más que cualquier suma de IoU de los pares que podría desplazar, y los inválidos pesan 0.
+    """
     if iou.size == 0:
         return []
-    filas, columnas = linear_sum_assignment(-iou)
+    peso = np.where(iou >= umbral, min(iou.shape) + iou, 0.0)
+    filas, columnas = linear_sum_assignment(peso, maximize=True)
     return [(int(f), int(c)) for f, c in zip(filas, columnas, strict=True) if iou[f, c] >= umbral]
 
 
