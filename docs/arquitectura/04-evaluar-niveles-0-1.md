@@ -1,6 +1,7 @@
 # `evaluar.py`: niveles 0 y 1 del plan de evaluación
 
-> Especificación del 3 de octubre de 2026, acordada con Edgar. Parte del #31; destraba el #112.
+> Especificación del 3 de octubre de 2026, acordada con Edgar y revisada el 4 de octubre (sesgo por
+> pre-etiquetas, mAP por tamaño, orden de los PR). Parte del #31; destraba el #112.
 > Los niveles están definidos en [`02-plan-de-evaluacion.md`](02-plan-de-evaluacion.md).
 
 ## Alcance
@@ -25,6 +26,23 @@ eso no se calcula HOTA ni F1 de evento. Quedan en un issue aparte, para cuando h
 Así la métrica sale del mismo proceso que generó las pre-etiquetas, y medir no obliga a volver a
 correr el modelo.
 
+## El sesgo de las pre-etiquetas
+
+La verdad de los 240 cuadros **no es independiente del modelo**: las personas corrigieron las
+cajas que el modelo propuso. Quien corrige tiende a dejar como está una caja «casi bien», así que
+el modelo medido contra esa verdad sale **mejor de lo que es**. No se puede rehacer: las
+pre-etiquetas ya están cargadas y el etiquetado está en curso.
+
+Se declara y se mide:
+
+- Cada corrida del nivel 1 dice de dónde sale su verdad con `--origen-verdad`, obligatorio:
+  `con-preetiquetas` o `sin-preetiquetas`. Va al JSON y al título de la tabla.
+- Los **24 cuadros del doble etiquetado** se etiquetan **sin pre-etiquetas** (#112). El modelo
+  contra esa verdad limpia es la cifra honesta.
+- Para comparar en igualdad, la corrida con pre-etiquetas se repite sobre esos mismos 24 cuadros
+  (`--imagenes-de`). La diferencia entre las dos es el **sesgo estimado**, y se reporta en el #31
+  junto a las dos cifras. Con 24 cuadros es una estimación gruesa, y así se dice.
+
 ## Nivel 0: `evaluar.py acuerdo A.json B.json`
 
 Entrada: dos exportaciones COCO 1.0 de los mismos cuadros (los 24 con `doble_etiquetado = 1`),
@@ -40,24 +58,48 @@ hechas por personas distintas sin ver el trabajo de la otra.
 4. **IoU medio** de los pares emparejados.
 5. Si el kappa baja de **0,7**, lo imprime como alerta (guía de etiquetado §6). El kappa no detiene
    el script: decidir es de las personas.
+6. **Limitación declarada:** A etiquetó partiendo de las pre-etiquetas y B desde cero. El kappa
+   mezcla el desacuerdo entre personas con el efecto de las sugerencias del modelo. A esta escala
+   no se puede separar; el JSON lo dice.
 
-## Nivel 1: `evaluar.py deteccion verdad.json predicciones.json --recorte x1,y1,x2,y2`
+## Nivel 1: `evaluar.py deteccion verdad.json predicciones.json --recorte x1,y1,x2,y2 --origen-verdad ...`
 
 1. Las categorías se emparejan **por nombre** (`persona`, `casco`, `chaleco`), no por `id`: el id
    de CVAT depende del orden de las etiquetas en el proyecto y el de `a_coco` sale de
-   `CLASES_V1`. Un nombre desconocido detiene el script.
-2. Cada caja, de verdad o predicha, va a **dentro del foso** o **fuera** según dónde cae su centro
-   en el `--recorte` (px del cuadro). Es la misma regla que `etiquetado.combinar`. Cada región se
-   evalúa por separado, sobre todas las imágenes, aunque alguna no tenga cajas en esa región.
-3. **mAP50 y mAP50-95**, por clase y en total, con `pycocotools` (`COCOeval`, tipo `bbox`).
+   `CLASES_V1`.
+   - `tiene_pequenos` es una etiqueta de imagen (*tag*) en CVAT. La exportación COCO 1.0 la trae
+     en `categories` pero sin cajas (comprobado el 4-oct con la tarea `prueba-youtube-lote0`).
+     Se ignora.
+   - Cualquier otro nombre desconocido detiene el script.
+2. Las imágenes se emparejan por `file_name`. Toda imagen de la verdad tiene que estar en las
+   predicciones, con el mismo ancho y alto; si no, error. Las predicciones de imágenes que no están
+   en la verdad se ignoran: así las predicciones de los 240 cuadros sirven también para los 24.
+   `--imagenes-de otra.json` limita la evaluación a las imágenes de otro archivo COCO.
+3. Una predicción sin `score` detiene el script: casi seguro se pasó la verdad como predicciones.
+4. Cada caja, de verdad o predicha, va a **dentro del foso** o **fuera** según dónde cae su centro
+   en el `--recorte` (px del cuadro, borde incluido). Es la misma regla que `etiquetado.combinar`.
+   Cada región se evalúa por separado, sobre todas las imágenes, aunque alguna no tenga cajas en
+   esa región.
+5. **mAP50 y mAP50-95**, por clase y en total, con `pycocotools` (`COCOeval`, tipo `bbox`).
    - `maxDets` sube a 300: con umbral 0,05 y mosaico, una imagen puede pasar de las 100
-     predicciones que COCO evalúa por defecto, y el resto se perdería en silencio. El JSON
-     registra el máximo de predicciones que tuvo una imagen.
-4. **Precisión y recall por clase con el umbral de la regla (0,45)**: es el que decide si se abre
+     predicciones por clase que COCO evalúa por defecto, y el resto se perdería en silencio
+     (comprobado: 150 cajas perfectas dan mAP50 0,66 con 100 y 1,0 con 300). El JSON registra el
+     máximo de predicciones que tuvo una imagen en una clase.
+   - Las métricas se leen de `COCOeval.eval["precision"]`, no de `summarize()`, que para los
+     tamaños vuelve a usar 100.
+   - Una clase **sin cajas verdaderas** en la región no tiene mAP (`null`), no 0. Una clase con
+     verdad y sin predicciones da 0.
+   - Una región **sin predicciones** no pasa por `COCOeval`: `loadRes([])` se cae.
+6. **mAP por tamaño** (COCO: chico < 32², mediano < 96², grande el resto, en px de área), en total
+   y por clase. En CCTV de obra casi todo es chico: es el argumento del mosaico.
+7. **Precisión y recall por clase con el umbral de la regla (0,45)**: es el que decide si se abre
    un hallazgo. Una predicción acierta si su IoU con una caja verdadera de la misma clase es ≥ 0,5
    (emparejamiento óptimo, una caja verdadera por predicción). El umbral se puede cambiar con
    `--umbral`.
-5. Las cajas repetidas que deja el mosaico (~1-2 %, #108) cuentan como falsos positivos. No se
+8. Cada fila lleva cuántas cajas verdaderas y predichas tiene. Una clase con pocas cajas da una
+   cifra poco fiable, y el lector tiene que verlo. Ejemplo: en las pre-etiquetas de los 240
+   cuadros hay 3 chalecos contra 1446 personas.
+9. Las cajas repetidas que deja el mosaico (~1-2 %, #108) cuentan como falsos positivos. No se
    filtran: es lo que vería el sistema.
 
 ## Salida
@@ -66,11 +108,12 @@ Un JSON con las métricas y lo necesario para reproducirlas, como pide el `CLAUD
 
 - commit del repositorio (`git rev-parse HEAD`) y si había cambios sin confirmar;
 - SHA-256 de cada archivo de entrada (verdad y predicciones, o A y B);
-- parámetros: recorte, umbrales, IoU, `maxDets`;
+- parámetros: recorte, umbrales, IoU, `maxDets`, origen de la verdad, imágenes evaluadas;
 - la versión del modelo que viene en `info.description` de las predicciones;
 - **limitaciones declaradas:** los 240 cuadros salen de un solo video, en 4 tramos, así que no hay
   intervalos de confianza por remuestreo de video (`02-plan-de-evaluacion.md`). Tampoco hay
-  prevalencia de incumplimiento, porque el nivel 1 mide objetos, no eventos.
+  prevalencia de incumplimiento, porque el nivel 1 mide objetos, no eventos. Y, si la verdad es
+  `con-preetiquetas`, que la cifra está inflada por el sesgo de arriba.
 
 Además imprime una tabla en Markdown para pegarla en el #31.
 
@@ -78,31 +121,44 @@ Además imprime una tabla en Markdown para pegarla en el #31.
 
 | Archivo | Qué hace |
 |---|---|
-| `gepp_vision/evaluacion/__init__.py` | Exporta las dos funciones de entrada |
+| `gepp_vision/evaluacion/__init__.py` | Exporta las funciones de entrada |
 | `gepp_vision/evaluacion/coco.py` | Lee COCO 1.0, indexa por `file_name`, traduce categorías por nombre y separa por región |
-| `gepp_vision/evaluacion/acuerdo.py` | Kappa de Cohen e IoU medio. Python puro, sin pycocotools |
 | `gepp_vision/evaluacion/deteccion.py` | mAP con pycocotools; precisión y recall al umbral |
-| `scripts/evaluar.py` | Subcomandos `acuerdo` y `deteccion`, escritura del JSON y de la tabla |
+| `gepp_vision/evaluacion/reporte.py` | Procedencia (commit, SHA-256), JSON y tabla Markdown |
+| `gepp_vision/evaluacion/acuerdo.py` | Kappa de Cohen e IoU medio. Python puro, sin pycocotools |
+| `scripts/evaluar.py` | Subcomandos `deteccion` y `acuerdo` |
 | `packages/gepp-vision/pyproject.toml` | `pycocotools` como dependencia (BSD; ya está en `uv.lock` por RF-DETR; no está en la lista de prohibidas del CI) |
-| `tests/test_evaluacion.py` | Ver abajo |
+| `tests/test_evaluacion_*.py` | Ver abajo |
 
 ## Pruebas
 
 Casos sintéticos con resultado conocido, sin GPU, que corren en el CI:
 
 - Predicción idéntica a la verdad: mAP50 = mAP50-95 = 1,0; precisión = recall = 1,0.
-- Sin predicciones: mAP 0, recall 0.
+- Sin predicciones: mAP 0, recall 0, sin pasar por `loadRes`.
 - Una caja de más y una de menos, con precisión y recall calculados a mano.
 - **Extremos (regla 5):** IoU justo en 0,5 (empareja) y apenas debajo (no empareja); confianza
   justo en 0,45 (cuenta), 0,25 y 0,75 (con valores diádicos, que dan resultados exactos); una
-  entrada inválida (categoría desconocida, archivo que falta en una de las dos exportaciones).
+  entrada inválida (categoría desconocida, archivo que falta en una de las dos exportaciones,
+  predicción sin `score`, tamaños distintos).
 - Kappa con una tabla calculada a mano, más los dos extremos: acuerdo total (1,0) y acuerdo igual
   al azar (0,0).
 - Región: una caja con el centro justo en el borde del recorte va a un solo lado.
-- `maxDets`: una imagen con más de 100 predicciones no pierde las que sobran.
+- `maxDets`: una imagen con más de 100 predicciones de una clase no pierde las que sobran.
+- Clase sin verdad: `null`, no 0. Tamaño: una caja chica cuenta en «chico» y no en «grande».
 - Cada prueba se valida inyectándole el defecto que dice cuidar (regla 4).
 
-## Tamaño
+## Tamaño y orden de los PR
 
-Cerca del límite de 400 líneas. Si se pasa, se divide en dos PR, primero el nivel 0 y después el
-nivel 1, y se avisa antes de abrir el primero.
+No cabe en un PR de menos de 400 líneas, que en CONTRIBUTING cuentan pruebas y documentos. Se
+divide en cinco, en este orden (líneas estimadas antes de escribir):
+
+| PR | Qué | Líneas | Por qué en este orden |
+|---|---|---|---|
+| **1** | Esta spec, sola | ~175 | Con el código no cabe; se revisa la decisión antes que la implementación |
+| **2** | La lectura: `coco.py`, dependencia y pruebas | ~330 | Fija el formato de entrada, comprobado con una exportación real |
+| **3** | Nivel 1, el cálculo: `deteccion.py` y pruebas | ~380 | Es la cifra del H3 (S10) |
+| **4** | Nivel 1, la salida: `reporte.py`, `scripts/evaluar.py deteccion` y pruebas | ~380 | Deja el comando listo para cuando terminen #110 y #111 |
+| **5** | Nivel 0: `acuerdo.py`, `scripts/evaluar.py acuerdo` y pruebas | — | Espera el doble etiquetado de Edgar (#112) |
+
+Si un PR se pasa al escribirlo, se avisa antes de abrirlo.
