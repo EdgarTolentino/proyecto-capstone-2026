@@ -14,7 +14,9 @@ from __future__ import annotations
 
 import argparse
 import json
+import re
 import sys
+from collections.abc import Iterable
 from pathlib import Path
 
 from gepp_vision.evaluacion import (
@@ -41,7 +43,12 @@ def main(argv: list[str] | None = None) -> int:
     d.add_argument("--recorte", required=True, help="x1,y1,x2,y2 en px del cuadro: el foso")
     d.add_argument("--origen-verdad", required=True, choices=ORIGENES)
     d.add_argument("--imagenes-de", type=Path, help="evalúa solo las imágenes de este COCO")
-    d.add_argument("--umbral", type=float, default=UMBRAL_REGLA)
+    d.add_argument(
+        "--umbral",
+        type=float,
+        default=UMBRAL_REGLA,
+        help=f"confianza mínima, la misma para las tres clases (la de la regla: {UMBRAL_REGLA})",
+    )
     d.add_argument("--salida", type=Path, required=True)
     args = p.parse_args(argv)
 
@@ -55,6 +62,12 @@ def main(argv: list[str] | None = None) -> int:
     except (EntradaInvalida, ValueError) as e:
         sys.exit(f"error: {e}")
 
+    aviso = _aviso_recorte(predichas.descripcion, recorte, {verdad.imagenes[a] for a in imagenes})
+    if aviso:
+        print(aviso, file=sys.stderr)
+    evaluadas = set(imagenes)
+    scores = [c.score for c in predichas.cajas if c.archivo in evaluadas and c.score is not None]
+
     entradas = {"verdad": args.verdad, "predicciones": args.predicciones}
     if args.imagenes_de:
         entradas["imagenes_de"] = args.imagenes_de
@@ -65,6 +78,7 @@ def main(argv: list[str] | None = None) -> int:
         imagenes=imagenes,
         recorte=recorte,
         umbral=args.umbral,
+        score_minimo=min(scores, default=None),
         entradas=entradas,
         git=estado_git(Path(__file__).resolve().parent),
     )
@@ -83,6 +97,40 @@ def _leer(ruta: Path, *, predicciones: bool) -> ArchivoCoco:
         sys.exit(f"error: {ruta}: formato COCO inválido ({type(e).__name__}: {e})")
     except OSError as e:
         sys.exit(f"error: {ruta}: {e}")
+
+
+#: El recorte del mosaico como lo escribe `DetectorMosaico.version`, normalizado al cuadro:
+#: `mosaico[0.3125,0.2037,0.7292,0.6759x2/384/100px]:...`.
+_MOSAICO = re.compile(r"mosaico\[([^,\]]+),([^,\]]+),([^,\]]+),([^,\]x]+)x")
+
+
+def _aviso_recorte(
+    descripcion: str, recorte: Recorte, tamanos: Iterable[tuple[int, int]]
+) -> str | None:
+    """Aviso si el recorte con que se predijo (en `info.description`) no es `--recorte`.
+
+    Con otro recorte, «dentro» y «fuera» no corresponden a lo que vio el mosaico y la
+    comparación por región engaña. Tolerancia de 1 px: la descripción trae 4 decimales. Si la
+    descripción no trae el recorte en ese formato, no avisa.
+    """
+    m = _MOSAICO.search(descripcion)
+    if m is None:
+        return None
+    try:
+        x1, y1, x2, y2 = (float(v) for v in m.groups())
+    except ValueError:
+        return None
+    for ancho, alto in sorted(set(tamanos)):
+        px = (x1 * ancho, y1 * alto, x2 * ancho, y2 * alto)
+        if any(abs(a - b) > 1 for a, b in zip(px, recorte, strict=True)):
+            usado = ",".join(f"{v:.0f}" for v in px)
+            pedido = ",".join(f"{v:g}" for v in recorte)
+            return (
+                f"aviso: las predicciones se hicieron con el mosaico en {usado} px "
+                f"(cuadro de {ancho}x{alto}) y --recorte es {pedido}: las regiones dentro y "
+                "fuera no son las del mosaico"
+            )
+    return None
 
 
 def _recorte(texto: str) -> Recorte:
