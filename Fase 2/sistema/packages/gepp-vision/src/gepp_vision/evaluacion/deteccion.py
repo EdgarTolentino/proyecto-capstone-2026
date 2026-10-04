@@ -13,6 +13,7 @@ from collections.abc import Mapping, Sequence
 from dataclasses import dataclass
 
 import numpy as np
+from gepp_core.dominio import CONFIANZA_MINIMA_REGLA
 from pycocotools.coco import COCO
 from pycocotools.cocoeval import COCOeval, Params
 
@@ -21,8 +22,9 @@ from gepp_vision.evaluacion.coco import CLASES, ArchivoCoco, CajaPx, Recorte, en
 
 #: Una predicción acierta si su IoU con una caja verdadera de la misma clase llega a esto.
 UMBRAL_IOU = 0.5
-#: La confianza con la que la regla abre un hallazgo (`gepp_core.asociacion`).
-UMBRAL_REGLA = 0.45
+#: La confianza con la que la regla filtra a las personas y al EPP (`Regla.confianza_minima`):
+#: la que decide si se abre un hallazgo. La misma para las tres clases.
+UMBRAL_REGLA = CONFIANZA_MINIMA_REGLA
 #: COCO evalúa 100 predicciones por imagen y clase; con umbral 0,05 y mosaico se pasa.
 MAX_DETS = 300
 #: Rangos de área de COCO, en el orden de `Params.areaRng`. Un borde (32², 96²) cuenta en los

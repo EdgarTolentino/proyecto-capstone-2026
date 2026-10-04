@@ -94,6 +94,12 @@ class Ventana:
         return hora >= self.desde or hora < self.hasta
 
 
+#: Confianza mínima por defecto de una regla. El agregador filtra con ella a las personas y al
+#: EPP; ByteTrack crea identidades desde el mismo valor y la evaluación del modelo (#31) mide
+#: precisión y recall con él.
+CONFIANZA_MINIMA_REGLA = 0.45
+
+
 @dataclass(frozen=True, slots=True)
 class Regla:
     """Regla de EPP por área. Vive en la base de datos, versionada.
@@ -110,7 +116,7 @@ class Regla:
     severidad: Severidad
     confirmacion_segundos: float = 2.0
     cierre_segundos: float = 3.0
-    confianza_minima: float = 0.45
+    confianza_minima: float = CONFIANZA_MINIMA_REGLA
     solape_zona_minimo: float = 0.50
     #: Zona de interés. `None` = todo el cuadro. Solo se evalúa a quien está dentro.
     zona: Poligono | None = None

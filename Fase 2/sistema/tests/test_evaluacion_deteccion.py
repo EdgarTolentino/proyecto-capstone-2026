@@ -6,6 +6,7 @@ import pytest
 from gepp_vision.evaluacion.coco import ArchivoCoco, CajaPx
 from gepp_vision.evaluacion.deteccion import (
     MAX_DETS,
+    UMBRAL_REGLA,
     MetricasClase,
     MetricasRegion,
     evaluar,
@@ -79,13 +80,32 @@ def test_iou_justo_en_cero_coma_cinco_empareja(alto_predicho: float, empareja: b
     assert _clase(m, "persona").recall == (1.0 if empareja else 0.0)
 
 
-@pytest.mark.parametrize(
-    ("score", "umbral", "cuenta"),
-    [(0.45, 0.45, True), (0.5, 0.5, True), (0.25, 0.5, False), (0.75, 0.5, True)],
-)
-def test_umbral_de_confianza(score: float, umbral: float, cuenta: bool) -> None:
-    m = evaluar([_v("persona", 0, 0, 50, 100)], [_p("persona", 0, 0, 50, 100, score)], UNA, umbral)
+@pytest.mark.parametrize(("score", "cuenta"), [(0.45, True), (0.4375, False)])
+def test_por_defecto_usa_el_umbral_de_la_regla(score: float, cuenta: bool) -> None:
+    assert UMBRAL_REGLA == 0.45  # Regla.confianza_minima
+    m = evaluar([_v("persona", 0, 0, 50, 100)], [_p("persona", 0, 0, 50, 100, score)], UNA)
     assert _clase(m, "persona").n_predichas == (1 if cuenta else 0)
+
+
+@pytest.mark.parametrize(("score", "cuenta"), [(0.5, True), (0.25, False), (0.75, True)])
+def test_umbral_de_confianza(score: float, cuenta: bool) -> None:
+    m = evaluar([_v("persona", 0, 0, 50, 100)], [_p("persona", 0, 0, 50, 100, score)], UNA, 0.5)
+    assert _clase(m, "persona").n_predichas == (1 if cuenta else 0)
+
+
+@pytest.mark.parametrize("umbral", [None, 0.5])
+@pytest.mark.parametrize("score", [0.25, 0.4375, 0.45, 0.5, 0.75])
+def test_persona_y_epp_usan_el_mismo_umbral(score: float, umbral: float | None) -> None:
+    verdad = [_v(c, 200 * k, 0, 50, 100) for k, c in enumerate(("persona", "casco", "chaleco"))]
+    predichas = [_p(c.clase, c.x, c.y, c.ancho, c.alto, score) for c in verdad]
+    m = (
+        evaluar(verdad, predichas, UNA)
+        if umbral is None
+        else evaluar(verdad, predichas, UNA, umbral)
+    )
+    cuentan = {c.clase: c.n_predichas for c in m.clases}
+    esperado = 1 if score >= (UMBRAL_REGLA if umbral is None else umbral) else 0
+    assert cuentan == {"persona": esperado, "casco": esperado, "chaleco": esperado}
 
 
 @pytest.mark.parametrize("umbral", [0.0, 1.5])

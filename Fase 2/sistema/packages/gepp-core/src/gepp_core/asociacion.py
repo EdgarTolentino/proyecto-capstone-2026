@@ -10,7 +10,13 @@ flotando a la altura de las rodillas no se cuenta como casco puesto.
 
 from __future__ import annotations
 
-from gepp_core.dominio import FRANJA_ESPERADA, ClaseDetectada, Deteccion, TipoEPP
+from gepp_core.dominio import (
+    CONFIANZA_MINIMA_REGLA,
+    FRANJA_ESPERADA,
+    ClaseDetectada,
+    Deteccion,
+    TipoEPP,
+)
 
 #: Correspondencia entre clase del detector y tipo de EPP.
 CLASE_A_EPP: dict[ClaseDetectada, TipoEPP] = {
@@ -26,7 +32,7 @@ CLASE_A_EPP: dict[ClaseDetectada, TipoEPP] = {
 def epp_puesto(
     persona: Deteccion,
     detecciones: list[Deteccion],
-    confianza_minima: float = 0.45,
+    confianza_minima: float = CONFIANZA_MINIMA_REGLA,
 ) -> set[TipoEPP]:
     """EPP que esta persona lleva puesto, según las detecciones del mismo cuadro."""
     if persona.clase is not ClaseDetectada.PERSONA:
@@ -47,7 +53,7 @@ def epp_faltante(
     persona: Deteccion,
     detecciones: list[Deteccion],
     exigido: frozenset[TipoEPP],
-    confianza_minima: float = 0.45,
+    confianza_minima: float = CONFIANZA_MINIMA_REGLA,
 ) -> set[TipoEPP]:
     """EPP exigido que esta persona NO lleva puesto."""
     return set(exigido) - epp_puesto(persona, detecciones, confianza_minima)
