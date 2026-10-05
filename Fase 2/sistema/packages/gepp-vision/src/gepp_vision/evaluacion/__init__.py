@@ -29,11 +29,21 @@ from gepp_vision.evaluacion.deteccion import (
     evaluar,
     evaluar_regiones,
 )
-from gepp_vision.evaluacion.reporte import ORIGENES, estado_git, reporte, sha256, tabla_markdown
+from gepp_vision.evaluacion.reporte import (
+    LIMITACIONES_ACUERDO,
+    ORIGENES,
+    estado_git,
+    reporte,
+    reporte_acuerdo,
+    sha256,
+    tabla_acuerdo,
+    tabla_markdown,
+)
 
 __all__ = [
     "CLASES",
     "KAPPA_MINIMO",
+    "LIMITACIONES_ACUERDO",
     "MAX_DETS",
     "ORIGENES",
     "SIN_CAJA",
@@ -58,6 +68,8 @@ __all__ = [
     "kappa_cohen",
     "leer_coco",
     "reporte",
+    "reporte_acuerdo",
     "sha256",
+    "tabla_acuerdo",
     "tabla_markdown",
 ]

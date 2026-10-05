@@ -9,9 +9,17 @@ from pathlib import Path
 from typing import Any
 
 import pytest
-from gepp_vision.evaluacion.coco import CajaPx
+from gepp_vision.evaluacion.acuerdo import SIN_CAJA, acuerdo
+from gepp_vision.evaluacion.coco import ArchivoCoco, CajaPx
 from gepp_vision.evaluacion.deteccion import MAX_DETS, evaluar
-from gepp_vision.evaluacion.reporte import estado_git, reporte, sha256, tabla_markdown
+from gepp_vision.evaluacion.reporte import (
+    estado_git,
+    reporte,
+    reporte_acuerdo,
+    sha256,
+    tabla_acuerdo,
+    tabla_markdown,
+)
 
 HD = (1920, 1080)
 GIT = {"commit": "a" * 40, "cambios_sin_confirmar": False}
@@ -126,3 +134,59 @@ def test_estado_git_detecta_cambios_sin_confirmar(tmp_path: Path) -> None:
     assert len(limpio["commit"]) == 40 and limpio["cambios_sin_confirmar"] is False
     (tmp_path / "nuevo.txt").write_text("x", encoding="utf-8")
     assert estado_git(tmp_path)["cambios_sin_confirmar"] is True
+
+
+def _acuerdo_de_prueba(tmp_path: Path, segunda_casco: str) -> dict[str, Any]:
+    entrada = tmp_path / "segunda.json"
+    entrada.write_text("{}", encoding="utf-8")
+    hd = {"a.jpg": (1920, 1080)}
+    primera = ArchivoCoco(
+        hd,
+        (CajaPx("a.jpg", "persona", 0, 0, 50, 100), CajaPx("a.jpg", "casco", 500, 0, 20, 20)),
+        "",
+    )
+    segunda = ArchivoCoco(
+        hd,
+        (CajaPx("a.jpg", "persona", 0, 0, 50, 100), CajaPx("a.jpg", segunda_casco, 500, 0, 20, 20)),
+        "",
+    )
+    return reporte_acuerdo(acuerdo(primera, segunda), entradas={"segunda": entrada}, git=GIT)
+
+
+def test_el_json_del_acuerdo_lleva_lo_necesario_para_reproducir(tmp_path: Path) -> None:
+    datos = _acuerdo_de_prueba(tmp_path, "casco")
+    json.dumps(datos)
+    assert datos["nivel"] == 0 and datos["commit"] == "a" * 40
+    assert datos["entradas"]["segunda"]["sha256"] == hashlib.sha256(b"{}").hexdigest()
+    assert datos["parametros"] == {"umbral_iou": 0.5, "kappa_minimo": 0.7, "imagenes": 1}
+    assert datos["resultado"]["kappa"] == 1.0
+    assert any("pre-etiquetas" in linea for linea in datos["limitaciones"])
+
+
+def test_la_tabla_del_acuerdo_muestra_la_matriz_y_la_alerta(tmp_path: Path) -> None:
+    sin_alerta = tabla_acuerdo(_acuerdo_de_prueba(tmp_path, "casco"))
+    assert "| 1,000 | 1,000 | 2 | 0 | 0 |" in sin_alerta
+    assert "Alerta" not in sin_alerta
+    con_alerta = tabla_acuerdo(_acuerdo_de_prueba(tmp_path, "chaleco"))
+    assert "Alerta" in con_alerta and "0,333" in con_alerta
+    assert "| casco | 0 | 0 | 1 | 0 |" in con_alerta  # filas: primera; columnas: segunda
+    assert SIN_CAJA in con_alerta
+
+
+def test_la_tabla_del_acuerdo_dice_cuando_el_kappa_es_indefinido() -> None:
+    datos: dict[str, Any] = {
+        "parametros": {"imagenes": 1, "umbral_iou": 0.5, "kappa_minimo": 0.7},
+        "resultado": {
+            "kappa": None,
+            "iou_medio": None,
+            "pares": 0,
+            "solo_primera": 0,
+            "solo_segunda": 0,
+            "matriz": {},
+        },
+        "commit": "a" * 40,
+        "cambios_sin_confirmar": False,
+        "limitaciones": [],
+    }
+    tabla = tabla_acuerdo(datos)
+    assert "| — | — | 0 | 0 | 0 |" in tabla and "indefinido" in tabla
