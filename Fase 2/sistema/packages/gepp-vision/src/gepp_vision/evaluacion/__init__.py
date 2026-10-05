@@ -1,5 +1,14 @@
 """Evaluación del modelo (#31). Especificación: `docs/arquitectura/04-evaluar-niveles-0-1.md`."""
 
+from gepp_vision.evaluacion.acuerdo import (
+    KAPPA_MINIMO,
+    SIN_CAJA,
+    Acuerdo,
+    acuerdo,
+    bajo_el_minimo,
+    imagenes_de_la_segunda,
+    kappa_cohen,
+)
 from gepp_vision.evaluacion.coco import (
     CLASES,
     ArchivoCoco,
@@ -24,22 +33,29 @@ from gepp_vision.evaluacion.reporte import ORIGENES, estado_git, reporte, sha256
 
 __all__ = [
     "CLASES",
+    "KAPPA_MINIMO",
     "MAX_DETS",
     "ORIGENES",
+    "SIN_CAJA",
     "TAMANOS",
     "UMBRAL_IOU",
     "UMBRAL_REGLA",
+    "Acuerdo",
     "ArchivoCoco",
     "CajaPx",
     "EntradaInvalida",
     "MetricasClase",
     "MetricasRegion",
     "Recorte",
+    "acuerdo",
+    "bajo_el_minimo",
     "en_region",
     "estado_git",
     "evaluar",
     "evaluar_regiones",
     "imagenes_comunes",
+    "imagenes_de_la_segunda",
+    "kappa_cohen",
     "leer_coco",
     "reporte",
     "sha256",
