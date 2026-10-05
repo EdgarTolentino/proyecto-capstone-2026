@@ -10,14 +10,32 @@ from gepp_vision.evaluacion.coco import (
     imagenes_comunes,
     leer_coco,
 )
+from gepp_vision.evaluacion.deteccion import (
+    MAX_DETS,
+    TAMANOS,
+    UMBRAL_IOU,
+    UMBRAL_REGLA,
+    MetricasClase,
+    MetricasRegion,
+    evaluar,
+    evaluar_regiones,
+)
 
 __all__ = [
     "CLASES",
+    "MAX_DETS",
+    "TAMANOS",
+    "UMBRAL_IOU",
+    "UMBRAL_REGLA",
     "ArchivoCoco",
     "CajaPx",
     "EntradaInvalida",
+    "MetricasClase",
+    "MetricasRegion",
     "Recorte",
     "en_region",
+    "evaluar",
+    "evaluar_regiones",
     "imagenes_comunes",
     "leer_coco",
 ]
