@@ -183,8 +183,8 @@ son las de `git diff --stat` contra su base el 4-oct; la del 1, la de la spec co
 | **3** | Nivel 1, el cálculo: `deteccion.py` y pruebas | 427 | Es la cifra del H3 (S10). Pasa de 400: se avisa en el PR |
 | **4** | Nivel 1, el reporte: `reporte.py` (JSON y tabla) y pruebas | 284 | Fija qué se registra antes de que lo escriba el script |
 | **5** | Nivel 1, el script: `scripts/evaluar.py deteccion` y pruebas | 330 | Deja el comando listo para cuando terminen #110 y #111 |
-| **6** | Nivel 0, el cálculo: `acuerdo.py` y pruebas | ~300 | No necesita el doble etiquetado: se prueba con casos sintéticos |
-| **7** | Nivel 0, la salida: JSON, tabla y `scripts/evaluar.py acuerdo` | ~250 | Deja el comando listo para cuando Edgar termine los 24 cuadros (#112) |
+| **6** | Nivel 0, el cálculo: `acuerdo.py` y pruebas | 317 | No necesita el doble etiquetado: se prueba con casos sintéticos |
+| **7** | Nivel 0, la salida: JSON, tabla y `scripts/evaluar.py acuerdo` | 232 | Deja el comando listo para cuando Edgar termine los 24 cuadros (#112) |
 | aparte | `fix/31-asignar-pares`: `entrenamiento._asignar` maximiza la cantidad de pares | 28 | Independiente, desde `main`. Lo usan `exportar_onnx.py` y la precisión y el recall del nivel 1 (PR 3), y lo usará el nivel 0 |
 
 Si un PR se pasa al escribirlo, se avisa antes de abrirlo.

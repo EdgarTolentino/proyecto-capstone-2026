@@ -45,7 +45,13 @@ def imagenes_de_la_segunda(primera: ArchivoCoco, segunda: ArchivoCoco) -> list[s
         raise EntradaInvalida("la segunda exportación no trae imágenes")
     for nombre in nombres:
         if nombre not in primera.imagenes:
-            raise EntradaInvalida(f"{nombre} no está en la primera exportación")
+            pista = (
+                "; ¿pasaste los archivos al revés? La primera es la tarea completa y la "
+                "segunda, la de los 24 cuadros"
+                if len(segunda.imagenes) > len(primera.imagenes)
+                else ""
+            )
+            raise EntradaInvalida(f"{nombre} no está en la primera exportación{pista}")
         if primera.imagenes[nombre] != segunda.imagenes[nombre]:
             raise EntradaInvalida(
                 f"{nombre}: tamaño distinto en la primera {primera.imagenes[nombre]} "

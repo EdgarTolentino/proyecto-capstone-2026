@@ -132,6 +132,24 @@ def test_imagenes_de_la_segunda_detiene(
         imagenes_de_la_segunda(_archivo([], primera), _archivo([], segunda))
 
 
+def test_la_segunda_mas_grande_que_la_primera_sugiere_archivos_al_reves() -> None:
+    with pytest.raises(EntradaInvalida, match="al revés"):
+        imagenes_de_la_segunda(
+            _archivo([], {"a.jpg": HD}), _archivo([], {"a.jpg": HD, "b.jpg": HD})
+        )
+
+
+@pytest.mark.parametrize(
+    "primera", [{"a.jpg": HD}, {"a.jpg": HD, "c.jpg": HD}], ids=["mismo_tamano", "primera_mayor"]
+)
+def test_sin_segunda_mas_grande_no_hay_pista_de_archivos_al_reves(
+    primera: dict[str, tuple[int, int]],
+) -> None:
+    with pytest.raises(EntradaInvalida) as error:
+        imagenes_de_la_segunda(_archivo([], primera), _archivo([], {"b.jpg": HD}))
+    assert "al revés" not in str(error.value)
+
+
 def test_acuerdo_de_punta_a_punta() -> None:
     primera = _archivo([_caja("persona", 0, 0, 50, 100), _caja("casco", 500, 0, 20, 20)])
     segunda = _archivo([_caja("persona", 0, 0, 50, 100), _caja("chaleco", 500, 0, 20, 20)])
