@@ -10,6 +10,7 @@ from __future__ import annotations
 from datetime import UTC, datetime
 from pathlib import Path
 
+import numpy as np
 import pytest
 from gepp_core import Caja, ClaseDetectada, Deteccion
 from gepp_vision.dataset import UMBRAL_DUPLICADO, Particion
@@ -17,6 +18,7 @@ from gepp_vision.entrenamiento import (
     CLASES_V1,
     CategoriaDesconocida,
     Fuente,
+    _asignar,
     a_coco,
     acierto_por_id,
     acuerdo_de_clases,
@@ -295,6 +297,21 @@ def test_emparejar_exige_iou_alto() -> None:
     b = [_det(P, Caja(0.25, 0.0, 1.0, 0.5))]  # IoU 0,5 exacto
     assert emparejar(a, b) == []
     assert emparejar(a, b, umbral_iou=0.5) == [(a[0], b[0])]
+
+
+def test_asignar_maximiza_la_cantidad_de_pares_sobre_el_umbral() -> None:
+    # Por suma de IoU gana (0,1)+(1,0) = 0,672, pero ninguno llega a 0,5: el único par válido
+    # es (1,1) con 0,553, aunque su asignación sume menos (0,082 + 0,553 = 0,635).
+    iou = np.array([[0.082, 0.411], [0.261, 0.553]])
+    assert _asignar(iou, 0.5) == [(1, 1)]
+
+
+def test_asignar_a_igual_cantidad_prefiere_mas_iou() -> None:
+    # Dos asignaciones de 2 pares válidos: la diagonal suma 1,5 y la cruzada 1,75.
+    iou = np.array([[0.75, 0.75], [1.0, 0.75]])
+    assert _asignar(iou, 0.5) == [(0, 1), (1, 0)]
+    assert _asignar(iou, 0.875) == [(1, 0)]
+    assert _asignar(np.zeros((0, 3)), 0.5) == []
 
 
 def test_pares_con_verdad_ignora_la_clase_y_respeta_el_umbral() -> None:
