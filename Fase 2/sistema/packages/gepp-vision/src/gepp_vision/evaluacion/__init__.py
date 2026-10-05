@@ -20,10 +20,12 @@ from gepp_vision.evaluacion.deteccion import (
     evaluar,
     evaluar_regiones,
 )
+from gepp_vision.evaluacion.reporte import ORIGENES, estado_git, reporte, sha256, tabla_markdown
 
 __all__ = [
     "CLASES",
     "MAX_DETS",
+    "ORIGENES",
     "TAMANOS",
     "UMBRAL_IOU",
     "UMBRAL_REGLA",
@@ -34,8 +36,12 @@ __all__ = [
     "MetricasRegion",
     "Recorte",
     "en_region",
+    "estado_git",
     "evaluar",
     "evaluar_regiones",
     "imagenes_comunes",
     "leer_coco",
+    "reporte",
+    "sha256",
+    "tabla_markdown",
 ]
