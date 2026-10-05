@@ -157,6 +157,9 @@ LIMITACIONES_ACUERDO: tuple[str, ...] = (
     "desde cero: el kappa mezcla el desacuerdo entre personas con el efecto de las sugerencias "
     "(04-evaluar-niveles-0-1.md, §Nivel 0).",
     "Son los cuadros del doble etiquetado de un solo video: el kappa es una estimación gruesa.",
+    "La primera exportación tiene que tener completos (completed en CVAT) los trabajos que "
+    "contienen esos cuadros; si no, el kappa compara las pre-etiquetas del modelo con la "
+    "segunda persona.",
 )
 
 
