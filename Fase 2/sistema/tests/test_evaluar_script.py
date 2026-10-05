@@ -181,3 +181,47 @@ def test_caja_con_tres_valores_detiene_con_el_nombre_del_archivo(
     predichas.write_text(json.dumps(datos), encoding="utf-8")
     with pytest.raises(SystemExit, match=r"pred\.json"):
         main(_args(verdad, predichas, tmp_path / "m.json", "600,220,1400,730"))
+
+
+def _coco_simple(cajas: list[tuple[str, list[float]]], imagenes: list[str]) -> dict[str, Any]:
+    ids = {n: i for i, n in enumerate(imagenes, start=1)}
+    categorias = {"persona": 1, "casco": 2, "chaleco": 3}
+    return {
+        "categories": [{"id": i, "name": c} for c, i in categorias.items()],
+        "images": [{"id": ids[n], "file_name": n, "width": 1920, "height": 1080} for n in imagenes],
+        "annotations": [
+            {
+                "id": k,
+                "image_id": 1,
+                "category_id": categorias[c],
+                "bbox": b,
+                "area": b[2] * b[3],
+                "iscrowd": 0,
+            }
+            for k, (c, b) in enumerate(cajas, start=1)
+        ],
+    }
+
+
+def test_acuerdo_de_punta_a_punta(tmp_path: Path, capsys: pytest.CaptureFixture[str]) -> None:
+    primera, segunda, salida = tmp_path / "p.json", tmp_path / "s.json", tmp_path / "k.json"
+    # La primera es la tarea completa (2 imágenes); la segunda, solo los cuadros dobles (1).
+    primera.write_text(
+        json.dumps(_coco_simple([("persona", [0, 0, 50, 100])], ["a.jpg", "z.jpg"])),
+        encoding="utf-8",
+    )
+    segunda.write_text(
+        json.dumps(_coco_simple([("persona", [0, 0, 50, 100])], ["a.jpg"])), encoding="utf-8"
+    )
+    assert main(["acuerdo", str(primera), str(segunda), "--salida", str(salida)]) == 0
+    datos = json.loads(salida.read_text(encoding="utf-8"))
+    assert datos["parametros"]["imagenes"] == 1 and datos["resultado"]["pares"] == 1
+    assert "Nivel 0" in capsys.readouterr().out
+
+
+def test_acuerdo_al_reves_detiene(tmp_path: Path) -> None:
+    primera, segunda = tmp_path / "p.json", tmp_path / "s.json"
+    primera.write_text(json.dumps(_coco_simple([], ["a.jpg"])), encoding="utf-8")
+    segunda.write_text(json.dumps(_coco_simple([], ["a.jpg", "z.jpg"])), encoding="utf-8")
+    with pytest.raises(SystemExit, match=r"z\.jpg"):
+        main(["acuerdo", str(primera), str(segunda), "--salida", str(tmp_path / "k.json")])

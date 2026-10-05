@@ -1,4 +1,4 @@
-"""Salida del nivel 1 (#31): las métricas con lo necesario para reproducirlas.
+"""Salida de los niveles 0 y 1 (#31): las métricas con lo necesario para reproducirlas.
 
 El CLAUDE.md pide que las métricas de un modelo vayan con el commit, los datos y los pesos que
 las produjeron. Especificación: `docs/arquitectura/04-evaluar-niveles-0-1.md`.
@@ -13,7 +13,9 @@ from collections.abc import Mapping, Sequence
 from pathlib import Path
 from typing import Any
 
-from gepp_vision.evaluacion.coco import Recorte
+from gepp_vision.evaluacion.acuerdo import KAPPA_MINIMO, SIN_CAJA, Acuerdo, bajo_el_minimo
+from gepp_vision.evaluacion.acuerdo import UMBRAL_IOU as UMBRAL_IOU_ACUERDO
+from gepp_vision.evaluacion.coco import CLASES, Recorte
 from gepp_vision.evaluacion.deteccion import MAX_DETS, UMBRAL_IOU, MetricasRegion
 
 #: De dónde sale la verdad: la cifra contra pre-etiquetas corregidas está inflada.
@@ -144,6 +146,76 @@ def tabla_markdown(datos: Mapping[str, Any]) -> str:
         "",
         f"Commit `{datos['commit'][:7]}`{sucio} · confianza ≥ {par['umbral_confianza']} · "
         f"IoU ≥ {par['umbral_iou']} · maxDets {par['max_dets']} · recorte {par['recorte_px']}",
+        "",
+        *(f"- {limitacion}" for limitacion in datos["limitaciones"]),
+    ]
+    return "\n".join(lineas) + "\n"
+
+
+LIMITACIONES_ACUERDO: tuple[str, ...] = (
+    "La primera exportación se etiquetó corrigiendo pre-etiquetas del modelo y la segunda "
+    "desde cero: el kappa mezcla el desacuerdo entre personas con el efecto de las sugerencias "
+    "(04-evaluar-niveles-0-1.md, §Nivel 0).",
+    "Son los cuadros del doble etiquetado de un solo video: el kappa es una estimación gruesa.",
+    "La primera exportación tiene que tener completos (completed en CVAT) los trabajos que "
+    "contienen esos cuadros; si no, el kappa compara las pre-etiquetas del modelo con la "
+    "segunda persona.",
+)
+
+
+def reporte_acuerdo(
+    resultado: Acuerdo, *, entradas: Mapping[str, Path], git: Mapping[str, Any]
+) -> dict[str, Any]:
+    return {
+        "nivel": 0,
+        **git,
+        "entradas": {n: {"ruta": str(r), "sha256": sha256(r)} for n, r in entradas.items()},
+        "parametros": {
+            "umbral_iou": UMBRAL_IOU_ACUERDO,
+            "kappa_minimo": KAPPA_MINIMO,
+            "imagenes": len(resultado.imagenes),
+        },
+        "imagenes": list(resultado.imagenes),
+        "limitaciones": list(LIMITACIONES_ACUERDO),
+        "resultado": dataclasses.asdict(resultado),
+    }
+
+
+def tabla_acuerdo(datos: Mapping[str, Any]) -> str:
+    """Tabla del nivel 0 para pegar en el #112. Recibe la salida de `reporte_acuerdo`."""
+    r = datos["resultado"]
+    categorias = [*CLASES, SIN_CAJA]
+    lineas = [
+        f"### Nivel 0 · acuerdo entre etiquetadores · {datos['parametros']['imagenes']} imágenes",
+        "",
+        "| Kappa | IoU medio | Pares | Solo la primera | Solo la segunda |",
+        "|---|---|---|---|---|",
+        f"| {_n(r['kappa'])} | {_n(r['iou_medio'])} | {r['pares']} | {r['solo_primera']} "
+        f"| {r['solo_segunda']} |",
+        "",
+        "Filas: la primera exportación; columnas: la segunda.",
+        "",
+        "| | " + " | ".join(categorias) + " |",
+        "|---" * (len(categorias) + 1) + "|",
+    ]
+    for fila in categorias:
+        cuentas = r["matriz"].get(fila, {})
+        celdas = " | ".join(str(cuentas.get(c, 0)) for c in categorias)
+        lineas.append(f"| {fila} | {celdas} |")
+    lineas.append("")
+    if r["kappa"] is None:
+        lineas.append(
+            "Kappa indefinido: no hay pares, o las dos personas usaron una sola y la misma clase."
+        )
+    elif bajo_el_minimo(r["kappa"]):
+        lineas.append(
+            f"**Alerta:** kappa {_n(r['kappa'])} bajo {_n(KAPPA_MINIMO)}. Según la guía §6: parar, "
+            "discutir las diferencias y anotarlas en la §7 antes de seguir."
+        )
+    sucio = " (con cambios sin confirmar)" if datos["cambios_sin_confirmar"] else ""
+    lineas += [
+        "",
+        f"Commit `{datos['commit'][:7]}`{sucio} · IoU ≥ {datos['parametros']['umbral_iou']}",
         "",
         *(f"- {limitacion}" for limitacion in datos["limitaciones"]),
     ]

@@ -3,6 +3,10 @@
     uv run python scripts/evaluar.py deteccion verdad.coco.json predicciones.coco.json \
         --recorte 600,220,1400,730 --origen-verdad con-preetiquetas --salida metricas.json
 
+Nivel 0, el acuerdo entre las dos personas que etiquetaron los mismos cuadros:
+
+    uv run python scripts/evaluar.py acuerdo primera.json segunda.json --salida metricas.json
+
 La verdad es la exportación COCO 1.0 de CVAT. Las predicciones salen de
 `preetiquetar.py --umbral 0.05` en la máquina con GPU; medir no necesita GPU. Para la cifra
 sin sesgo, la verdad son los 24 cuadros del doble etiquetado (`--origen-verdad
@@ -25,11 +29,14 @@ from gepp_vision.evaluacion import (
     ArchivoCoco,
     EntradaInvalida,
     Recorte,
+    acuerdo,
     estado_git,
     evaluar_regiones,
     imagenes_comunes,
     leer_coco,
     reporte,
+    reporte_acuerdo,
+    tabla_acuerdo,
     tabla_markdown,
 )
 
@@ -50,7 +57,13 @@ def main(argv: list[str] | None = None) -> int:
         help=f"confianza mínima, la misma para las tres clases (la de la regla: {UMBRAL_REGLA})",
     )
     d.add_argument("--salida", type=Path, required=True)
+    k = niveles.add_parser("acuerdo", help="nivel 0: ¿coinciden los dos etiquetadores?")
+    k.add_argument("primera", type=Path, help="exportación COCO 1.0 de la tarea completa")
+    k.add_argument("segunda", type=Path, help="exportación de doble-etiquetado-24")
+    k.add_argument("--salida", type=Path, required=True)
     args = p.parse_args(argv)
+    if args.nivel == "acuerdo":
+        return _acuerdo(args)
 
     try:
         recorte = _recorte(args.recorte)
@@ -84,6 +97,23 @@ def main(argv: list[str] | None = None) -> int:
     )
     args.salida.write_text(json.dumps(datos, ensure_ascii=False, indent=2), encoding="utf-8")
     print(tabla_markdown(datos))
+    return 0
+
+
+def _acuerdo(args: argparse.Namespace) -> int:
+    primera = _leer(args.primera, predicciones=False)
+    segunda = _leer(args.segunda, predicciones=False)
+    try:
+        resultado = acuerdo(primera, segunda)
+    except EntradaInvalida as e:
+        sys.exit(f"error: {e}")
+    datos = reporte_acuerdo(
+        resultado,
+        entradas={"primera": args.primera, "segunda": args.segunda},
+        git=estado_git(Path(__file__).resolve().parent),
+    )
+    args.salida.write_text(json.dumps(datos, ensure_ascii=False, indent=2), encoding="utf-8")
+    print(tabla_acuerdo(datos))
     return 0
 
 
