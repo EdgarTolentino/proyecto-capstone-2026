@@ -44,19 +44,24 @@ Se declara y se mide:
   (`--imagenes-de`). La diferencia entre las dos es el **sesgo estimado**, y se reporta en el #31
   junto a las dos cifras. Con 24 cuadros es una estimación gruesa, y así se dice.
 
-## Nivel 0: `evaluar.py acuerdo A.json B.json`
+## Nivel 0: `evaluar.py acuerdo primera.json segunda.json`
 
-Entrada: dos exportaciones COCO 1.0 de los mismos cuadros (los 24 con `doble_etiquetado = 1`),
-hechas por personas distintas sin ver el trabajo de la otra.
+Entrada: dos exportaciones COCO 1.0 hechas por personas distintas sin ver el trabajo de la otra.
+La **primera** es la de la tarea completa (`prueba-youtube-lote0`, 240 cuadros, etiquetada
+corrigiendo pre-etiquetas); la **segunda**, la de la tarea `doble-etiquetado-24` (los 24 cuadros
+con `doble_etiquetado = 1`, etiquetados desde cero).
 
 1. Las imágenes se emparejan **por `file_name`**, no por `id`: cada exportación de CVAT numera a
-   su manera. Si un archivo está en una y no en la otra, se detiene con error.
+   su manera. Se comparan **las imágenes de la segunda**; la primera puede traer más, porque CVAT
+   exporta la tarea entera. Si una imagen de la segunda no está en la primera, o tiene otro
+   tamaño, se detiene con error.
 2. En cada imagen se emparejan las cajas de A con las de B por IoU ≥ 0,5, **sin mirar la clase**,
    con el emparejamiento óptimo (`entrenamiento._asignar`, húngaro: el máximo de pares con
    IoU ≥ 0,5; a igual cantidad, la mayor IoU).
 3. **Kappa de Cohen** sobre las clases de cada par. Una caja que marcó solo uno de los dos cuenta
    como un par contra la categoría «sin caja». Así, una caja omitida baja el acuerdo en vez de
-   desaparecer de la cuenta.
+   desaparecer de la cuenta. Si no hay pares, o si las dos personas usaron una sola y la misma
+   categoría, el kappa es indefinido: `null` en el JSON y «—» en la tabla.
 4. **IoU medio** de los pares emparejados.
 5. Si el kappa baja de **0,7**, lo imprime como alerta (guía de etiquetado §6). El kappa no detiene
    el script: decidir es de las personas.
@@ -178,7 +183,8 @@ son las de `git diff --stat` contra su base el 4-oct; la del 1, la de la spec co
 | **3** | Nivel 1, el cálculo: `deteccion.py` y pruebas | 427 | Es la cifra del H3 (S10). Pasa de 400: se avisa en el PR |
 | **4** | Nivel 1, el reporte: `reporte.py` (JSON y tabla) y pruebas | 284 | Fija qué se registra antes de que lo escriba el script |
 | **5** | Nivel 1, el script: `scripts/evaluar.py deteccion` y pruebas | 330 | Deja el comando listo para cuando terminen #110 y #111 |
-| **6** | Nivel 0: `acuerdo.py`, `scripts/evaluar.py acuerdo` y pruebas | — | Espera el doble etiquetado de Edgar (#112) |
+| **6** | Nivel 0, el cálculo: `acuerdo.py` y pruebas | 317 | No necesita el doble etiquetado: se prueba con casos sintéticos |
+| **7** | Nivel 0, la salida: JSON, tabla y `scripts/evaluar.py acuerdo` | 232 | Deja el comando listo para cuando Edgar termine los 24 cuadros (#112) |
 | aparte | `fix/31-asignar-pares`: `entrenamiento._asignar` maximiza la cantidad de pares | 28 | Independiente, desde `main`. Lo usan `exportar_onnx.py` y la precisión y el recall del nivel 1 (PR 3), y lo usará el nivel 0 |
 
 Si un PR se pasa al escribirlo, se avisa antes de abrirlo.
