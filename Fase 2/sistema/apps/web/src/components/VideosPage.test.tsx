@@ -12,6 +12,7 @@ vi.mock("../api/client", () => ({
     constructor(message: string, public readonly status: number) { super(message); }
   },
   listarVideos: vi.fn(),
+  reprocesarVideo: vi.fn(),
 }));
 
 afterEach(() => { cleanup(); vi.resetAllMocks(); vi.useRealTimers(); });
@@ -87,9 +88,9 @@ it("no duplica videos ni sigue paginando si la API repite la página y el cursor
   expect(screen.queryByRole("button", { name: "Cargar más videos" })).not.toBeInTheDocument();
 });
 
-function renderizar() {
+function renderizar(puedeEditarReglas = false) {
   const client = new QueryClient({ defaultOptions: { queries: { retry: false } } });
-  render(<QueryClientProvider client={client}><VideosPage /></QueryClientProvider>);
+  render(<QueryClientProvider client={client}><VideosPage puedeEditarReglas={puedeEditarReglas} /></QueryClientProvider>);
   return client;
 }
 
@@ -241,4 +242,164 @@ it("mientras se refresca tras un error de «Cargar más», no anuncia un fallo q
   expect(screen.queryByText(/No fue posible actualizar la cola/)).not.toBeInTheDocument();
   expect(screen.queryByText(/No fue posible cargar la cola de videos/)).not.toBeInTheDocument();
   expect(screen.getByRole("table", { name: "Cola de videos" })).toBeVisible();
+});
+
+async function pulsarReprocesar(video: Video) {
+  fireEvent.click(await screen.findByRole("button", { name: `Reprocesar ${video.archivo}` }));
+  await waitFor(() => expect(api.reprocesarVideo).toHaveBeenCalledWith(video.id));
+}
+
+it("reprocesar un video listo recalcula sin GPU, lo comunica e invalida la lista", async () => {
+  const video = videoDePrueba("listo");
+  vi.mocked(api.listarVideos).mockResolvedValue({ items: [video] });
+  vi.mocked(api.reprocesarVideo).mockResolvedValue(video);
+  renderizar(true);
+
+  await pulsarReprocesar(video);
+  expect(await screen.findByText(`Las reglas de ${video.archivo} se recalcularon sin usar la GPU.`)).toBeVisible();
+  await waitFor(() => expect(api.listarVideos).toHaveBeenCalledTimes(2));
+});
+
+it("reprocesar un video en error lo devuelve a la cola e invalida la lista", async () => {
+  const video = videoDePrueba("error");
+  vi.mocked(api.listarVideos)
+    .mockResolvedValueOnce({ items: [video] })
+    .mockResolvedValue({ items: [{ ...video, estado: "en_cola", intentos: 0, error_motivo: null }] });
+  vi.mocked(api.reprocesarVideo).mockResolvedValue({ ...video, estado: "en_cola", intentos: 0, error_motivo: null });
+  renderizar(true);
+
+  await pulsarReprocesar(video);
+  expect(await screen.findByText(`El video ${video.archivo} volvió a la cola.`)).toBeVisible();
+  expect(await screen.findByText("En cola")).toBeVisible();
+  expect(api.listarVideos).toHaveBeenCalledTimes(2);
+});
+
+it("si el trabajador lo tomó antes (409), avisa y actualiza la lista", async () => {
+  const video = videoDePrueba("reintentando");
+  vi.mocked(api.listarVideos)
+    .mockResolvedValueOnce({ items: [video] })
+    .mockResolvedValue({ items: [{ ...video, estado: "procesando" }] });
+  vi.mocked(api.reprocesarVideo).mockRejectedValue(new api.ApiError("conflicto", 409));
+  renderizar(true);
+
+  await pulsarReprocesar(video);
+  expect(await screen.findByText(`El video ${video.archivo} ya se está procesando.`)).toBeVisible();
+  expect(await screen.findByText("Procesando")).toBeVisible();
+  expect(api.listarVideos).toHaveBeenCalledTimes(2);
+});
+
+it("si el reproceso falla con un 500, lo dice con el nombre del archivo y no recarga la lista", async () => {
+  const video = videoDePrueba("error");
+  vi.mocked(api.listarVideos).mockResolvedValue({ items: [video] });
+  vi.mocked(api.reprocesarVideo).mockRejectedValue(new api.ApiError("fallo", 500));
+  renderizar(true);
+
+  await pulsarReprocesar(video);
+  expect(await screen.findByText(`No fue posible reprocesar ${video.archivo}. Intenta nuevamente.`)).toBeVisible();
+  expect(api.listarVideos).toHaveBeenCalledTimes(1);
+});
+
+it("deshabilita el botón mientras el reproceso está pendiente", async () => {
+  const video = videoDePrueba("listo");
+  let resolver!: (resultado: Video) => void;
+  vi.mocked(api.listarVideos).mockResolvedValue({ items: [video] });
+  vi.mocked(api.reprocesarVideo).mockImplementation(() => new Promise((resolve) => { resolver = resolve; }));
+  renderizar(true);
+
+  await pulsarReprocesar(video);
+  const boton = screen.getByRole("button", { name: `Reprocesar ${video.archivo}` });
+  expect(boton).toBeDisabled();
+  fireEvent.click(boton);
+  expect(api.reprocesarVideo).toHaveBeenCalledTimes(1);
+
+  resolver(video);
+  await waitFor(() => expect(boton).not.toBeDisabled());
+});
+
+it.each([
+  ["en_cola", false],
+  ["procesando", false],
+  ["reintentando", true],
+  ["listo", true],
+  ["error", true],
+] as const)("en %s ofrece reprocesar: %s", async (estado, permiteReproceso) => {
+  const video = videoDePrueba(estado);
+  vi.mocked(api.listarVideos).mockResolvedValue({ items: [video] });
+  renderizar(true);
+
+  const tabla = await screen.findByRole("table", { name: "Cola de videos" });
+  const boton = screen.queryByRole("button", { name: `Reprocesar ${video.archivo}` });
+  expect(boton !== null).toBe(permiteReproceso);
+  const [cabecera, fila] = within(tabla).getAllByRole("row");
+  expect(fila.querySelectorAll("th, td")).toHaveLength(cabecera.querySelectorAll("th, td").length);
+  expect(within(cabecera).getByText("Acciones")).toBeInTheDocument();
+});
+
+it("sin el permiso editar_reglas no hay columna Acciones ni botón Reprocesar", async () => {
+  const video = videoDePrueba("listo");
+  vi.mocked(api.listarVideos).mockResolvedValue({ items: [video] });
+  renderizar(false);
+
+  const tabla = await screen.findByRole("table", { name: "Cola de videos" });
+  expect(within(tabla).queryByText("Acciones")).not.toBeInTheDocument();
+  expect(screen.queryByRole("button", { name: `Reprocesar ${video.archivo}` })).not.toBeInTheDocument();
+});
+
+it("el mensaje vive en una región status siempre montada y se limpia al reprocesar de nuevo", async () => {
+  const video = videoDePrueba("listo");
+  let resolver!: (resultado: Video) => void;
+  vi.mocked(api.listarVideos).mockResolvedValue({ items: [video] });
+  vi.mocked(api.reprocesarVideo)
+    .mockResolvedValueOnce(video)
+    .mockImplementation(() => new Promise((resolve) => { resolver = resolve; }));
+  renderizar(true);
+
+  await screen.findByRole("table", { name: "Cola de videos" });
+  const region = document.querySelector(".video-message");
+  expect(region).toHaveAttribute("role", "status");
+  expect(region).toBeEmptyDOMElement();
+
+  await pulsarReprocesar(video);
+  const recalculo = `Las reglas de ${video.archivo} se recalcularon sin usar la GPU.`;
+  await waitFor(() => expect(region).toHaveTextContent(recalculo));
+  await waitFor(() => expect(screen.getByRole("button", { name: `Reprocesar ${video.archivo}` })).not.toBeDisabled());
+
+  fireEvent.click(screen.getByRole("button", { name: `Reprocesar ${video.archivo}` }));
+  await waitFor(() => expect(region).toBeEmptyDOMElement());
+  resolver(video);
+  await waitFor(() => expect(region).toHaveTextContent(recalculo));
+});
+
+it.each([401, 403])("si el reproceso responde %i, dice que falta permiso y no recarga la lista", async (status) => {
+  const video = videoDePrueba("error");
+  vi.mocked(api.listarVideos).mockResolvedValue({ items: [video] });
+  vi.mocked(api.reprocesarVideo).mockRejectedValue(new api.ApiError("sin permiso", status));
+  renderizar(true);
+
+  await pulsarReprocesar(video);
+  expect(await screen.findByText("No tienes permiso para reprocesar videos.")).toBeVisible();
+  expect(api.listarVideos).toHaveBeenCalledTimes(1);
+});
+
+it("si el video ya no existe (404), lo dice y actualiza la lista", async () => {
+  const video = videoDePrueba("error");
+  vi.mocked(api.listarVideos)
+    .mockResolvedValueOnce({ items: [video] })
+    .mockResolvedValue({ items: [] });
+  vi.mocked(api.reprocesarVideo).mockRejectedValue(new api.ApiError("no encontrado", 404));
+  renderizar(true);
+
+  await pulsarReprocesar(video);
+  expect(await screen.findByText(`El video ${video.archivo} ya no existe.`)).toBeVisible();
+  expect(await screen.findByText("No hay videos en la cola.")).toBeVisible();
+});
+
+it("sin acción posible, la celda Acciones muestra un guion", async () => {
+  vi.mocked(api.listarVideos).mockResolvedValue({ items: [videoDePrueba("en_cola")] });
+  renderizar(true);
+
+  const tabla = await screen.findByRole("table", { name: "Cola de videos" });
+  const [, fila] = within(tabla).getAllByRole("row");
+  const celdas = fila.querySelectorAll("td");
+  expect(celdas[celdas.length - 1]).toHaveTextContent("—");
 });
