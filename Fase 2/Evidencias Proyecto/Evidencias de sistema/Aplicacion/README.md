@@ -27,6 +27,7 @@ git checkout v1.0.0
 | `2026-10-01-panel-general-filtros.png` | Panel con obra, periodo del 1 al 30 de septiembre de 2026 y turno A seleccionados |
 | `2026-10-01-navegacion-a-hallazgos.png` | Bandeja abierta desde un indicador; conserva fecha y turno, y no arrastra el filtro de obra que la bandeja no admite |
 | `2026-10-06-cola-videos.png` | Cola de videos (#117) contra el mock del contrato: archivo, cámara, estado, intentos y motivo del error (solo en `error` y `reintentando`), con «Cargar más videos». El único video viene del ejemplo genérico de Prism |
+| `2026-10-06-reprocesar-video.png` | Cola de videos (#118) con el permiso `editar_reglas`: columna «Acciones» y botón «Reprocesar» solo en el video en `error`; el `en_cola` muestra «—». Para la captura, un proxy local delante de Prism agregó `editar_reglas` a `/yo` (el ejemplo del contrato no lo trae) y una copia del video de ejemplo en estado `error`; el resto es Prism |
 
 ### Nota sobre los datos del mock de Prism
 
