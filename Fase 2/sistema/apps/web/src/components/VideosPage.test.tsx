@@ -26,7 +26,7 @@ function videoDePrueba(estado: Video["estado"]): Video {
   };
 }
 
-it("muestra un video en error con cÃ¡mara, intentos y motivo", async () => {
+it("muestra un video en error con cámara, intentos y motivo", async () => {
   const video: Video = {
     id: 22,
     archivo: "CAM-03_2026-10-02_08-00.mp4",
@@ -70,7 +70,7 @@ it.each([
   expect((await screen.findByText(nombre)).closest(".video-status")).toHaveClass(`video-status--${clase}`);
 });
 
-it("no duplica videos ni sigue paginando si la API repite la pÃ¡gina y el cursor", async () => {
+it("no duplica videos ni sigue paginando si la API repite la página y el cursor", async () => {
   const video = videoDePrueba("listo");
   vi.mocked(api.listarVideos)
     .mockResolvedValueOnce({ items: [video], siguiente_cursor: "cursor-1" })
@@ -78,12 +78,12 @@ it("no duplica videos ni sigue paginando si la API repite la pÃ¡gina y el curs
   const client = new QueryClient({ defaultOptions: { queries: { retry: false } } });
   render(<QueryClientProvider client={client}><VideosPage /></QueryClientProvider>);
 
-  fireEvent.click(await screen.findByRole("button", { name: "Cargar mÃ¡s videos" }));
+  fireEvent.click(await screen.findByRole("button", { name: "Cargar más videos" }));
 
   await waitFor(() => expect(api.listarVideos).toHaveBeenCalledTimes(2));
   expect(api.listarVideos).toHaveBeenNthCalledWith(2, "cursor-1");
   expect(screen.getAllByRole("row")).toHaveLength(2);
-  expect(screen.queryByRole("button", { name: "Cargar mÃ¡s videos" })).not.toBeInTheDocument();
+  expect(screen.queryByRole("button", { name: "Cargar más videos" })).not.toBeInTheDocument();
 });
 
 function renderizar() {

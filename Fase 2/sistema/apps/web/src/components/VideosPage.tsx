@@ -51,7 +51,7 @@ export function VideosPage() {
 
       {consulta.isLoading && (
         <div className="state-message" role="status" aria-live="polite">
-          <LoaderCircle className="spin" aria-hidden="true" /> Cargando videosÃ¢â‚¬Â¦
+          <LoaderCircle className="spin" aria-hidden="true" /> Cargando videos…
         </div>
       )}
       {consulta.isError && !sinPermiso && (
@@ -71,7 +71,7 @@ export function VideosPage() {
               <thead>
                 <tr>
                   <th scope="col">Archivo</th>
-                  <th scope="col">CÃƒÂ¡mara</th>
+                  <th scope="col">Cámara</th>
                   <th scope="col">Estado</th>
                   <th scope="col">Intentos</th>
                   <th scope="col">Motivo del error</th>
@@ -81,10 +81,10 @@ export function VideosPage() {
                 {videos.map((video) => (
                   <tr key={video.id}>
                     <th scope="row" className="mono video-file">{video.archivo}</th>
-                    <td>{video.fuente?.nombre ?? "Ã¢â‚¬â€"}</td>
+                    <td>{video.fuente?.nombre ?? "—"}</td>
                     <td><EstadoVideo estado={video.estado} /></td>
                     <td className="mono video-attempts">{video.intentos ?? 0}</td>
-                    <td className="video-error">{video.error_motivo || "Ã¢â‚¬â€"}</td>
+                    <td className="video-error">{video.error_motivo || "—"}</td>
                   </tr>
                 ))}
               </tbody>
@@ -93,7 +93,7 @@ export function VideosPage() {
           {consulta.hasNextPage && (
             <div className="videos-pagination">
               <button type="button" disabled={consulta.isFetchingNextPage} onClick={() => void consulta.fetchNextPage()}>
-                {consulta.isFetchingNextPage ? "CargandoÃ¢â‚¬Â¦" : "Cargar mÃƒÂ¡s videos"}
+                {consulta.isFetchingNextPage ? "Cargando…" : "Cargar más videos"}
               </button>
             </div>
           )}
