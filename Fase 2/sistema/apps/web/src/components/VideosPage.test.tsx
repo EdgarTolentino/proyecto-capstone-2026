@@ -4,7 +4,7 @@ import { afterEach, expect, it, vi } from "vitest";
 
 import type { Video } from "../api/types";
 import * as api from "../api/client";
-import { INTERVALO_REFRESCO_MS, intervaloDeRefresco } from "../api/videos";
+import { INTERVALO_REFRESCO_MS } from "../api/videos";
 import { VideosPage } from "./VideosPage";
 
 vi.mock("../api/client", () => ({
@@ -90,6 +90,7 @@ it("no duplica videos ni sigue paginando si la API repite la página y el cursor
 function renderizar() {
   const client = new QueryClient({ defaultOptions: { queries: { retry: false } } });
   render(<QueryClientProvider client={client}><VideosPage /></QueryClientProvider>);
+  return client;
 }
 
 it("muestra el estado vacío cuando no hay videos", async () => {
@@ -131,7 +132,7 @@ it("muestra el error de «Cargar más» junto al botón y conserva la tabla", as
   expect(screen.queryByText(/No fue posible cargar la cola de videos/)).not.toBeInTheDocument();
 
   vi.mocked(api.listarVideos).mockResolvedValueOnce({ items: [{ ...videoDePrueba("error"), id: 23, archivo: "otro.mp4" }] });
-  fireEvent.click(screen.getByRole("button", { name: "Reintentar" }));
+  fireEvent.click(screen.getByRole("button", { name: "Reintentar cargar más" }));
   expect(await screen.findByText("otro.mp4")).toBeVisible();
   expect(api.listarVideos).toHaveBeenLastCalledWith("cursor-1");
   expect(screen.queryByText("No fue posible cargar más videos.")).not.toBeInTheDocument();
@@ -147,7 +148,7 @@ it.each([401, 403])("un %i en «Cargar más» no oculta la tabla ni ofrece reint
   expect(await screen.findByText("No tienes permiso para ver más videos.")).toBeVisible();
   expect(screen.getByRole("table", { name: "Cola de videos" })).toBeVisible();
   expect(screen.queryByText("No tienes permiso para ver la cola de videos.")).not.toBeInTheDocument();
-  expect(screen.queryByRole("button", { name: "Reintentar" })).not.toBeInTheDocument();
+  expect(screen.queryByRole("button", { name: /Reintentar/ })).not.toBeInTheDocument();
 });
 
 it.each([
@@ -175,16 +176,6 @@ it.each([
   expect(screen.queryByText("motivo anterior") !== null).toBe(visible);
 });
 
-it("refresca solo mientras haya videos pendientes", () => {
-  const pagina = (...estados: Video["estado"][]) => ({ items: estados.map((e, i) => ({ ...videoDePrueba(e), id: i })) });
-
-  expect(intervaloDeRefresco(undefined)).toBe(false);
-  expect(intervaloDeRefresco([pagina("listo", "error")])).toBe(false);
-  expect(intervaloDeRefresco([pagina("listo"), pagina("en_cola")])).toBe(INTERVALO_REFRESCO_MS);
-  expect(intervaloDeRefresco([pagina("procesando")])).toBe(INTERVALO_REFRESCO_MS);
-  expect(intervaloDeRefresco([pagina("reintentando")])).toBe(INTERVALO_REFRESCO_MS);
-});
-
 it("vuelve a pedir la cola cuando hay un video procesando y deja de pedirla al terminar", async () => {
   vi.useFakeTimers({ shouldAdvanceTime: true });
   vi.mocked(api.listarVideos)
@@ -198,4 +189,56 @@ it("vuelve a pedir la cola cuando hay un video procesando y deja de pedirla al t
   const llamadas = vi.mocked(api.listarVideos).mock.calls.length;
   await vi.advanceTimersByTimeAsync(INTERVALO_REFRESCO_MS * 3);
   expect(api.listarVideos).toHaveBeenCalledTimes(llamadas);
+});
+
+it.each([500, 401])("si el refresco falla con un %i, conserva la tabla, avisa sin tapar y deja de pedir", async (status) => {
+  vi.useFakeTimers({ shouldAdvanceTime: true });
+  vi.mocked(api.listarVideos)
+    .mockResolvedValueOnce({ items: [videoDePrueba("procesando")] })
+    .mockRejectedValue(new api.ApiError("fallo", status));
+  renderizar();
+
+  expect(await screen.findByText("Procesando")).toBeVisible();
+  await vi.advanceTimersByTimeAsync(INTERVALO_REFRESCO_MS);
+  expect(await screen.findByText(/No fue posible actualizar la cola/)).toBeVisible();
+  expect(screen.getByRole("table", { name: "Cola de videos" })).toBeVisible();
+  expect(screen.queryByText(/No fue posible cargar la cola de videos/)).not.toBeInTheDocument();
+  expect(screen.queryByText("No tienes permiso para ver la cola de videos.")).not.toBeInTheDocument();
+
+  const llamadas = vi.mocked(api.listarVideos).mock.calls.length;
+  await vi.advanceTimersByTimeAsync(INTERVALO_REFRESCO_MS * 3);
+  expect(api.listarVideos).toHaveBeenCalledTimes(llamadas);
+});
+
+it("reintenta el refresco fallido y vuelve a mostrar los datos al día", async () => {
+  vi.useFakeTimers({ shouldAdvanceTime: true });
+  vi.mocked(api.listarVideos)
+    .mockResolvedValueOnce({ items: [videoDePrueba("procesando")] })
+    .mockRejectedValueOnce(new api.ApiError("fallo", 500))
+    .mockResolvedValue({ items: [videoDePrueba("listo")] });
+  renderizar();
+
+  await screen.findByText("Procesando");
+  await vi.advanceTimersByTimeAsync(INTERVALO_REFRESCO_MS);
+  await screen.findByText(/No fue posible actualizar la cola/);
+  fireEvent.click(screen.getByRole("button", { name: "Reintentar" }));
+  expect(await screen.findByText("Listo")).toBeVisible();
+  expect(screen.queryByText(/No fue posible actualizar la cola/)).not.toBeInTheDocument();
+});
+
+it("mientras se refresca tras un error de «Cargar más», no anuncia un fallo que no ocurrió", async () => {
+  vi.mocked(api.listarVideos)
+    .mockResolvedValueOnce({ items: [videoDePrueba("listo")], siguiente_cursor: "cursor-1" })
+    .mockRejectedValueOnce(new api.ApiError("fallo", 500))
+    .mockReturnValue(new Promise(() => undefined));
+  const client = renderizar();
+
+  fireEvent.click(await screen.findByRole("button", { name: "Cargar más videos" }));
+  await screen.findByText("No fue posible cargar más videos.");
+  void client.refetchQueries({ queryKey: ["videos"] });
+  await waitFor(() => expect(api.listarVideos).toHaveBeenCalledTimes(3));
+
+  expect(screen.queryByText(/No fue posible actualizar la cola/)).not.toBeInTheDocument();
+  expect(screen.queryByText(/No fue posible cargar la cola de videos/)).not.toBeInTheDocument();
+  expect(screen.getByRole("table", { name: "Cola de videos" })).toBeVisible();
 });

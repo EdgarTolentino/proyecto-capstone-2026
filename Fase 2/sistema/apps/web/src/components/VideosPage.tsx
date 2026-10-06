@@ -39,14 +39,15 @@ export function VideosPage() {
       const siguiente = ultimaPagina.siguiente_cursor ?? undefined;
       return siguiente && !parametros.includes(siguiente) ? siguiente : undefined;
     },
-    refetchInterval: (query) => intervaloDeRefresco(query.state.data?.pages),
+    // Si un refresco falla, se deja de insistir hasta que la persona reintente.
+    refetchInterval: (query) => (query.state.status === "error" ? false : intervaloDeRefresco(query.state.data?.pages)),
   });
   const videosPorId = new Map<number, Video>();
   for (const pagina of consulta.data?.pages ?? []) {
     for (const video of pagina.items) videosPorId.set(video.id, video);
   }
   const videos = [...videosPorId.values()];
-  const errorPrincipal = consulta.isError && !consulta.isFetchNextPageError;
+  const errorPrincipal = consulta.isLoadingError;
   const sinPermiso = errorPrincipal && esSinPermiso(consulta.error);
   return (
     <main className="videos-page" aria-labelledby="videos-page-title" aria-busy={consulta.isLoading}>
@@ -72,6 +73,12 @@ export function VideosPage() {
       {sinPermiso && <div className="state-message" role="alert">No tienes permiso para ver la cola de videos.</div>}
       {consulta.isSuccess && videos.length === 0 && (
         <div className="state-message" role="status">No hay videos en la cola.</div>
+      )}
+      {consulta.isRefetchError && !consulta.isFetching && (
+        <div className="state-message" role="status">
+          No fue posible actualizar la cola; se muestran los últimos datos cargados.
+          <button type="button" onClick={() => void consulta.refetch()}>Reintentar</button>
+        </div>
       )}
       {videos.length > 0 && (
         <>
@@ -104,7 +111,7 @@ export function VideosPage() {
               <AlertTriangle aria-hidden="true" />
               {esSinPermiso(consulta.error) ? "No tienes permiso para ver más videos." : "No fue posible cargar más videos."}
               {!esSinPermiso(consulta.error) && (
-                <button type="button" onClick={() => void consulta.fetchNextPage()}>Reintentar</button>
+                <button type="button" onClick={() => void consulta.fetchNextPage()}>Reintentar cargar más</button>
               )}
             </div>
           )}
