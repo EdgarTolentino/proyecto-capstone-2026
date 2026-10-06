@@ -172,64 +172,64 @@ export default function App() {
       )}
       {seccion === "videos" && <VideosPage />}
       {seccion === "hallazgos" && (
-        <main className="findings-page">
-          {mostrarAvisoObraSinFiltro && <div className="state-message" role="status">La obra seleccionada en el panel no se aplica en esta bandeja: el contrato de Hallazgos no ofrece filtro por obra.</div>}
-          {sesion.isLoading && <div className="state-message"><LoaderCircle className="spin" /> Cargando sesión…</div>}
-          {sesion.isError && (
-            <div className="state-message state-message--error" role="alert">
-              <AlertTriangle />
-              No fue posible cargar la sesión.
-              <button type="button" onClick={() => void sesion.refetch()}>Reintentar</button>
+      <main className="findings-page">
+        {mostrarAvisoObraSinFiltro && <div className="state-message" role="status">La obra seleccionada en el panel no se aplica en esta bandeja: el contrato de Hallazgos no ofrece filtro por obra.</div>}
+        {sesion.isLoading && <div className="state-message"><LoaderCircle className="spin" /> Cargando sesión…</div>}
+        {sesion.isError && (
+          <div className="state-message state-message--error" role="alert">
+            <AlertTriangle />
+            No fue posible cargar la sesión.
+            <button type="button" onClick={() => void sesion.refetch()}>Reintentar</button>
+          </div>
+        )}
+        {sesion.data && !permisos.has("ver_hallazgos") && <div className="state-message" role="alert">No tienes permiso para ver hallazgos.</div>}
+        {sesion.data && permisos.has("ver_hallazgos") && (
+          <>
+            <TriageTabs vista={filtros.vista} contadores={pagina.data?.contadores} onChange={(vista) => { actualizar({ vista, estado: undefined, hallazgoId: undefined }); setSeleccionados(new Set()); }} />
+            <div className="review-heading">
+              <div><p className="eyebrow">CONTROL Y VALIDACIÓN</p><h2>Bandeja de hallazgos</h2></div>
+              <div className="shortcut-help" aria-label="Atajos disponibles"><kbd>j</kbd><kbd>k</kbd> navegar <kbd>c</kbd> confirmar <kbd>x</kbd> descartar <kbd>↵</kbd> abrir</div>
             </div>
-          )}
-          {sesion.data && !permisos.has("ver_hallazgos") && <div className="state-message" role="alert">No tienes permiso para ver hallazgos.</div>}
-          {sesion.data && permisos.has("ver_hallazgos") && (
-            <>
-              <TriageTabs vista={filtros.vista} contadores={pagina.data?.contadores} onChange={(vista) => { actualizar({ vista, estado: undefined, hallazgoId: undefined }); setSeleccionados(new Set()); }} />
-              <div className="review-heading">
-                <div><p className="eyebrow">CONTROL Y VALIDACIÓN</p><h2>Bandeja de hallazgos</h2></div>
-                <div className="shortcut-help" aria-label="Atajos disponibles"><kbd>j</kbd><kbd>k</kbd> navegar <kbd>c</kbd> confirmar <kbd>x</kbd> descartar <kbd>↵</kbd> abrir</div>
-              </div>
-              <HallazgoFilters filtros={filtros} catalogos={catalogos.data} onChange={(cambios) => { actualizar(cambios); setSeleccionados(new Set()); }} />
-              <div className="legal-notice"><AlertTriangle size={13} aria-hidden="true" /> Indicio automatizado. Requiere validación humana. El sistema reporta por área y turno, nunca por persona.</div>
-              <div className="results-bar">
-                <div className="result-summary" aria-live="polite">{pagina.data ? `${hallazgos.length} hallazgos en esta vista` : "Consultando hallazgos…"}</div>
-                <div className="severity-key" aria-label="Leyenda de severidad"><span className="severity severity--critica"><i>◆</i> Crítica</span><span className="severity severity--alta"><i>▲</i> Alta</span><span className="severity severity--media"><i>●</i> Media</span><span className="severity severity--baja"><i>○</i> Baja</span></div>
-              </div>
+            <HallazgoFilters filtros={filtros} catalogos={catalogos.data} onChange={(cambios) => { actualizar(cambios); setSeleccionados(new Set()); }} />
+            <div className="legal-notice"><AlertTriangle size={13} aria-hidden="true" /> Indicio automatizado. Requiere validación humana. El sistema reporta por área y turno, nunca por persona.</div>
+            <div className="results-bar">
+              <div className="result-summary" aria-live="polite">{pagina.data ? `${hallazgos.length} hallazgos en esta vista` : "Consultando hallazgos…"}</div>
+              <div className="severity-key" aria-label="Leyenda de severidad"><span className="severity severity--critica"><i>◆</i> Crítica</span><span className="severity severity--alta"><i>▲</i> Alta</span><span className="severity severity--media"><i>●</i> Media</span><span className="severity severity--baja"><i>○</i> Baja</span></div>
+            </div>
 
-              {pagina.isLoading && <div className="state-message"><LoaderCircle className="spin" /> Cargando bandeja…</div>}
-              {pagina.isError && <div className="state-message state-message--error"><AlertTriangle /> No fue posible cargar la bandeja. Comprueba que el mock esté encendido con <code>make mock</code>.</div>}
-              {pagina.data && hallazgos.length === 0 && <div className="state-message">No hay hallazgos con estos filtros.</div>}
-              {pagina.data && hallazgos.length > 0 && (
-                <HallazgosGrid
-                  hallazgos={hallazgos}
-                  activoId={activoVisibleId}
-                  seleccionados={seleccionados}
-                  permiteSeleccionar={permiteTriar}
-                  permiteEvidencia={permiteEvidencia}
-                  onActivate={setActivoId}
-                  onOpen={abrir}
-                  onSelect={(id, checked) => setSeleccionados((actuales) => {
-                    const siguiente = new Set(actuales);
-                    if (checked) siguiente.add(id);
-                    else siguiente.delete(id);
-                    return siguiente;
-                  })}
-                  onSelectAll={(checked) => setSeleccionados(checked ? new Set(hallazgos.map((item) => item.id)) : new Set())}
-                />
-              )}
-              {seleccionados.size > 0 && (
-                <BulkActionsBar
-                  count={seleccionados.size}
-                  busy={triageEnLote.isPending}
-                  onConfirm={() => decidirSeleccion({ estado: "confirmado" })}
-                  onFalsePositive={() => setMostrarMotivo(true)}
-                  onClear={() => setSeleccionados(new Set())}
-                />
-              )}
-            </>
-          )}
-        </main>
+            {pagina.isLoading && <div className="state-message"><LoaderCircle className="spin" /> Cargando bandeja…</div>}
+            {pagina.isError && <div className="state-message state-message--error"><AlertTriangle /> No fue posible cargar la bandeja. Comprueba que el mock esté encendido con <code>make mock</code>.</div>}
+            {pagina.data && hallazgos.length === 0 && <div className="state-message">No hay hallazgos con estos filtros.</div>}
+            {pagina.data && hallazgos.length > 0 && (
+              <HallazgosGrid
+                hallazgos={hallazgos}
+                activoId={activoVisibleId}
+                seleccionados={seleccionados}
+                permiteSeleccionar={permiteTriar}
+                permiteEvidencia={permiteEvidencia}
+                onActivate={setActivoId}
+                onOpen={abrir}
+                onSelect={(id, checked) => setSeleccionados((actuales) => {
+                  const siguiente = new Set(actuales);
+                  if (checked) siguiente.add(id);
+                  else siguiente.delete(id);
+                  return siguiente;
+                })}
+                onSelectAll={(checked) => setSeleccionados(checked ? new Set(hallazgos.map((item) => item.id)) : new Set())}
+              />
+            )}
+            {seleccionados.size > 0 && (
+              <BulkActionsBar
+                count={seleccionados.size}
+                busy={triageEnLote.isPending}
+                onConfirm={() => decidirSeleccion({ estado: "confirmado" })}
+                onFalsePositive={() => setMostrarMotivo(true)}
+                onClear={() => setSeleccionados(new Set())}
+              />
+            )}
+          </>
+        )}
+      </main>
       )}
       {seccion === "reglas" && sesion.isLoading && (
         <main className="rules-page"><div className="state-message"><LoaderCircle className="spin" /> Cargando sesión…</div></main>
