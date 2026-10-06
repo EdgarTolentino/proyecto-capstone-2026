@@ -22,6 +22,7 @@ import { HallazgosGrid } from "./components/HallazgosGrid";
 import { ReglasPage } from "./components/ReglasPage";
 import { PanelPage } from "./components/PanelPage";
 import { TriageTabs } from "./components/TriageTabs";
+import { VideosPage } from "./components/VideosPage";
 import { useAppNavigation } from "./hooks/useAppNavigation";
 import { useHallazgoFilters } from "./hooks/useHallazgoFilters";
 import { useHallazgoShortcuts } from "./hooks/useHallazgoShortcuts";
@@ -169,6 +170,7 @@ export default function App() {
           onNavigateHallazgos={navegarHallazgos}
         />
       )}
+      {seccion === "videos" && <VideosPage />}
       {seccion === "hallazgos" && (
       <main className="findings-page">
         {mostrarAvisoObraSinFiltro && <div className="state-message" role="status">La obra seleccionada en el panel no se aplica en esta bandeja: el contrato de Hallazgos no ofrece filtro por obra.</div>}
