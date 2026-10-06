@@ -153,10 +153,11 @@ el autor **no cuenta**.
 | [Hard Hat Detection](https://www.kaggle.com/datasets/andrewmvd/hard-hat-detection) (Kaggle) | **CC0 1.0**, en la ficha de Kaggle | 5.001 | casco, cabeza, persona | Pascal VOC | Refuerzo |
 | [Helmet Detection](https://www.kaggle.com/datasets/andrewmvd/helmet-detection) (Kaggle) | **CC0**, en la ficha de Kaggle | 764 | con / sin casco | Pascal VOC | Aporte menor |
 
-> **Por confirmar al descargar:** las páginas de Roboflow Universe respondieron 403 a la consulta
-> automática; las licencias CC BY 4.0 de *Construction Site Safety* y *Safety Vests* se
-> confirmaron por dos fuentes concordantes, no leyendo la ficha completa. Quien descargue anota
-> aquí la licencia que muestra la página en ese momento.
+> **Confirmación al descargar:** las páginas de Roboflow Universe respondieron 403 a la consulta
+> automática, así que la licencia se confirma con lo que trae la descarga. *Construction Site
+> Safety* quedó confirmada el 2026-10-01: CC BY 4.0 en el `README.dataset.txt` de la versión 30
+> (ver «Uso real»). *Safety Vests* sigue sin confirmar porque no se ha descargado; quien lo
+> descargue anota aquí la licencia que trae.
 
 ### Rechazados
 
@@ -201,9 +202,11 @@ reporta es sobre el video de prueba.
 fuentes, un chaleco visible sin caja también cuenta como fondo. La v1 lo acepta; la segunda
 ronda (#37) puede completar chalecos con el primer modelo, como se hizo con las personas.
 
-**Decisión propuesta:** partir con **Hard Hat Workers + Construction Site Safety + SHWD**, y
-sumar *Safety Vests* y los dos de Kaggle si falta volumen de chaleco. Las atribuciones de los CC BY
-van en el README del repositorio y en el informe final.
+**Lo que se usó en la v1:** **Hard Hat Detection + Construction Site Safety**, como dice la tabla
+de arriba. Reemplaza a la decisión propuesta del 2026-09-22 (Hard Hat Workers + Construction Site
+Safety + SHWD): Hard Hat Detection ya trae las imágenes de Hard Hat Workers. SHWD, *Safety Vests*
+y Helmet Detection quedan para la segunda ronda (#37), si falta volumen de casco o de chaleco.
+Las atribuciones de los CC BY van en el README del repositorio y en el informe final.
 
 ## 3. El video propio
 
