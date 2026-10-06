@@ -3,6 +3,7 @@ import { AlertTriangle, LoaderCircle } from "lucide-react";
 
 import { ApiError, listarVideos } from "../api/client";
 import type { Video } from "../api/types";
+import { intervaloDeRefresco } from "../api/videos";
 import "./VideosPage.css";
 
 const estados: Record<Video["estado"], { nombre: string; clase: string }> = {
@@ -12,6 +13,12 @@ const estados: Record<Video["estado"], { nombre: string; clase: string }> = {
   listo: { nombre: "Listo", clase: "ready" },
   error: { nombre: "Error", clase: "error" },
 };
+
+const estadosConMotivo: ReadonlySet<Video["estado"]> = new Set(["error", "reintentando"]);
+
+function esSinPermiso(error: unknown): boolean {
+  return error instanceof ApiError && [401, 403].includes(error.status);
+}
 
 function EstadoVideo({ estado }: { estado: Video["estado"] }) {
   const dato = estados[estado];
@@ -32,13 +39,15 @@ export function VideosPage() {
       const siguiente = ultimaPagina.siguiente_cursor ?? undefined;
       return siguiente && !parametros.includes(siguiente) ? siguiente : undefined;
     },
+    refetchInterval: (query) => intervaloDeRefresco(query.state.data?.pages),
   });
   const videosPorId = new Map<number, Video>();
   for (const pagina of consulta.data?.pages ?? []) {
     for (const video of pagina.items) videosPorId.set(video.id, video);
   }
   const videos = [...videosPorId.values()];
-  const sinPermiso = consulta.error instanceof ApiError && [401, 403].includes(consulta.error.status);
+  const errorPrincipal = consulta.isError && !consulta.isFetchNextPageError;
+  const sinPermiso = errorPrincipal && esSinPermiso(consulta.error);
   return (
     <main className="videos-page" aria-labelledby="videos-page-title" aria-busy={consulta.isLoading}>
       <div className="review-heading panel-heading">
@@ -46,7 +55,7 @@ export function VideosPage() {
           <p className="eyebrow">INGESTA Y PROCESAMIENTO</p>
           <h2 id="videos-page-title">Cola de videos</h2>
         </div>
-        {consulta.data && <span className="result-summary">{videos.length} videos cargados</span>}
+        {consulta.data && <span className="result-summary">{videos.length === 1 ? "1 video cargado" : `${videos.length} videos cargados`}</span>}
       </div>
 
       {consulta.isLoading && (
@@ -54,7 +63,7 @@ export function VideosPage() {
           <LoaderCircle className="spin" aria-hidden="true" /> Cargando videos…
         </div>
       )}
-      {consulta.isError && !sinPermiso && (
+      {errorPrincipal && !sinPermiso && (
         <div className="state-message state-message--error" role="alert">
           <AlertTriangle aria-hidden="true" /> No fue posible cargar la cola de videos.
           <button type="button" onClick={() => void consulta.refetch()}>Reintentar</button>
@@ -84,13 +93,22 @@ export function VideosPage() {
                     <td>{video.fuente?.nombre ?? "—"}</td>
                     <td><EstadoVideo estado={video.estado} /></td>
                     <td className="mono video-attempts">{video.intentos ?? 0}</td>
-                    <td className="video-error">{video.error_motivo || "—"}</td>
+                    <td className="video-error">{(estadosConMotivo.has(video.estado) && video.error_motivo) || "—"}</td>
                   </tr>
                 ))}
               </tbody>
             </table>
           </div>
-          {consulta.hasNextPage && (
+          {consulta.isFetchNextPageError && (
+            <div className="state-message state-message--error" role="alert">
+              <AlertTriangle aria-hidden="true" />
+              {esSinPermiso(consulta.error) ? "No tienes permiso para ver más videos." : "No fue posible cargar más videos."}
+              {!esSinPermiso(consulta.error) && (
+                <button type="button" onClick={() => void consulta.fetchNextPage()}>Reintentar</button>
+              )}
+            </div>
+          )}
+          {consulta.hasNextPage && !consulta.isFetchNextPageError && (
             <div className="videos-pagination">
               <button type="button" disabled={consulta.isFetchingNextPage} onClick={() => void consulta.fetchNextPage()}>
                 {consulta.isFetchingNextPage ? "Cargando…" : "Cargar más videos"}

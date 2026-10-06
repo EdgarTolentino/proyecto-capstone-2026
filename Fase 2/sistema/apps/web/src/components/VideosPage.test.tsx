@@ -4,6 +4,7 @@ import { afterEach, expect, it, vi } from "vitest";
 
 import type { Video } from "../api/types";
 import * as api from "../api/client";
+import { INTERVALO_REFRESCO_MS, intervaloDeRefresco } from "../api/videos";
 import { VideosPage } from "./VideosPage";
 
 vi.mock("../api/client", () => ({
@@ -13,7 +14,7 @@ vi.mock("../api/client", () => ({
   listarVideos: vi.fn(),
 }));
 
-afterEach(() => { cleanup(); vi.clearAllMocks(); });
+afterEach(() => { cleanup(); vi.resetAllMocks(); vi.useRealTimers(); });
 
 function videoDePrueba(estado: Video["estado"]): Video {
   return {
@@ -116,4 +117,85 @@ it.each([401, 403])("muestra «sin permiso» ante un %i, sin ofrecer reintento",
   expect(await screen.findByText("No tienes permiso para ver la cola de videos.")).toBeVisible();
   expect(screen.queryByText(/No fue posible cargar/)).not.toBeInTheDocument();
   expect(screen.queryByRole("button", { name: "Reintentar" })).not.toBeInTheDocument();
+});
+
+it("muestra el error de «Cargar más» junto al botón y conserva la tabla", async () => {
+  vi.mocked(api.listarVideos)
+    .mockResolvedValueOnce({ items: [videoDePrueba("listo")], siguiente_cursor: "cursor-1" })
+    .mockRejectedValueOnce(new api.ApiError("fallo", 500));
+  renderizar();
+
+  fireEvent.click(await screen.findByRole("button", { name: "Cargar más videos" }));
+  expect(await screen.findByText("No fue posible cargar más videos.")).toBeVisible();
+  expect(screen.getByRole("table", { name: "Cola de videos" })).toBeVisible();
+  expect(screen.queryByText(/No fue posible cargar la cola de videos/)).not.toBeInTheDocument();
+
+  vi.mocked(api.listarVideos).mockResolvedValueOnce({ items: [{ ...videoDePrueba("error"), id: 23, archivo: "otro.mp4" }] });
+  fireEvent.click(screen.getByRole("button", { name: "Reintentar" }));
+  expect(await screen.findByText("otro.mp4")).toBeVisible();
+  expect(api.listarVideos).toHaveBeenLastCalledWith("cursor-1");
+  expect(screen.queryByText("No fue posible cargar más videos.")).not.toBeInTheDocument();
+});
+
+it.each([401, 403])("un %i en «Cargar más» no oculta la tabla ni ofrece reintento", async (status) => {
+  vi.mocked(api.listarVideos)
+    .mockResolvedValueOnce({ items: [videoDePrueba("listo")], siguiente_cursor: "cursor-1" })
+    .mockRejectedValueOnce(new api.ApiError("sin permiso", status));
+  renderizar();
+
+  fireEvent.click(await screen.findByRole("button", { name: "Cargar más videos" }));
+  expect(await screen.findByText("No tienes permiso para ver más videos.")).toBeVisible();
+  expect(screen.getByRole("table", { name: "Cola de videos" })).toBeVisible();
+  expect(screen.queryByText("No tienes permiso para ver la cola de videos.")).not.toBeInTheDocument();
+  expect(screen.queryByRole("button", { name: "Reintentar" })).not.toBeInTheDocument();
+});
+
+it.each([
+  [1, "1 video cargado"],
+  [2, "2 videos cargados"],
+])("resume %i video(s) con el número correcto", async (cantidad, texto) => {
+  const items = Array.from({ length: cantidad }, (_, i) => ({ ...videoDePrueba("listo"), id: i + 1, archivo: `v${i}.mp4` }));
+  vi.mocked(api.listarVideos).mockResolvedValue({ items });
+  renderizar();
+
+  expect(await screen.findByText(texto)).toBeVisible();
+});
+
+it.each([
+  ["en_cola", false],
+  ["procesando", false],
+  ["listo", false],
+  ["reintentando", true],
+  ["error", true],
+] as const)("en %s muestra el motivo del error: %s", async (estado, visible) => {
+  vi.mocked(api.listarVideos).mockResolvedValue({ items: [{ ...videoDePrueba(estado), error_motivo: "motivo anterior" }] });
+  renderizar();
+
+  await screen.findByRole("table", { name: "Cola de videos" });
+  expect(screen.queryByText("motivo anterior") !== null).toBe(visible);
+});
+
+it("refresca solo mientras haya videos pendientes", () => {
+  const pagina = (...estados: Video["estado"][]) => ({ items: estados.map((e, i) => ({ ...videoDePrueba(e), id: i })) });
+
+  expect(intervaloDeRefresco(undefined)).toBe(false);
+  expect(intervaloDeRefresco([pagina("listo", "error")])).toBe(false);
+  expect(intervaloDeRefresco([pagina("listo"), pagina("en_cola")])).toBe(INTERVALO_REFRESCO_MS);
+  expect(intervaloDeRefresco([pagina("procesando")])).toBe(INTERVALO_REFRESCO_MS);
+  expect(intervaloDeRefresco([pagina("reintentando")])).toBe(INTERVALO_REFRESCO_MS);
+});
+
+it("vuelve a pedir la cola cuando hay un video procesando y deja de pedirla al terminar", async () => {
+  vi.useFakeTimers({ shouldAdvanceTime: true });
+  vi.mocked(api.listarVideos)
+    .mockResolvedValueOnce({ items: [videoDePrueba("procesando")] })
+    .mockResolvedValue({ items: [videoDePrueba("listo")] });
+  renderizar();
+
+  expect(await screen.findByText("Procesando")).toBeVisible();
+  await vi.advanceTimersByTimeAsync(INTERVALO_REFRESCO_MS);
+  expect(await screen.findByText("Listo")).toBeVisible();
+  const llamadas = vi.mocked(api.listarVideos).mock.calls.length;
+  await vi.advanceTimersByTimeAsync(INTERVALO_REFRESCO_MS * 3);
+  expect(api.listarVideos).toHaveBeenCalledTimes(llamadas);
 });

@@ -26,7 +26,7 @@ git checkout v1.0.0
 | `2026-10-01-panel-general-completo.png` | Panel general cargado contra el mock del contrato: indicadores, tendencia, ranking de EPP, críticos recientes, cobertura y filtros |
 | `2026-10-01-panel-general-filtros.png` | Panel con obra, periodo del 1 al 30 de septiembre de 2026 y turno A seleccionados |
 | `2026-10-01-navegacion-a-hallazgos.png` | Bandeja abierta desde un indicador; conserva fecha y turno, y no arrastra el filtro de obra que la bandeja no admite |
-| `2026-10-06-cola-videos.png` | Cola de videos (#117) contra el mock del contrato: archivo, cámara, estado, intentos y motivo del error, con «Cargar más videos». El motivo «string» y el único video vienen del ejemplo genérico de Prism |
+| `2026-10-06-cola-videos.png` | Cola de videos (#117) contra el mock del contrato: archivo, cámara, estado, intentos y motivo del error (solo en `error` y `reintentando`), con «Cargar más videos». El único video viene del ejemplo genérico de Prism |
 
 ### Nota sobre los datos del mock de Prism
 
