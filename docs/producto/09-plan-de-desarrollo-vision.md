@@ -162,22 +162,24 @@ sale cada paquete.
 
 ## 4. Calendario semanal
 
-Carga base de Edgar por semana. Fechas derivadas de **S4 = semana del 7 de septiembre de 2026**
-(exposición el martes 8); si el calendario académico tiene receso, se corren todas.
+Carga base de Edgar por semana. **Calendario corregido el 7 de octubre de 2026:** la semana del
+5 al 9 de octubre es la **S9** y la evaluación de avance (S10) es el **martes 13 de octubre**. Las
+fechas originales partían de "S4 = semana del 7 de septiembre" e iban una semana atrasadas respecto
+del calendario del ramo. Los paquetes de cada semana no se movieron: el atraso se absorbe en S9-S10.
 
 | Sem | Fechas | Paquetes | Horas | Nota |
 |---|---|---|---|---|
-| S5 | 14-18 sep | PT-01, PT-02 | 16 | Fiestas Patrias (18 y 19): semana de cuatro días. La grabación se agenda de lunes a miércoles |
-| S6 | 21-25 sep | PT-03, PT-04, PT-05 | 12 | Primera sesión de etiquetado del equipo. MediaMTX publica un .mp4 como RTSP (ADR-009) |
-| S7 | 28 sep - 2 oct | PT-04, PT-05, PT-06, PT-07 | 20 | El video entra al sistema con el detector falso |
-| S8 | 5-9 oct | PT-04, PT-08 | 19 | Pico de GPU: preentrenar en la nube (públicos) y afinar en local (propio) en ventanas separadas |
-| S9 | 12-16 oct | PT-09, PT-10 | 16 | **H2**. Lunes 12 feriado. La web cambia de Prism al backend real |
-| S10 | 19-23 oct | PT-11 | 8 | **H3** · Evaluación de avance · etiqueta `v0.1.0-avance` |
-| S11 | 26-30 oct | PT-12 | 12 | Reglas sin desplegar código; Miguel construye la pantalla |
-| S12 | 2-6 nov | PT-13, PT-14 | 16 | Una alerta llega a un teléfono real |
-| S13 | 9-13 nov | PT-15 (PT-16 solo con holgura) | 4 | Lian construye el tablero sobre los endpoints |
-| S14 | 16-20 nov | PT-17 | 16 | Plan de pruebas ejecutado con el video de referencia |
-| S15 | 23-27 nov | PT-18 | 12 | **H4** · `v1.0.0` · informe final |
+| S5 | 7-11 sep | PT-01, PT-02 | 16 | Primera semana de desarrollo |
+| S6 | 14-18 sep | PT-03, PT-04, PT-05 | 12 | Fiestas Patrias (18 y 19): semana de cuatro días. Primera sesión de etiquetado del equipo. MediaMTX publica un .mp4 como RTSP (ADR-009) |
+| S7 | 21-25 sep | PT-04, PT-05, PT-06, PT-07 | 20 | El video entra al sistema con el detector falso |
+| S8 | 28 sep - 2 oct | PT-04, PT-08 | 19 | Pico de GPU: preentrenar en la nube (públicos) y afinar en local (propio) en ventanas separadas |
+| S9 | 5-9 oct | PT-09, PT-10 | 16 | **H2** (cierre: domingo 11 oct). La web cambia de Prism al backend real |
+| S10 | 12-16 oct | PT-11 | 8 | **H3** · Evaluación de avance el **martes 13 oct** (lunes 12 feriado) · etiqueta `v0.1.0-avance` |
+| S11 | 19-23 oct | PT-12 | 12 | Reglas sin desplegar código; Miguel construye la pantalla |
+| S12 | 26-30 oct | PT-13, PT-14 | 16 | Una alerta llega a un teléfono real |
+| S13 | 2-6 nov | PT-15 (PT-16 solo con holgura) | 4 | Lian construye el tablero sobre los endpoints |
+| S14 | 9-13 nov | PT-17 | 16 | Plan de pruebas ejecutado con el video de referencia |
+| S15 | 16-20 nov | PT-18 | 12 | **H4** · `v1.0.0` · informe final |
 | S5-S15 | | Transversal | 33 | 3 h por semana |
 | | | **Total** | **184** | 221 con holgura del 20 %. Realista: 12-15 h por semana (V9, §4) |
 
