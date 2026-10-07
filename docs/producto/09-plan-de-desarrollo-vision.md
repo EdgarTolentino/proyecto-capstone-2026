@@ -9,7 +9,7 @@
 | | |
 |---|---|
 | **Versión** | 1.0 |
-| **Fecha** | 7 de septiembre de 2026 (S4) |
+| **Fecha** | 7 de septiembre de 2026 (rotulada S4 al escribirse; S5 según el calendario corregido del §4) |
 | **Autor** | Edgar Tolentino |
 | **Estado** | Propuesta — se aprueba al fusionar el PR que la introduce |
 | **Horas** | Respeta las 184 h base y 221 h con holgura de V9; solo las reparte en paquetes |
@@ -140,7 +140,7 @@ sale cada paquete.
 | PT | Semana | Qué | Módulos | Horas | V9 | Issue |
 |---|---|---|---|---|---|---|
 | PT-01 | S5 | Persistencia: `gepp-bd`, esquema, migraciones, semilla del perfil de construcción | `gepp-bd/*` | 10 | S5 BD | #25 |
-| PT-02 | S5 | Grabación de 20-30 min con autorización y consentimientos; V2 con cámara real; matriz de EPP | — | 6 | S5 grabación | #10 · #3 · #7 |
+| PT-02 | S5 | ~~Grabación de 20-30 min con autorización y consentimientos~~ (descartada el 1-oct, #10 cerrado); V2 con cámara real; matriz de EPP | — | 6 | S5 grabación | #10 · #3 · #7 |
 | PT-03 | S6 | Dataset v0.1: públicos descargados y registrados, clases, guía de etiquetado, CVAT, lote 0 | `07-datasets.md`, `docs/datos/guia-etiquetado.md` | 6 | S6 clases | #26 |
 | PT-04 | S6-S8 | Etiquetado en tres rondas, en sesiones de los tres; Edgar: un tercio y la auditoría del 10 % | CVAT | 10 | Etiquetado | #27 |
 | PT-05 | S6-S7 | Fuente de archivo, muestreo a 5 fps y privacidad | `fuente_archivo`, `muestreo`, `privacidad` | 6 | Ingesta | #28 |
@@ -162,22 +162,24 @@ sale cada paquete.
 
 ## 4. Calendario semanal
 
-Carga base de Edgar por semana. Fechas derivadas de **S4 = semana del 7 de septiembre de 2026**
-(exposición el martes 8); si el calendario académico tiene receso, se corren todas.
+Carga base de Edgar por semana. **Calendario corregido el 7 de octubre de 2026:** la semana del
+5 al 9 de octubre es la **S9** y la evaluación de avance (S10) es el **martes 13 de octubre**. Las
+fechas originales partían de "S4 = semana del 7 de septiembre" e iban una semana atrasadas respecto
+del calendario del ramo. Los paquetes de cada semana no se movieron: el atraso se absorbe en S9-S10.
 
 | Sem | Fechas | Paquetes | Horas | Nota |
 |---|---|---|---|---|
-| S5 | 14-18 sep | PT-01, PT-02 | 16 | Fiestas Patrias (18 y 19): semana de cuatro días. La grabación se agenda de lunes a miércoles |
-| S6 | 21-25 sep | PT-03, PT-04, PT-05 | 12 | Primera sesión de etiquetado del equipo. MediaMTX publica un .mp4 como RTSP (ADR-009) |
-| S7 | 28 sep - 2 oct | PT-04, PT-05, PT-06, PT-07 | 20 | El video entra al sistema con el detector falso |
-| S8 | 5-9 oct | PT-04, PT-08 | 19 | Pico de GPU: preentrenar en la nube (públicos) y afinar en local (propio) en ventanas separadas |
-| S9 | 12-16 oct | PT-09, PT-10 | 16 | **H2**. Lunes 12 feriado. La web cambia de Prism al backend real |
-| S10 | 19-23 oct | PT-11 | 8 | **H3** · Evaluación de avance · etiqueta `v0.1.0-avance` |
-| S11 | 26-30 oct | PT-12 | 12 | Reglas sin desplegar código; Miguel construye la pantalla |
-| S12 | 2-6 nov | PT-13, PT-14 | 16 | Una alerta llega a un teléfono real |
-| S13 | 9-13 nov | PT-15 (PT-16 solo con holgura) | 4 | Lian construye el tablero sobre los endpoints |
-| S14 | 16-20 nov | PT-17 | 16 | Plan de pruebas ejecutado con el video de referencia |
-| S15 | 23-27 nov | PT-18 | 12 | **H4** · `v1.0.0` · informe final |
+| S5 | 7-11 sep | PT-01, PT-02 | 16 | Primera semana de desarrollo |
+| S6 | 14-18 sep | PT-03, PT-04, PT-05 | 12 | Fiestas Patrias (18 y 19): semana de cuatro días. Primera sesión de etiquetado del equipo. MediaMTX publica un .mp4 como RTSP (ADR-009) |
+| S7 | 21-25 sep | PT-04, PT-05, PT-06, PT-07 | 20 | El video entra al sistema con el detector falso |
+| S8 | 28 sep - 2 oct | PT-04, PT-08 | 19 | Pico de GPU: preentrenar en la nube (públicos) y afinar en local (propio) en ventanas separadas |
+| S9 | 5-9 oct | PT-09, PT-10 | 16 | **H2** (cierre: domingo 11 oct). La web cambia de Prism al backend real |
+| S10 | 12-16 oct | PT-11 | 8 | **H3** · Evaluación de avance el **martes 13 oct** (lunes 12 feriado) · etiqueta `v0.1.0-avance` |
+| S11 | 19-23 oct | PT-12 | 12 | Reglas sin desplegar código; Miguel construye la pantalla |
+| S12 | 26-30 oct | PT-13, PT-14 | 16 | Una alerta llega a un teléfono real |
+| S13 | 2-6 nov | PT-15 (PT-16 solo con holgura) | 4 | Lian construye el tablero sobre los endpoints |
+| S14 | 9-13 nov | PT-17 | 16 | Plan de pruebas ejecutado con el video de referencia |
+| S15 | 16-20 nov | PT-18 | 12 | **H4** · `v1.0.0` · informe final |
 | S5-S15 | | Transversal | 33 | 3 h por semana |
 | | | **Total** | **184** | 221 con holgura del 20 %. Realista: 12-15 h por semana (V9, §4) |
 
@@ -271,7 +273,7 @@ las versiones congeladas en PDF. Licencia del repositorio decidida. Informe fina
 ## 6. Dependencias y ruta crítica
 
 ```
-#10 grabación (S5) --> PT-03 lote 0 (S6) --> PT-04 rondas (S6-S8) --> PT-08 modelo (S8) --> PT-14 (S12)
+video de prueba YouTube (#105) --> PT-03 lote 0 (S6) --> PT-04 rondas (S6-S8) --> PT-08 modelo (S8) --> PT-14 (S12)
 
 PT-01 BD (S5) --> PT-06 ingesta (S7) --> PT-09 API (S9) --> PT-10 H2 (S9) --> PT-12 reglas (S11) --> PT-13 alertas (S12)
 PT-05 fuente (S6-S7) --/                                 PT-07 adaptadores (S7) --/
@@ -279,9 +281,9 @@ PT-05 fuente (S6-S7) --/                                 PT-07 adaptadores (S7) 
 #3 V2 + #7 matriz (S5) --> semilla del perfil (PT-01) --> reglas que respetan lo evaluable (PT-12)
 ```
 
-- **La grabación es la ruta crítica.** Sin video propio no hay conjunto de prueba ni H2 con datos
-  reales. El plan B está escrito en `03-plan-de-trabajo.md`: escenario simulado por el equipo con
-  cámara fija.
+- **El etiquetado del video de prueba es la ruta crítica.** La grabación propia se descartó el
+  1 de octubre (#10 cerrado): el conjunto de prueba y la demostración salen de un video público de
+  CCTV de obra (lote de 240 cuadros, #105), etiquetado por el equipo en CVAT (#110, #111, #112).
 - **H2 no espera al modelo.** La integración de la S9 se hace con el detector falso si el modelo
   de la S8 no está; lo que se prueba es que todo está conectado.
 - **Nada del sistema depende del VLM** (ADR-001). PT-16 se puede caer sin tocar otro paquete.
@@ -291,7 +293,7 @@ PT-05 fuente (S6-S7) --/                                 PT-07 adaptadores (S7) 
 | Riesgo | Señal | Respuesta |
 |---|---|---|
 | S7 y S8 concentran 39 h base | El lote 1 no está corregido al cerrar la S7 | PT-07 se adelanta a la S6 (los adaptadores no dependen del dataset); el tercio de etiquetado de Edgar se reparte con el equipo |
-| Fiestas Patrias en la S5 | La grabación no está agendada al 16 de septiembre | Autorización pedida en la reunión del 8 de septiembre; se graba lunes o martes. Si se cae, corre a la S6 sin mover H2 |
+| Fiestas Patrias en la S6 (18 y 19 de septiembre) | La grabación no está agendada al 16 de septiembre | Autorización pedida en la reunión del 8 de septiembre; se graba lunes o martes. Si se cae, corre a la semana siguiente sin mover H2. *Superado: la grabación propia se descartó el 1 de octubre (#10 cerrado)* |
 | Una sola GPU y la S8 la necesita para entrenar y evaluar | Colas de más de un día | Preentrenar en Kaggle o Colab con públicos desde la S6, con checkpoints respaldados; afinar en local en ventanas nocturnas |
 | Los clips de referencia del anillo 2 no pueden ir al repositorio público | El anillo 2 no corre en CI | Decisión en la S6: material permisivo o sintético, en una release privada |
 | ADR-012 no se decide | PT-01 arranca sin dueño del esquema | Se decide al fusionar este PR; la alternativa B (trabajador cliente de la API) cuesta lo mismo en la S5 |
