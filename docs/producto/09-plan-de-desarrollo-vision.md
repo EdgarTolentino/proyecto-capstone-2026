@@ -140,7 +140,7 @@ sale cada paquete.
 | PT | Semana | Qué | Módulos | Horas | V9 | Issue |
 |---|---|---|---|---|---|---|
 | PT-01 | S5 | Persistencia: `gepp-bd`, esquema, migraciones, semilla del perfil de construcción | `gepp-bd/*` | 10 | S5 BD | #25 |
-| PT-02 | S5 | Grabación de 20-30 min con autorización y consentimientos; V2 con cámara real; matriz de EPP | — | 6 | S5 grabación | #10 · #3 · #7 |
+| PT-02 | S5 | ~~Grabación de 20-30 min con autorización y consentimientos~~ (descartada el 1-oct, #10 cerrado); V2 con cámara real; matriz de EPP | — | 6 | S5 grabación | #10 · #3 · #7 |
 | PT-03 | S6 | Dataset v0.1: públicos descargados y registrados, clases, guía de etiquetado, CVAT, lote 0 | `07-datasets.md`, `docs/datos/guia-etiquetado.md` | 6 | S6 clases | #26 |
 | PT-04 | S6-S8 | Etiquetado en tres rondas, en sesiones de los tres; Edgar: un tercio y la auditoría del 10 % | CVAT | 10 | Etiquetado | #27 |
 | PT-05 | S6-S7 | Fuente de archivo, muestreo a 5 fps y privacidad | `fuente_archivo`, `muestreo`, `privacidad` | 6 | Ingesta | #28 |
@@ -273,7 +273,7 @@ las versiones congeladas en PDF. Licencia del repositorio decidida. Informe fina
 ## 6. Dependencias y ruta crítica
 
 ```
-#10 grabación (S5) --> PT-03 lote 0 (S6) --> PT-04 rondas (S6-S8) --> PT-08 modelo (S8) --> PT-14 (S12)
+video de prueba YouTube (#105) --> PT-03 lote 0 (S6) --> PT-04 rondas (S6-S8) --> PT-08 modelo (S8) --> PT-14 (S12)
 
 PT-01 BD (S5) --> PT-06 ingesta (S7) --> PT-09 API (S9) --> PT-10 H2 (S9) --> PT-12 reglas (S11) --> PT-13 alertas (S12)
 PT-05 fuente (S6-S7) --/                                 PT-07 adaptadores (S7) --/
@@ -281,9 +281,9 @@ PT-05 fuente (S6-S7) --/                                 PT-07 adaptadores (S7) 
 #3 V2 + #7 matriz (S5) --> semilla del perfil (PT-01) --> reglas que respetan lo evaluable (PT-12)
 ```
 
-- **La grabación es la ruta crítica.** Sin video propio no hay conjunto de prueba ni H2 con datos
-  reales. El plan B está escrito en `03-plan-de-trabajo.md`: escenario simulado por el equipo con
-  cámara fija.
+- **El etiquetado del video de prueba es la ruta crítica.** La grabación propia se descartó el
+  1 de octubre (#10 cerrado): el conjunto de prueba y la demostración salen de un video público de
+  CCTV de obra (lote de 240 cuadros, #105), etiquetado por el equipo en CVAT (#110, #111, #112).
 - **H2 no espera al modelo.** La integración de la S9 se hace con el detector falso si el modelo
   de la S8 no está; lo que se prueba es que todo está conectado.
 - **Nada del sistema depende del VLM** (ADR-001). PT-16 se puede caer sin tocar otro paquete.
