@@ -9,7 +9,7 @@
 | | |
 |---|---|
 | **Versión** | 1.0 |
-| **Fecha** | 7 de septiembre de 2026 (S4) |
+| **Fecha** | 7 de septiembre de 2026 (rotulada S4 al escribirse; S5 según el calendario corregido del §4) |
 | **Autor** | Edgar Tolentino |
 | **Estado** | Propuesta — se aprueba al fusionar el PR que la introduce |
 | **Horas** | Respeta las 184 h base y 221 h con holgura de V9; solo las reparte en paquetes |
@@ -293,7 +293,7 @@ PT-05 fuente (S6-S7) --/                                 PT-07 adaptadores (S7) 
 | Riesgo | Señal | Respuesta |
 |---|---|---|
 | S7 y S8 concentran 39 h base | El lote 1 no está corregido al cerrar la S7 | PT-07 se adelanta a la S6 (los adaptadores no dependen del dataset); el tercio de etiquetado de Edgar se reparte con el equipo |
-| Fiestas Patrias en la S5 | La grabación no está agendada al 16 de septiembre | Autorización pedida en la reunión del 8 de septiembre; se graba lunes o martes. Si se cae, corre a la S6 sin mover H2 |
+| Fiestas Patrias en la S6 (18 y 19 de septiembre) | La grabación no está agendada al 16 de septiembre | Autorización pedida en la reunión del 8 de septiembre; se graba lunes o martes. Si se cae, corre a la semana siguiente sin mover H2. *Superado: la grabación propia se descartó el 1 de octubre (#10 cerrado)* |
 | Una sola GPU y la S8 la necesita para entrenar y evaluar | Colas de más de un día | Preentrenar en Kaggle o Colab con públicos desde la S6, con checkpoints respaldados; afinar en local en ventanas nocturnas |
 | Los clips de referencia del anillo 2 no pueden ir al repositorio público | El anillo 2 no corre en CI | Decisión en la S6: material permisivo o sintético, en una release privada |
 | ADR-012 no se decide | PT-01 arranca sin dueño del esquema | Se decide al fusionar este PR; la alternativa B (trabajador cliente de la API) cuesta lo mismo en la S5 |
