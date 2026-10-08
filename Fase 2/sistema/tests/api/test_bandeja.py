@@ -117,20 +117,23 @@ def test_hasta_un_microsegundo_antes_lo_deja_fuera(api: Cliente) -> None:
     assert _con_hasta(api, limite - UN_US) == []
 
 
-def test_hasta_menor_que_desde_no_devuelve_nada(api: Cliente) -> None:
+def test_desde_mayor_que_hasta_no_devuelve_nada(api: Cliente) -> None:
     limite = _ts_mas_antiguo(api)
+    hasta = limite + UN_US
+    # Con solo `hasta` el hallazgo sí entra: lo que vacía el resultado de abajo es `desde`.
+    assert len(_con_hasta(api, hasta)) == 1
     pagina = api.llamar(
         "listarHallazgos",
         "GET",
         "/hallazgos",
-        params={"desde": (limite + UN_US).isoformat(), "hasta": limite.isoformat()},
+        params={"desde": (limite + 2 * UN_US).isoformat(), "hasta": hasta.isoformat()},
     )
     assert pagina["items"] == []
 
 
-def test_hasta_sin_zona_horaria_se_comporta_como_hoy(api: Cliente) -> None:
-    # Entrada inválida según el contrato (`date-time` exige zona): hoy se acepta y la base la
-    # interpreta con su propia zona. Se fija para que un cambio sea una decisión, no un accidente.
+def test_hasta_sin_zona_horaria_hoy_responde_200(api: Cliente) -> None:
+    # Solo fija que hoy se acepta; la interpretación horaria no se fija: decidir 200 o 422
+    # es aparte (el contrato pide `date-time`, con zona).
     limite = _ts_mas_antiguo(api).replace(tzinfo=None)
     resultado = api.http.get(
         "/api/v1/hallazgos", params={"hasta": limite.isoformat()}, headers=DEMO
