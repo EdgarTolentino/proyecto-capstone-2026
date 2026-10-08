@@ -3,11 +3,14 @@
 from __future__ import annotations
 
 from datetime import UTC, datetime, timedelta, timezone
+from pathlib import Path
 from typing import Any
 
 import pytest
+from gepp_bd import transaccion
+from sqlalchemy import Engine
 
-from .conftest import Cliente
+from .conftest import Cliente, _sembrar_video
 
 pytestmark = pytest.mark.integration
 
@@ -149,12 +152,35 @@ def test_una_fecha_sin_zona_horaria_es_422(
     assert cuerpo["codigo"] == "peticion_invalida"
 
 
+def _visible(operacion: str, respuesta: dict[str, Any]) -> Any:
+    """Lo que cada endpoint muestra del conjunto de hallazgos de la ventana."""
+    if operacion == "listarHallazgos":
+        return sorted(h["id"] for h in respuesta["items"])
+    if operacion == "obtenerPanel":
+        return {i["clave"]: i["valor"] for i in respuesta["indicadores"]}["hallazgos_abiertos"]
+    # Reporte: la celda de `casco` solo muestra `n` si no está suprimida (n >= 5).
+    return {f["etiqueta"]: f["n"] for f in respuesta["filas"]}["casco"]
+
+
 @pytest.mark.parametrize(("operacion", "ruta"), CON_FECHAS)
 def test_el_mismo_instante_en_z_y_en_otro_desfase_da_lo_mismo(
-    api: Cliente, operacion: str, ruta: str
+    api: Cliente, bd: Engine, tmp_path: Path, operacion: str, ruta: str
 ) -> None:
-    desde = _ts_mas_antiguo(api) - timedelta(hours=1)
-    hasta = desde + timedelta(hours=3)
+    # 6 hallazgos más, uno por hora, a partir de las 3 h (los dos de `datos` quedan antes).
+    with transaccion(bd) as s:
+        nuevos = [
+            _sembrar_video(
+                s, tmp_path, hash_=f"{i + 1:x}" * 64, t0_s=10800 + 3600 * i, sin_casco=True
+            )[0]
+            for i in range(6)
+        ]
+    ts = {
+        h["id"]: datetime.fromisoformat(h["ts_inicio"])
+        for h in api.llamar("listarHallazgos", "GET", "/hallazgos?limite=200")["items"]
+    }
+    media_hora = timedelta(minutes=30)
+    # El límite cae ENTRE el 5.º y el 6.º: correr `desde` o `hasta` una hora cambia el conjunto.
+    desde, hasta = ts[nuevos[0]] - media_hora, ts[nuevos[5]] - media_hora
     en_utc = {"desde": desde.astimezone(UTC), "hasta": hasta.astimezone(UTC)}
     en_santiago = {k: v.astimezone(timezone(timedelta(hours=-3))) for k, v in en_utc.items()}
     assert en_utc["desde"].isoformat().endswith("+00:00")
@@ -163,6 +189,9 @@ def test_el_mismo_instante_en_z_y_en_otro_desfase_da_lo_mismo(
         api.llamar(operacion, "GET", ruta, params={k: v.isoformat() for k, v in fechas.items()})
         for fechas in (en_utc, en_santiago)
     ]
+    # No trivial: los 5 primeros nuevos, ni uno más ni uno menos, y a la vista.
+    esperado = {"listarHallazgos": sorted(nuevos[:5]), "obtenerPanel": 5, "obtenerReporte": 5}
+    assert [_visible(operacion, r) for r in respuestas] == [esperado[operacion]] * 2
     assert respuestas[0] == respuestas[1]
 
 
