@@ -45,7 +45,8 @@ def ventana(bd: Session, desde: datetime | None, hasta: datetime | None) -> Vent
 
 
 def dias_locales(hasta: datetime, tz: ZoneInfo, n: int = DIAS) -> list[date]:
-    ultimo = hasta.astimezone(tz).date()
+    # La ventana es [desde, hasta): si `hasta` es una medianoche, ese día ya quedó fuera.
+    ultimo = (hasta - timedelta(microseconds=1)).astimezone(tz).date()
     return [ultimo - timedelta(days=n - 1 - i) for i in range(n)]
 
 
