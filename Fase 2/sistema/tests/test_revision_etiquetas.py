@@ -251,6 +251,17 @@ def test_casco_desde_8_px_no_pide_tiene_pequenos(lado: float) -> None:
     assert Regla.FALTA_TIENE_PEQUENOS not in _reglas(xml)
 
 
+def test_casco_de_8_px_exactos_con_coordenadas_decimales_no_es_bajo_el_minimo() -> None:
+    assert 8.2 - 0.2 < 8  # el defecto de flotantes: 7,999999999999999
+    xml = (
+        '<annotations><image id="0" name="a.jpg">'
+        '<box label="persona" xtl="0" ytl="0" xbr="40" ybr="100"/>'
+        '<box label="casco" xtl="0.2" ytl="0" xbr="8.2" ybr="20">'
+        '<attribute name="puesto">si</attribute></box></image></annotations>'
+    )
+    assert _reglas(xml) == []
+
+
 def test_casco_de_7_75_px_si_pide_tiene_pequenos() -> None:
     xml = _xml(([PERSONA, _caja("casco", 120, 100, 7.75, 7.75)], []))
     assert Regla.FALTA_TIENE_PEQUENOS in _reglas(xml)

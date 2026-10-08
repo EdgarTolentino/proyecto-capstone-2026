@@ -33,6 +33,18 @@ def minimo_px(clase: str) -> int:
     return MINIMO_PX_POR_CLASE.get(clase, MINIMO_PX)
 
 
+#: Holgura, en px, de la comparación con el mínimo. Pasar de coordenadas a lado resta dos flotantes
+#: y un casco de 8 px exactos puede salir como 7,999999999999993. CVAT guarda 2 decimales, así que
+#: 1e-6 px absorbe el error de redondeo sin dejar pasar ni un centésimo de píxel de más.
+TOLERANCIA_PX = 1e-6
+
+
+def bajo_minimo(ancho: float, alto: float, clase: str) -> bool:
+    """¿La caja queda bajo el mínimo de su clase? Un solo criterio para `a_coco` y la revisión de
+    etiquetas: estar justo en el mínimo (dentro de `TOLERANCIA_PX`) cuenta como llegar a él."""
+    return min(ancho, alto) < minimo_px(clase) - TOLERANCIA_PX
+
+
 def combinar(
     del_mosaico: Sequence[Deteccion], del_cuadro: Sequence[Deteccion], recorte: Caja
 ) -> list[Deteccion]:
@@ -59,7 +71,7 @@ def a_coco(imagenes: Iterable[tuple[str, int, int, Sequence[Deteccion]]]) -> dic
         )
         for d in detecciones:
             w, h = d.caja.ancho * ancho, d.caja.alto * alto
-            if d.clase not in CLASES_V1 or min(w, h) < minimo_px(d.clase):
+            if d.clase not in CLASES_V1 or bajo_minimo(w, h, d.clase):
                 continue
             salida["annotations"].append(
                 {

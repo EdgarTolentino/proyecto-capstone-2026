@@ -9,7 +9,7 @@ Por qué CVAT XML y no COCO: la exportación COCO 1.0 de CVAT pierde las etiquet
 Cuatro comprobaciones, todas sobre un mismo cuadro:
 
 1. `PAR_REPETIDO`: dos cajas de la misma clase con IoU >= `umbral_iou`.
-2. `CAJA_MINIMA`: una caja con `min(ancho, alto) < minimo_px(clase)` (el criterio de `a_coco`:
+2. `CAJA_MINIMA`: una caja con `bajo_minimo(ancho, alto, clase)` (el criterio de `a_coco`:
    10 px, y 8 px para el casco).
 3. `FALTA_TIENE_PEQUENOS`: un cuadro con **alguna** caja bajo el mínimo (de cualquier clase) y sin
    la etiqueta de imagen `tiene_pequenos` (§4.2 de la guía). El hallazgo trae la caja chica.
@@ -34,7 +34,7 @@ from dataclasses import dataclass, field
 from enum import StrEnum
 from pathlib import Path
 
-from gepp_vision.etiquetado import minimo_px
+from gepp_vision.etiquetado import bajo_minimo
 
 CLASES_CAJA = frozenset({"persona", "casco", "chaleco"})
 #: Etiquetas de imagen de la guía (§5). Cualquier otra es un error de la exportación.
@@ -203,7 +203,7 @@ def contiene_persona(
 
 
 def _bajo_minimo(c: CajaEtiquetada) -> bool:
-    return min(c.ancho, c.alto) < minimo_px(c.clase)
+    return bajo_minimo(c.ancho, c.alto, c.clase)
 
 
 def revisar(

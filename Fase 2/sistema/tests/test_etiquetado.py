@@ -2,10 +2,19 @@
 
 from __future__ import annotations
 
+import math
+
 import pytest
 from gepp_core import Caja, ClaseDetectada, Deteccion
 from gepp_vision.entrenamiento import CLASES_V1
-from gepp_vision.etiquetado import MINIMO_PX, a_coco, combinar, minimo_px
+from gepp_vision.etiquetado import (
+    MINIMO_PX,
+    TOLERANCIA_PX,
+    a_coco,
+    bajo_minimo,
+    combinar,
+    minimo_px,
+)
 
 from .conftest import T0
 
@@ -49,6 +58,38 @@ def test_a_coco_respeta_el_tamano_minimo_de_la_guia(
     d = _d(clase, 0.125, 0.125, 0.125 + lado_px / ancho, 0.125 + 40 / alto)
     coco = a_coco([("a.jpg", ancho, alto, [d])])
     assert len(coco["annotations"]) == int(entra)
+
+
+def test_a_coco_un_casco_de_8_px_exactos_entra_aunque_la_resta_de_flotantes_no_cierre() -> None:
+    assert (0.108 - 0.1) * 1000 < 8  # el defecto: 7,999999999999993
+    d = _d(C, 0.1, 0.125, 0.108, 0.25)
+    assert len(a_coco([("a.jpg", 1000, 500, [d])])["annotations"]) == 1
+
+
+@pytest.mark.parametrize(
+    ("clase", "lado", "bajo"),
+    [
+        ("casco", 8, False),
+        ("casco", 8 - 5e-7, False),  # dentro de la holgura
+        ("casco", 8 - TOLERANCIA_PX, False),  # justo en el borde de la holgura
+        ("casco", math.nextafter(8 - TOLERANCIA_PX, 0), True),  # un paso de flotante más abajo
+        ("casco", 8 - 2e-6, True),
+        ("casco", 7.75, True),
+        ("persona", 9.999999999999998, False),
+        ("persona", 10, False),
+        ("persona", 9.75, True),
+        ("chaleco", 9.999999999999998, False),
+        ("chaleco", 9.75, True),
+    ],
+)
+def test_bajo_minimo_con_holgura_de_flotantes(clase: str, lado: float, bajo: bool) -> None:
+    assert bajo_minimo(lado, 40, clase) is bajo
+    assert bajo_minimo(40, lado, clase) is bajo  # el lado chico puede ser el alto
+
+
+def test_bajo_minimo_con_clase_desconocida() -> None:
+    with pytest.raises(ValueError, match="fuera de la v1"):
+        bajo_minimo(40, 40, "arnes")
 
 
 def test_minimo_px_por_clase_y_clase_desconocida() -> None:
