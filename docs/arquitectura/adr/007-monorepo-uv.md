@@ -5,6 +5,13 @@
 > **Anotación 2026-09-22:** el espacio de trabajo tiene **cinco** paquetes. El quinto, `gepp-bd`,
 > es el dueño del esquema ([ADR-012](012-persistencia-compartida.md)). La regla de oro no cambia.
 
+> **Corrección 2026-10-08:** la última frase de «Consecuencias» («si alguien importa
+> `gepp_vision` desde `gepp_api`, la instalación falla») no se cumple en el espacio de trabajo:
+> todos los paquetes comparten un solo entorno virtual, y `import gepp_vision, gepp_api.app`
+> funciona. Quien impide el cruce es `tests/bd/test_frontera.py`, que revisa por AST los
+> imports de `gepp-api` (no `gepp_vision`, `gepp_worker`, `cv2`, `torch`, `numpy` ni `redis`) y
+> de `gepp-bd`. Solo se corrige esa afirmación; la decisión y la regla de oro siguen igual.
+
 ## Contexto
 
 Solo una de las tres máquinas tiene GPU. Las otras dos no pueden descargar 3 GB de CUDA para
@@ -36,4 +43,5 @@ corra sin GPU en segundos, y (c) que la v2 sea cambiar `gepp-worker` sin tocar n
 
 Más ceremonia inicial que un solo `requirements.txt`. A cambio, la frontera entre dominio,
 visión y web queda impuesta por el gestor de dependencias y no por la buena voluntad: si alguien
-importa `gepp_vision` desde `gepp_api`, la instalación falla.
+importa `gepp_vision` desde `gepp_api`, la instalación falla. *(Falso en el espacio de trabajo:
+ver la corrección del 2026-10-08, arriba.)*
