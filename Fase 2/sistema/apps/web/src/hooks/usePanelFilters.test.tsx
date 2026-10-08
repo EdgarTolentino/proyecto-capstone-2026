@@ -49,4 +49,13 @@ describe("usePanelFilters", () => {
     expect(new URL(window.location.href).searchParams.get("desde")).toBe(rango.desde);
     expect(new URL(window.location.href).searchParams.get("hasta")).toBe(rango.hasta);
   });
+
+  it.each(["/videos", "/hallazgos", "/reglas"])("no agrega las fechas del panel a la URL de %s", (ruta) => {
+    window.history.replaceState({}, "", ruta);
+
+    renderHook(() => usePanelFilters());
+
+    expect(window.location.pathname).toBe(ruta);
+    expect(window.location.search).toBe("");
+  });
 });
