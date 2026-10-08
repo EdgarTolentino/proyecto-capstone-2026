@@ -15,6 +15,11 @@ from gepp_core import Caja, Deteccion
 
 from gepp_vision.entrenamiento import CLASES_V1
 
+#: Etiquetas de imagen (*tags*) de CVAT, guía §5. No son cajas: la exportación COCO 1.0 las trae
+#: como categorías sin anotaciones. Un solo lugar para la revisión de etiquetas (que las valida) y
+#: para `evaluacion.coco` (que las ignora): si CVAT gana una etiqueta, se agrega aquí.
+ETIQUETAS_IMAGEN = frozenset({"tiene_pequenos", "negativo_duro", "grupo_denso"})
+
 #: Guía de etiquetado §4: lo de menos de 10 px de lado no lleva caja, salvo lo que diga
 #: `MINIMO_PX_POR_CLASE`.
 MINIMO_PX = 10

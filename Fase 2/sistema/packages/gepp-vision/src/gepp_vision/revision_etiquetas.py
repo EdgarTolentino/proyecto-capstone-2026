@@ -34,11 +34,10 @@ from dataclasses import dataclass, field
 from enum import StrEnum
 from pathlib import Path
 
-from gepp_vision.etiquetado import bajo_minimo
+from gepp_vision.etiquetado import ETIQUETAS_IMAGEN, bajo_minimo
 
 CLASES_CAJA = frozenset({"persona", "casco", "chaleco"})
-#: Etiquetas de imagen de la guía (§5). Cualquier otra es un error de la exportación.
-ETIQUETAS_IMAGEN = frozenset({"tiene_pequenos", "negativo_duro", "grupo_denso"})
+# Etiquetas de imagen de la guía (§5): `ETIQUETAS_IMAGEN`. Otra es un error de la exportación.
 TIENE_PEQUENOS = "tiene_pequenos"
 
 UMBRAL_IOU = 0.8
