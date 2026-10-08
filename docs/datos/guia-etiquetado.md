@@ -93,7 +93,7 @@ video, partición y hash perceptual; el hash no permite reconstruir la imagen.
 |---|---|
 | CVAT 2.77.0 | `~/tools/cvat`, fuera del repositorio. `docker compose up -d` lo levanta desde esa carpeta, donde están el override y el `.env` |
 | Dirección | <http://localhost:8180>. El 8080 lo ocupa otro proyecto: el puerto se cambia en `docker-compose.override.yml`. Miguel y Lian entran por el nombre de Tailscale de la máquina (`CVAT_HOST` en el `.env` de CVAT), no por `localhost` |
-| Al abrir Docker Desktop | `traefik` y `cvat_vector` pueden quedar en `Exited (127)`: se reinician antes de que exista el socket de Docker en WSL (`error mounting .../docker.sock ... not a directory`). Se arregla con otro `docker compose up -d`, que no borra nada |
+| Al abrir Docker Desktop | `traefik` y `cvat_vector` pueden quedar en `Exited (127)`. `traefik` monta el socket de Docker y se reinicia antes de que exista en WSL (`error mounting .../docker.sock ... not a directory`); la causa en `cvat_vector` no quedó registrada. Los dos vuelven con otro `docker compose up -d`, que no borra nada |
 | Usuario administrador | `edgar`; la clave está en `~/.config/gepp/cvat.env` (permisos 600, nunca en el repositorio) |
 | Proyecto | `guardian-epp-v01`: `persona` (`ocluida`), `casco` y `chaleco` (`puesto`), y la etiqueta de imagen `tiene_pequenos` |
 | Tarea | `prueba-youtube-lote0`: los 240 cuadros de `datos/lote0.csv`, en **4 trabajos de 60, uno por tramo**, para repartirlos |
