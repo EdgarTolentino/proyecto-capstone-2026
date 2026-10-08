@@ -2,11 +2,11 @@
 
 from __future__ import annotations
 
-from datetime import datetime
 from typing import Literal
 
 from fastapi import APIRouter, Request
 from fastapi.responses import JSONResponse, Response
+from pydantic import AwareDatetime
 
 from gepp_api.auth import Bd, Sesion
 from gepp_api.servicios.reportes import a_csv, reporte
@@ -21,8 +21,8 @@ def obtener_reporte(
     bd: Bd,
     sesion: Sesion,
     segmentacion: Literal["zona", "turno", "camara", "epp"] | None = None,
-    desde: datetime | None = None,
-    hasta: datetime | None = None,
+    desde: AwareDatetime | None = None,
+    hasta: AwareDatetime | None = None,
     area_id: int | None = None,
     formato: Literal["json", "csv"] = "json",
 ) -> Response:

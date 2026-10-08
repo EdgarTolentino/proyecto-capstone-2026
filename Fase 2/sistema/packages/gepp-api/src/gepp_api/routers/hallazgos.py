@@ -2,7 +2,6 @@
 
 from __future__ import annotations
 
-from datetime import datetime
 from pathlib import Path
 from typing import Annotated, Any
 
@@ -10,6 +9,7 @@ from fastapi import APIRouter, Query, Request
 from fastapi.responses import FileResponse
 from gepp_bd.modelos import AccionCorrectiva, Evidencia, Hallazgo, Usuario
 from gepp_bd.repositorios import auditoria
+from pydantic import AwareDatetime
 from sqlalchemy import func, update
 
 from gepp_api.auth import Bd, Sesion, SesionActual
@@ -38,8 +38,8 @@ def listar_hallazgos(
     zona_id: int | None = None,
     fuente_id: int | None = None,
     epp: str | None = None,
-    desde: datetime | None = None,
-    hasta: datetime | None = None,
+    desde: AwareDatetime | None = None,
+    hasta: AwareDatetime | None = None,
     turno: str | None = None,
     reincidente: bool | None = None,
     orden: str = "ts_inicio_desc",

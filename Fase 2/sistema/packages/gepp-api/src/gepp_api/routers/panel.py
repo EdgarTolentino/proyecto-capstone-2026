@@ -2,10 +2,10 @@
 
 from __future__ import annotations
 
-from datetime import datetime
 from typing import Any
 
 from fastapi import APIRouter, Request
+from pydantic import AwareDatetime
 
 from gepp_api.auth import Bd, Sesion
 from gepp_api.servicios.panel import panel
@@ -18,8 +18,8 @@ def obtener_panel(
     request: Request,
     bd: Bd,
     sesion: Sesion,
-    desde: datetime | None = None,
-    hasta: datetime | None = None,
+    desde: AwareDatetime | None = None,
+    hasta: AwareDatetime | None = None,
     turno: str | None = None,
     obra_id: int | None = None,
 ) -> dict[str, Any]:

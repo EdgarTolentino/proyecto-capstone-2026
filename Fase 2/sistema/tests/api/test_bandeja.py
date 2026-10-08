@@ -2,12 +2,12 @@
 
 from __future__ import annotations
 
-from datetime import datetime, timedelta
+from datetime import UTC, datetime, timedelta, timezone
 from typing import Any
 
 import pytest
 
-from .conftest import DEMO, Cliente
+from .conftest import Cliente
 
 pytestmark = pytest.mark.integration
 
@@ -131,14 +131,50 @@ def test_desde_mayor_que_hasta_no_devuelve_nada(api: Cliente) -> None:
     assert pagina["items"] == []
 
 
-def test_hasta_sin_zona_horaria_hoy_responde_200(api: Cliente) -> None:
-    # Solo fija que hoy se acepta; la interpretación horaria no se fija: decidir 200 o 422
-    # es aparte (el contrato pide `date-time`, con zona).
-    limite = _ts_mas_antiguo(api).replace(tzinfo=None)
-    resultado = api.http.get(
-        "/api/v1/hallazgos", params={"hasta": limite.isoformat()}, headers=DEMO
+#: Todo endpoint que recibe `desde`/`hasta`: el contrato pide `date-time`, que exige zona.
+CON_FECHAS = [
+    ("listarHallazgos", "/hallazgos"),
+    ("obtenerPanel", "/panel"),
+    ("obtenerReporte", "/reportes/ranking-epp"),
+]
+
+
+@pytest.mark.parametrize("parametro", ["desde", "hasta"])
+@pytest.mark.parametrize(("operacion", "ruta"), CON_FECHAS)
+def test_una_fecha_sin_zona_horaria_es_422(
+    api: Cliente, operacion: str, ruta: str, parametro: str
+) -> None:
+    sin_zona = _ts_mas_antiguo(api).replace(tzinfo=None).isoformat()
+    cuerpo = api.llamar(operacion, "GET", ruta, esperado=422, params={parametro: sin_zona})
+    assert cuerpo["codigo"] == "peticion_invalida"
+
+
+@pytest.mark.parametrize(("operacion", "ruta"), CON_FECHAS)
+def test_el_mismo_instante_en_z_y_en_otro_desfase_da_lo_mismo(
+    api: Cliente, operacion: str, ruta: str
+) -> None:
+    desde = _ts_mas_antiguo(api) - timedelta(hours=1)
+    hasta = desde + timedelta(hours=3)
+    en_utc = {"desde": desde.astimezone(UTC), "hasta": hasta.astimezone(UTC)}
+    en_santiago = {k: v.astimezone(timezone(timedelta(hours=-3))) for k, v in en_utc.items()}
+    assert en_utc["desde"].isoformat().endswith("+00:00")
+    assert en_santiago["desde"].isoformat().endswith("-03:00")
+    respuestas = [
+        api.llamar(operacion, "GET", ruta, params={k: v.isoformat() for k, v in fechas.items()})
+        for fechas in (en_utc, en_santiago)
+    ]
+    assert respuestas[0] == respuestas[1]
+
+
+def test_posponer_hasta_sin_zona_horaria_es_422(api: Cliente, datos: dict[str, Any]) -> None:
+    cuerpo = {"estado": "pospuesto", "posponer_hasta": "2026-10-20T10:00:00"}
+    api.llamar(
+        "triarHallazgo",
+        "POST",
+        f"/hallazgos/{datos['hallazgos'][0]}/triage",
+        esperado=422,
+        json=cuerpo,
     )
-    assert resultado.status_code == 200
 
 
 def test_la_paginacion_recorre_todo_sin_repetir(api: Cliente, datos: dict[str, Any]) -> None:
