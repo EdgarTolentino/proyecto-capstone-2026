@@ -15,8 +15,34 @@ from gepp_core import Caja, Deteccion
 
 from gepp_vision.entrenamiento import CLASES_V1
 
-#: Guía de etiquetado §4: lo de menos de 10 px de lado no lleva caja.
+#: Guía de etiquetado §4: lo de menos de 10 px de lado no lleva caja, salvo lo que diga
+#: `MINIMO_PX_POR_CLASE`.
 MINIMO_PX = 10
+
+#: Decisión de Edgar del 2026-10-08 (guía §7): el casco se etiqueta desde 8 px. Persona y chaleco
+#: siguen en `MINIMO_PX`.
+MINIMO_PX_POR_CLASE: dict[str, int] = {"casco": 8}
+
+
+def minimo_px(clase: str) -> int:
+    """Lado mínimo, en px de la imagen original, de la caja de una clase de la v1. Un solo lugar
+    de verdad para `a_coco` y la revisión de etiquetas. Una clase fuera de la v1 es un error:
+    devolver el general escondería un nombre mal escrito."""
+    if clase not in CLASES_V1:
+        raise ValueError(f"clase fuera de la v1: {clase!r}")
+    return MINIMO_PX_POR_CLASE.get(clase, MINIMO_PX)
+
+
+#: Holgura, en px, de la comparación con el mínimo. Pasar de coordenadas a lado resta dos flotantes
+#: y un casco de 8 px exactos puede salir como 7,999999999999993. CVAT guarda 2 decimales, así que
+#: 1e-6 px absorbe el error de redondeo sin dejar pasar ni un centésimo de píxel de más.
+TOLERANCIA_PX = 1e-6
+
+
+def bajo_minimo(ancho: float, alto: float, clase: str) -> bool:
+    """¿La caja queda bajo el mínimo de su clase? Un solo criterio para `a_coco` y la revisión de
+    etiquetas: estar justo en el mínimo (dentro de `TOLERANCIA_PX`) cuenta como llegar a él."""
+    return min(ancho, alto) < minimo_px(clase) - TOLERANCIA_PX
 
 
 def combinar(
@@ -45,7 +71,7 @@ def a_coco(imagenes: Iterable[tuple[str, int, int, Sequence[Deteccion]]]) -> dic
         )
         for d in detecciones:
             w, h = d.caja.ancho * ancho, d.caja.alto * alto
-            if min(w, h) < MINIMO_PX or d.clase not in CLASES_V1:
+            if d.clase not in CLASES_V1 or bajo_minimo(w, h, d.clase):
                 continue
             salida["annotations"].append(
                 {

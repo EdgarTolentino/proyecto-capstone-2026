@@ -21,7 +21,7 @@ eso no se calcula HOTA ni F1 de evento. Quedan en un issue aparte, para cuando h
 
 | Paso | Dónde | Cómo |
 |---|---|---|
-| **Predecir** | Máquina con GPU | `scripts/preetiquetar.py ... --umbral 0.05`. No cambia: ya corre lo que pide el #112 (mosaico dentro del foso, modelo normal fuera, cajas bajo 10 px descartadas) y `etiquetado.a_coco` ya escribe la confianza en `score`. El umbral bajo hace falta porque el mAP recorre la curva completa |
+| **Predecir** | Máquina con GPU | `scripts/preetiquetar.py ... --umbral 0.05`. Corre lo que pide el #112 (mosaico dentro del foso, modelo normal fuera, cajas bajo el mínimo por clase descartadas: 10 px, 8 px el casco, guía §4) y `etiquetado.a_coco` ya escribe la confianza en `score`. La verdad y las predicciones usan el mismo mínimo, así que el casco de 8 a 10 px cuenta en las dos: un falso casco de 9×9 px que antes se descartaba ahora entra en la precisión y en el mAP. El umbral bajo hace falta porque el mAP recorre la curva completa |
 | **Medir** | Cualquier máquina, también el CI | `scripts/evaluar.py`: lee la verdad (exportación COCO 1.0 de CVAT) y las predicciones. Sin GPU ni modelo |
 
 Así la métrica sale del mismo proceso que generó las pre-etiquetas, y medir no obliga a volver a

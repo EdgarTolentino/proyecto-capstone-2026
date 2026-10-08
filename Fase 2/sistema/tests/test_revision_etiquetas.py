@@ -10,7 +10,7 @@ import json
 from pathlib import Path
 
 import pytest
-from gepp_vision.etiquetado import MINIMO_PX
+from gepp_vision.etiquetado import MINIMO_PX, minimo_px
 from gepp_vision.revision_etiquetas import (
     CajaEtiquetada,
     ErrorExportacion,
@@ -184,20 +184,34 @@ def test_umbral_iou_1_exige_cajas_identicas() -> None:
     assert Regla.PAR_REPETIDO in _reglas(xml, umbral_iou=1)
 
 
-# --- 2. y 3. mínimo de 10 px y tiene_pequenos ------------------------------------------------
+# --- 2. y 3. mínimo por clase y tiene_pequenos ------------------------------------------------
 
 
 def test_el_minimo_es_el_de_a_coco() -> None:
-    assert MINIMO_PX == 10  # si cambia la guía, estos casos de borde se reescriben a propósito
+    # si cambia la guía (§4.2), estos casos de borde se reescriben a propósito
+    assert MINIMO_PX == 10
+    assert (minimo_px("persona"), minimo_px("chaleco"), minimo_px("casco")) == (10, 10, 8)
 
 
 @pytest.mark.parametrize(
-    ("ancho", "alto", "bajo"),
-    [(10, 10, False), (10, 30, False), (9.5, 30, True), (30, 9.5, True), (9.5, 9.5, True)],
+    ("clase", "ancho", "alto", "bajo"),
+    [
+        ("persona", 10, 10, False),
+        ("persona", 9.75, 30, True),
+        ("persona", 30, 9.75, True),
+        ("chaleco", 10, 30, False),
+        ("chaleco", 9.75, 30, True),
+        ("casco", 8, 8, False),  # justo en el mínimo del casco
+        ("casco", 8.25, 30, False),
+        ("casco", 9.75, 9.75, False),  # bajo 10 pero no bajo 8
+        ("casco", 7.75, 30, True),
+        ("casco", 30, 7.75, True),
+    ],
 )
-def test_caja_minima_justo_en_el_borde_y_a_cada_lado(ancho: float, alto: float, bajo: bool) -> None:
-    # una persona del tamaño pedido: así no hay otras reglas de por medio
-    xml = _xml(([("persona", 0, 0, ancho, alto)], []))
+def test_caja_minima_justo_en_el_borde_y_a_cada_lado(
+    clase: str, ancho: float, alto: float, bajo: bool
+) -> None:
+    xml = _xml(([(clase, 0, 0, ancho, alto)], []))
     assert (Regla.CAJA_MINIMA in _reglas(xml)) is bajo
 
 
@@ -212,7 +226,7 @@ def test_el_minimo_vale_para_todas_las_clases() -> None:
     [([], True), (["tiene_pequenos"], False), (["grupo_denso"], True)],
 )
 def test_casco_chico_pide_tiene_pequenos(etiquetas: list[str], hay_hallazgo: bool) -> None:
-    xml = _xml(([PERSONA, _caja("casco", 120, 100, 9.5, 9.5)], etiquetas))
+    xml = _xml(([PERSONA, _caja("casco", 120, 100, 7.5, 7.5)], etiquetas))
     assert (Regla.FALTA_TIENE_PEQUENOS in _reglas(xml)) is hay_hallazgo
 
 
@@ -231,13 +245,30 @@ def test_tiene_pequenos_una_caja_chica_basta_y_las_normales_no_la_piden() -> Non
     assert _reglas(_xml(([PERSONA, chica], []))).count(Regla.FALTA_TIENE_PEQUENOS) == 1
 
 
-def test_casco_en_el_minimo_exacto_no_pide_tiene_pequenos() -> None:
-    xml = _xml(([PERSONA, _caja("casco", 120, 100, 10, 10)], []))
+@pytest.mark.parametrize("lado", [8, 8.25, 9.75, 10])
+def test_casco_desde_8_px_no_pide_tiene_pequenos(lado: float) -> None:
+    xml = _xml(([PERSONA, _caja("casco", 120, 100, lado, lado)], []))
     assert Regla.FALTA_TIENE_PEQUENOS not in _reglas(xml)
 
 
+def test_casco_de_8_px_exactos_con_coordenadas_decimales_no_es_bajo_el_minimo() -> None:
+    assert 8.2 - 0.2 < 8  # el defecto de flotantes: 7,999999999999999
+    xml = (
+        '<annotations><image id="0" name="a.jpg">'
+        '<box label="persona" xtl="0" ytl="0" xbr="40" ybr="100"/>'
+        '<box label="casco" xtl="0.2" ytl="0" xbr="8.2" ybr="20">'
+        '<attribute name="puesto">si</attribute></box></image></annotations>'
+    )
+    assert _reglas(xml) == []
+
+
+def test_casco_de_7_75_px_si_pide_tiene_pequenos() -> None:
+    xml = _xml(([PERSONA, _caja("casco", 120, 100, 7.75, 7.75)], []))
+    assert Regla.FALTA_TIENE_PEQUENOS in _reglas(xml)
+
+
 def test_tiene_pequenos_se_evalua_por_cuadro() -> None:
-    chico = _caja("casco", 120, 100, 9.5, 9.5)
+    chico = _caja("casco", 120, 100, 7.5, 7.5)
     xml = _xml(([PERSONA, chico], ["tiene_pequenos"]), ([PERSONA, chico], []))
     hallazgos = [h for h in revisar(leer_cvat_xml(xml)) if h.regla is Regla.FALTA_TIENE_PEQUENOS]
     assert [h.cuadro for h in hallazgos] == [1]
@@ -345,7 +376,7 @@ def test_coordenada_no_finita_se_rechaza(atributo: str, valor: str) -> None:
 
 def _exportacion(tmp_path: Path) -> Path:
     xml = _xml(
-        ([PERSONA, _caja("casco", 120, 100, 9.5, 9.5)], []),  # chico sin tiene_pequenos
+        ([PERSONA, _caja("casco", 120, 100, 7.5, 7.5)], []),  # chico sin tiene_pequenos
         ([_caja("chaleco", 300, 300)], ["tiene_pequenos"]),  # sin persona
     )
     ruta = tmp_path / "annotations.xml"
@@ -373,7 +404,7 @@ def test_script_json_trae_cuadro_clase_y_coordenadas(
     por_regla = {h["regla"]: h for h in salida["hallazgos"]}
     assert por_regla["falta_tiene_pequenos"]["cuadro"] == 0
     assert por_regla["falta_tiene_pequenos"]["clase"] == "casco"
-    assert por_regla["falta_tiene_pequenos"]["cajas"] == [[115.25, 95.25, 124.75, 104.75]]
+    assert por_regla["falta_tiene_pequenos"]["cajas"] == [[116.25, 96.25, 123.75, 103.75]]
     assert por_regla["sin_persona"]["cuadro"] == 1
 
 
@@ -416,7 +447,7 @@ def test_script_tabla_y_parametros(tmp_path: Path, capsys: pytest.CaptureFixture
     assert main([str(_exportacion(tmp_path)), "--iou", "0.5", "--margen-cabeza", "0.25"]) == 0
     salida = capsys.readouterr().out
     assert "falta_tiene_pequenos" in salida
-    assert "115.25,95.25,124.75,104.75" in salida
+    assert "116.25,96.25,123.75,103.75" in salida
     assert "2 cuadros, IoU >= 0.5, margen de cabeza 0.25" in salida
 
 
@@ -522,6 +553,6 @@ def test_todas_las_etiquetas_de_imagen_se_leen() -> None:
 
 
 def test_tiene_pequenos_no_es_la_primera_etiqueta() -> None:
-    chico = _caja("casco", 120, 100, 9.5, 9.5)
+    chico = _caja("casco", 120, 100, 7.5, 7.5)
     xml = _xml(([PERSONA, chico], ["grupo_denso", "tiene_pequenos"]))
     assert [h.regla for h in revisar(leer_cvat_xml(xml))] == [Regla.CAJA_MINIMA]
