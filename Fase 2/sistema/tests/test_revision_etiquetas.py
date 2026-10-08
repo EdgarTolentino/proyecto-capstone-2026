@@ -24,7 +24,8 @@ from gepp_vision.revision_etiquetas import (
 
 from scripts.revisar_etiquetas import main  # type: ignore[import-not-found]
 
-Caja = tuple[str, float, float, float, float]
+#: (clase, x1, y1, x2, y2) o con `puesto` al final. Sin él, casco y chaleco salen con `si`.
+Caja = tuple[str, float, float, float, float] | tuple[str, float, float, float, float, str]
 
 
 def _xml(*cuadros: tuple[list[Caja], list[str]]) -> str:
@@ -32,10 +33,15 @@ def _xml(*cuadros: tuple[list[Caja], list[str]]) -> str:
     partes = ['<?xml version="1.0" encoding="utf-8"?><annotations><version>1.1</version>']
     for i, (cajas, etiquetas) in enumerate(cuadros):
         partes.append(f'<image id="{i}" name="f{i}.jpg" width="1920" height="1080">')
-        for clase, x1, y1, x2, y2 in cajas:
+        for caja in cajas:
+            clase, x1, y1, x2, y2 = caja[:5]
+            puesto = caja[5] if len(caja) == 6 else "si"
+            atributo = f'<attribute name="puesto">{puesto}</attribute>'
+            if clase == "persona":
+                atributo = ""
             partes.append(
                 f'<box label="{clase}" source="manual" occluded="0" '
-                f'xtl="{x1}" ytl="{y1}" xbr="{x2}" ybr="{y2}" z_order="0"></box>'
+                f'xtl="{x1}" ytl="{y1}" xbr="{x2}" ybr="{y2}" z_order="0">{atributo}</box>'
             )
         partes.extend(f'<tag label="{e}" source="manual"/>' for e in etiquetas)
         partes.append("</image>")
@@ -57,7 +63,7 @@ PERSONA: Caja = ("persona", 100, 100, 140, 180)  # alto 80
 # --- lectura ---------------------------------------------------------------------------------
 
 
-def test_lee_cajas_etiquetas_y_atributos_ignorados() -> None:
+def test_lee_cajas_puesto_y_etiquetas() -> None:
     xml = (
         '<annotations><image id="3" name="a.jpg" width="1920" height="1080">'
         '<box label="casco" source="file" occluded="0" xtl="1.5" ytl="2" xbr="11.5" ybr="12" '
@@ -66,7 +72,7 @@ def test_lee_cajas_etiquetas_y_atributos_ignorados() -> None:
     )
     [cuadro] = leer_cvat_xml(xml)
     assert (cuadro.id, cuadro.nombre) == (3, "a.jpg")
-    assert cuadro.cajas == (CajaEtiquetada("casco", 1.5, 2, 11.5, 12),)
+    assert cuadro.cajas == (CajaEtiquetada("casco", 1.5, 2, 11.5, 12, "si"),)
     assert cuadro.etiquetas == {"tiene_pequenos"}
 
 
@@ -84,6 +90,12 @@ def test_lee_cajas_etiquetas_y_atributos_ignorados() -> None:
         '<annotations><image id="0"><box label="casco" ytl="0" xbr="1" ybr="1"/>'
         "</image></annotations>",  # falta una coordenada
         '<annotations><image name="x"/></annotations>',  # imagen sin id
+        '<annotations><version>1.1</version><track id="0" label="casco"/></annotations>',
+        "<annotations><version>1.1</version></annotations>",  # ningún <image>
+        '<annotations><image id="0"><box label="casco" xtl="0" ytl="0" xbr="20" ybr="20"/>'
+        "</image></annotations>",  # casco sin puesto
+        _xml(([("casco", 0, 0, 20, 20, "quizas")], [])),  # puesto inválido
+        _xml(([("chaleco", 0, 0, 20, 20, "")], [])),  # puesto vacío
     ],
 )
 def test_una_exportacion_invalida_se_rechaza_en_vez_de_revisarse(xml: str) -> None:
@@ -122,6 +134,29 @@ def test_par_repetido_en_el_umbral_y_a_cada_lado(alto_b: float, hay_par: bool) -
     if hay_par:
         assert hallazgos[0].iou == 16 * alto_b / 256
         assert len(hallazgos[0].cajas) == 2
+
+
+@pytest.mark.parametrize(
+    ("alto_b", "hay_par"),
+    [(15, False), (16, True), (17.5, True)],  # IoU 0,75 | 0,8 justo (320/400) | 0,875
+)
+def test_par_repetido_por_defecto_en_0_8_justo(alto_b: float, hay_par: bool) -> None:
+    # A = 20x20 (400) y B = 20 x alto_b con el mismo origen: IoU = min(alto_b, 20) / 20
+    xml = _xml(([("persona", 0, 0, 20, 20), ("persona", 0, 0, 20, alto_b)], []))
+    assert (Regla.PAR_REPETIDO in _reglas(xml)) is hay_par
+
+
+def test_par_repetido_con_el_umbral_por_defecto_sobre_0_8() -> None:
+    xml = _xml(([("casco", 0, 0, 16, 16), ("casco", 0, 0, 16, 14)], []))  # IoU 14/16 = 0,875
+    [h] = [h for h in revisar(leer_cvat_xml(xml)) if h.regla is Regla.PAR_REPETIDO]
+    assert h.iou == 0.875
+
+
+def test_el_par_trae_las_coordenadas_de_las_dos_cajas_distintas() -> None:
+    xml = _xml(([("casco", 0, 0, 16, 16), ("casco", 2, 0, 18, 16)], ["tiene_pequenos"]))
+    [h] = [h for h in revisar(leer_cvat_xml(xml), umbral_iou=0.75) if h.regla is Regla.PAR_REPETIDO]
+    assert [(c.x1, c.y1, c.x2, c.y2) for c in h.cajas] == [(0, 0, 16, 16), (2, 0, 18, 16)]
+    assert h.iou == 14 * 16 / (2 * 256 - 14 * 16)  # 224 / 288
 
 
 def test_par_repetido_no_cruza_clases_ni_cuadros() -> None:
@@ -181,9 +216,19 @@ def test_casco_chico_pide_tiene_pequenos(etiquetas: list[str], hay_hallazgo: boo
     assert (Regla.FALTA_TIENE_PEQUENOS in _reglas(xml)) is hay_hallazgo
 
 
-def test_tiene_pequenos_solo_se_exige_por_cascos_no_por_otras_clases() -> None:
-    xml = _xml(([("persona", 0, 0, 5, 5), ("chaleco", 0, 0, 5, 5)], []))
-    assert Regla.FALTA_TIENE_PEQUENOS not in _reglas(xml)
+@pytest.mark.parametrize("clase", ["persona", "chaleco", "casco"])
+def test_tiene_pequenos_se_exige_por_cualquier_clase_bajo_el_minimo(clase: str) -> None:
+    sin = _xml(([(clase, 0, 0, 5, 5)], []))
+    [h] = [h for h in revisar(leer_cvat_xml(sin)) if h.regla is Regla.FALTA_TIENE_PEQUENOS]
+    assert (h.clase, h.cajas[0].ancho) == (clase, 5)
+    con = _xml(([(clase, 0, 0, 5, 5)], ["tiene_pequenos"]))
+    assert Regla.FALTA_TIENE_PEQUENOS not in _reglas(con)
+
+
+def test_tiene_pequenos_una_caja_chica_basta_y_las_normales_no_la_piden() -> None:
+    assert Regla.FALTA_TIENE_PEQUENOS not in _reglas(_xml(([PERSONA], [])))
+    chica = ("persona", 0, 0, 5, 5)
+    assert _reglas(_xml(([PERSONA, chica], []))).count(Regla.FALTA_TIENE_PEQUENOS) == 1
 
 
 def test_casco_en_el_minimo_exacto_no_pide_tiene_pequenos() -> None:
@@ -245,6 +290,25 @@ def test_la_persona_de_otro_cuadro_no_cuenta() -> None:
 def test_basta_una_persona_que_lo_contenga() -> None:
     lejos = ("persona", 500, 500, 540, 580)
     assert Regla.SIN_PERSONA not in _reglas(_xml(([lejos, PERSONA, _caja("casco", 120, 120)], [])))
+
+
+@pytest.mark.parametrize(
+    ("clase", "puesto", "hay_hallazgo"),
+    [
+        ("casco", "si", True),
+        ("casco", "no", False),
+        ("chaleco", "si", True),
+        ("chaleco", "no", False),
+    ],
+)
+def test_sin_persona_solo_para_lo_puesto(clase: str, puesto: str, hay_hallazgo: bool) -> None:
+    """Guía §5: el casco en el suelo o en un perchero es `puesto = no` y no se asocia a nadie."""
+    xml = _xml(([(*_caja(clase, 500, 500), puesto)], []))
+    assert (Regla.SIN_PERSONA in _reglas(xml)) is hay_hallazgo
+
+
+def test_lo_no_puesto_con_persona_tampoco_es_hallazgo() -> None:
+    assert _reglas(_xml(([PERSONA, (*_caja("casco", 120, 120), "no")], []))) == []
 
 
 def test_una_persona_sola_no_es_hallazgo() -> None:
@@ -311,6 +375,41 @@ def test_script_json_trae_cuadro_clase_y_coordenadas(
     assert por_regla["falta_tiene_pequenos"]["clase"] == "casco"
     assert por_regla["falta_tiene_pequenos"]["cajas"] == [[115.25, 95.25, 124.75, 104.75]]
     assert por_regla["sin_persona"]["cuadro"] == 1
+
+
+def test_script_json_trae_las_dos_cajas_distintas_del_par(
+    tmp_path: Path, capsys: pytest.CaptureFixture[str]
+) -> None:
+    ruta = tmp_path / "par.xml"
+    ruta.write_text(
+        _xml(([("casco", 0, 0, 16, 16), ("casco", 2, 0, 18, 16)], ["tiene_pequenos"])),
+        encoding="utf-8",
+    )
+    assert main([str(ruta), "--iou", "0.75", "--json"]) == 0
+    hallazgos = json.loads(capsys.readouterr().out)["hallazgos"]
+    [h] = [h for h in hallazgos if h["regla"] == "par_repetido"]
+    assert h["cajas"] == [[0, 0, 16, 16], [2, 0, 18, 16]]
+
+
+@pytest.mark.parametrize(
+    "contenido",
+    [
+        '<annotations><version>1.1</version><track id="0" label="persona"/></annotations>',
+        "<annotations><version>1.1</version></annotations>",
+    ],
+)
+def test_script_formato_incompatible_sale_con_2(
+    tmp_path: Path, capsys: pytest.CaptureFixture[str], contenido: str
+) -> None:
+    ruta = tmp_path / "video.xml"
+    ruta.write_text(contenido, encoding="utf-8")
+    assert main([str(ruta)]) == 2
+    assert "error:" in capsys.readouterr().err
+
+
+def test_el_error_de_video_nombra_el_formato_correcto() -> None:
+    with pytest.raises(ErrorExportacion, match=r"CVAT for images 1\.1"):
+        leer_cvat_xml("<annotations><track id='0'/></annotations>")
 
 
 def test_script_tabla_y_parametros(tmp_path: Path, capsys: pytest.CaptureFixture[str]) -> None:

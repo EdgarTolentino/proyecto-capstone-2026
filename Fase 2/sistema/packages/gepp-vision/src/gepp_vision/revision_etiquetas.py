@@ -10,14 +10,18 @@ Cuatro comprobaciones, todas sobre un mismo cuadro:
 
 1. `PAR_REPETIDO`: dos cajas de la misma clase con IoU >= `umbral_iou`.
 2. `CAJA_MINIMA`: una caja con `min(ancho, alto) < MINIMO_PX` (el criterio de `a_coco`).
-3. `FALTA_TIENE_PEQUENOS`: un casco bajo el mínimo en un cuadro sin la etiqueta de imagen
-   `tiene_pequenos` (§4.2 de la guía).
-4. `SIN_PERSONA`: un casco o chaleco que ninguna persona del cuadro contiene. Contiene =
+3. `FALTA_TIENE_PEQUENOS`: un cuadro con **alguna** caja bajo el mínimo (de cualquier clase) y sin
+   la etiqueta de imagen `tiene_pequenos` (§4.2 de la guía). El hallazgo trae la caja chica.
+4. `SIN_PERSONA`: un casco o chaleco **puesto** (`puesto = si`) que ninguna persona del cuadro
+   contiene. El que está en el suelo, en un perchero o en la mano (`puesto = no`) es un negativo
+   útil y no se asocia a nadie (§5 de la guía): no es hallazgo. Contiene =
    el **centro** de la caja cae dentro de la caja de la persona, ampliada hacia arriba en
    `margen_cabeza` por su alto (el casco sobresale de la cabeza, y la caja de la persona suele
    empezar en ella). Borde inclusivo. No se amplía hacia los lados ni hacia abajo.
 
-Nada de esto lee imágenes: solo cuadro, clase y coordenadas.
+Solo se lee «CVAT for images 1.1»: la exportación «for video» (`<track>`) es un error, y una
+exportación sin ningún `<image>` también. Nada de esto lee imágenes: solo cuadro, clase y
+coordenadas.
 """
 
 from __future__ import annotations
@@ -58,6 +62,8 @@ class CajaEtiquetada:
     y1: float
     x2: float
     y2: float
+    #: `si` o `no` en casco y chaleco (guía §3); None en persona.
+    puesto: str | None = None
 
     @property
     def ancho(self) -> float:
@@ -113,6 +119,20 @@ def _entero(el: ET.Element, atributo: str) -> int:
         raise ErrorExportacion(f"<{el.tag}> sin «{atributo}» entero: {el.attrib}") from e
 
 
+def _puesto(caja: ET.Element, cuadro: int, clase: str) -> str | None:
+    """El atributo `puesto` de un casco o chaleco: `si` o `no`. Falta o vale otra cosa: error,
+    porque sin él no se sabe si el objeto debe tener una persona."""
+    if clase == "persona":
+        return None
+    for atributo in caja.findall("attribute"):
+        if atributo.attrib.get("name") == "puesto":
+            valor = (atributo.text or "").strip()
+            if valor not in ("si", "no"):
+                raise ErrorExportacion(f"cuadro {cuadro}: «{clase}» con puesto «{valor}»")
+            return valor
+    raise ErrorExportacion(f"cuadro {cuadro}: «{clase}» sin el atributo puesto")
+
+
 def leer_cvat_xml(texto: str) -> list[Cuadro]:
     """Cuadros de un annotations.xml «CVAT for images 1.1». Solo lee `<box>` y `<tag>`; otras
     formas (polígonos, cuboides) no existen en este proyecto y se ignoran."""
@@ -122,6 +142,12 @@ def leer_cvat_xml(texto: str) -> list[Cuadro]:
         raise ErrorExportacion(f"XML mal formado: {e}") from e
     if raiz.tag != "annotations":
         raise ErrorExportacion(f"la raíz es <{raiz.tag}>, no <annotations>")
+
+    if raiz.find("track") is not None:
+        raise ErrorExportacion(
+            "la exportación trae <track>: es «CVAT for video». Exporta con el formato "
+            "«CVAT for images 1.1»"
+        )
 
     cuadros: list[Cuadro] = []
     for img in raiz.iter("image"):
@@ -138,7 +164,7 @@ def leer_cvat_xml(texto: str) -> list[Cuadro]:
                 raise ErrorExportacion(
                     f"cuadro {id_}: caja «{clase}» invertida ({x1},{y1})-({x2},{y2})"
                 )
-            cajas.append(CajaEtiquetada(clase, x1, y1, x2, y2))
+            cajas.append(CajaEtiquetada(clase, x1, y1, x2, y2, _puesto(caja, id_, clase)))
         etiquetas: set[str] = set()
         for tag in img.findall("tag"):
             etiqueta = tag.attrib.get("label", "")
@@ -146,6 +172,8 @@ def leer_cvat_xml(texto: str) -> list[Cuadro]:
                 raise ErrorExportacion(f"cuadro {id_}: etiqueta de imagen desconocida «{etiqueta}»")
             etiquetas.add(etiqueta)
         cuadros.append(Cuadro(id_, nombre, tuple(cajas), frozenset(etiquetas)))
+    if not cuadros:
+        raise ErrorExportacion("la exportación no trae ningún <image>")
     return cuadros
 
 
@@ -201,12 +229,14 @@ def revisar(
                 hallazgos.append(Hallazgo(Regla.CAJA_MINIMA, *base, c.clase, (c,)))
         if TIENE_PEQUENOS not in cuadro.etiquetas:
             for c in cajas:
-                if c.clase == "casco" and _bajo_minimo(c):
+                if _bajo_minimo(c):
                     hallazgos.append(Hallazgo(Regla.FALTA_TIENE_PEQUENOS, *base, c.clase, (c,)))
         personas = [c for c in cajas if c.clase == "persona"]
         for c in cajas:
-            if c.clase in ("casco", "chaleco") and not any(
-                contiene_persona(p, c, margen_cabeza) for p in personas
+            if (
+                c.clase in ("casco", "chaleco")
+                and c.puesto == "si"
+                and not any(contiene_persona(p, c, margen_cabeza) for p in personas)
             ):
                 hallazgos.append(Hallazgo(Regla.SIN_PERSONA, *base, c.clase, (c,)))
     return hallazgos
