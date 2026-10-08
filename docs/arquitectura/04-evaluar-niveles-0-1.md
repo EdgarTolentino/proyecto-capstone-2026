@@ -74,9 +74,10 @@ con `doble_etiquetado = 1`, etiquetados desde cero).
 1. Las categorías se emparejan **por nombre** (`persona`, `casco`, `chaleco`), no por `id`: el id
    de CVAT depende del orden de las etiquetas en el proyecto y el de `a_coco` sale de
    `CLASES_V1`.
-   - `tiene_pequenos` es una etiqueta de imagen (*tag*) en CVAT. La exportación COCO 1.0 la trae
-     en `categories` pero sin cajas (comprobado el 4-oct con la tarea `prueba-youtube-lote0`).
-     Se ignora.
+   - `tiene_pequenos`, `negativo_duro` y `grupo_denso` son etiquetas de imagen (*tag*) en CVAT
+     (guía de etiquetado §5). La exportación COCO 1.0 las trae en `categories` pero sin cajas
+     (comprobado el 4-oct con `tiene_pequenos`, tarea `prueba-youtube-lote0`). Se ignoran. La
+     lista es `etiquetado.ETIQUETAS_IMAGEN`, la misma que valida la revisión de etiquetas.
    - Cualquier otro nombre desconocido detiene el script.
 2. Las imágenes se emparejan por `file_name`. Toda imagen de la verdad tiene que estar en las
    predicciones, con el mismo ancho y alto; si no, error. Las predicciones de imágenes que no están

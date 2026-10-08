@@ -12,13 +12,15 @@ from dataclasses import dataclass
 from typing import Any
 
 from gepp_vision.entrenamiento import CLASES_V1
+from gepp_vision.etiquetado import ETIQUETAS_IMAGEN
 
 #: Clases que se evalúan, en el orden de `CLASES_V1`.
 CLASES: tuple[str, ...] = tuple(str(c) for c in CLASES_V1)
 
 #: Etiquetas de imagen (tags) de CVAT: la exportación COCO 1.0 las trae en `categories`, sin
-#: cajas (comprobado el 4-oct con la tarea `prueba-youtube-lote0`).
-IGNORADAS = frozenset({"tiene_pequenos"})
+#: cajas (comprobado el 4-oct con la tarea `prueba-youtube-lote0` y `tiene_pequenos`). Salen de
+#: `etiquetado.ETIQUETAS_IMAGEN`, la misma lista que valida la revisión de etiquetas.
+IGNORADAS = ETIQUETAS_IMAGEN
 
 #: x1, y1, x2, y2 en px del cuadro.
 Recorte = tuple[float, float, float, float]

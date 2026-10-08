@@ -66,6 +66,34 @@ def test_tiene_pequenos_se_ignora_y_otro_nombre_desconocido_detiene() -> None:
         leer_coco(_coco([], categorias={"persona": 1, "guante": 2}), predicciones=False)
 
 
+@pytest.mark.parametrize("etiqueta", ["tiene_pequenos", "negativo_duro", "grupo_denso"])
+def test_cada_etiqueta_de_imagen_se_ignora_con_y_sin_anotaciones(etiqueta: str) -> None:
+    categorias = {**CATEGORIAS, etiqueta: 4}
+    sin_cajas = leer_coco(_coco([], categorias=categorias), predicciones=False)
+    assert sin_cajas.cajas == ()
+    # CVAT no la exporta con cajas, pero si una anotación la usara tampoco es una caja
+    con_anotacion = _coco(
+        [("a.jpg", "persona", [0, 0, 50, 100], None), ("a.jpg", etiqueta, [1, 1, 5, 5], None)],
+        categorias=categorias,
+    )
+    assert [c.clase for c in leer_coco(con_anotacion, predicciones=False).cajas] == ["persona"]
+
+
+def test_las_tres_etiquetas_de_imagen_juntas_no_afectan_la_lectura() -> None:
+    con = _coco(
+        [("a.jpg", "casco", [10, 10, 20, 20], None)],
+        categorias={**CATEGORIAS, "tiene_pequenos": 4, "negativo_duro": 5, "grupo_denso": 6},
+    )
+    sin = _coco([("a.jpg", "casco", [10, 10, 20, 20], None)])
+    assert leer_coco(con, predicciones=False) == leer_coco(sin, predicciones=False)
+
+
+@pytest.mark.parametrize("nombre", ["arnes", "negativo_duro ", "Grupo_Denso", ""])
+def test_un_nombre_parecido_a_una_etiqueta_de_imagen_sigue_deteniendo(nombre: str) -> None:
+    with pytest.raises(EntradaInvalida, match="categoría desconocida"):
+        leer_coco(_coco([], categorias={**CATEGORIAS, nombre: 4}), predicciones=False)
+
+
 def test_prediccion_sin_score_detiene_y_la_verdad_descarta_el_score() -> None:
     sin_score = _coco([("a.jpg", "persona", [0, 0, 50, 100], None)])
     with pytest.raises(EntradaInvalida, match="score"):
