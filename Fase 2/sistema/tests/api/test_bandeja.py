@@ -2,11 +2,12 @@
 
 from __future__ import annotations
 
+from datetime import datetime, timedelta
 from typing import Any
 
 import pytest
 
-from .conftest import Cliente
+from .conftest import DEMO, Cliente
 
 pytestmark = pytest.mark.integration
 
@@ -78,6 +79,63 @@ def test_los_contadores_ignoran_el_filtro_de_estado(api: Cliente, datos: dict[st
 def test_filtros(api: Cliente, consulta: str, esperados: int) -> None:
     pagina = api.llamar("listarHallazgos", "GET", f"/hallazgos?{consulta}")
     assert len(pagina["items"]) == esperados
+
+
+UN_US = timedelta(microseconds=1)
+
+
+def _ts_mas_antiguo(api: Cliente) -> datetime:
+    pagina = api.llamar("listarHallazgos", "GET", "/hallazgos?limite=200")
+    # Sin página siguiente, el último de la lista es de verdad el más antiguo.
+    assert pagina["siguiente_cursor"] is None
+    return datetime.fromisoformat(pagina["items"][-1]["ts_inicio"])
+
+
+def _con_hasta(api: Cliente, hasta: datetime) -> list[int]:
+    pagina = api.llamar(
+        "listarHallazgos",
+        "GET",
+        "/hallazgos",
+        params={"hasta": hasta.isoformat()},
+    )
+    return [h["id"] for h in pagina["items"]]
+
+
+def test_hasta_es_semiabierto_y_excluye_el_hallazgo_justo_en_el_limite(api: Cliente) -> None:
+    # La web manda `hasta` como el inicio del día siguiente: ese instante es del día siguiente.
+    limite = _ts_mas_antiguo(api)
+    assert _con_hasta(api, limite) == []
+
+
+def test_hasta_un_microsegundo_despues_incluye_el_hallazgo(api: Cliente) -> None:
+    limite = _ts_mas_antiguo(api)
+    assert len(_con_hasta(api, limite + UN_US)) == 1
+
+
+def test_hasta_un_microsegundo_antes_lo_deja_fuera(api: Cliente) -> None:
+    limite = _ts_mas_antiguo(api)
+    assert _con_hasta(api, limite - UN_US) == []
+
+
+def test_hasta_menor_que_desde_no_devuelve_nada(api: Cliente) -> None:
+    limite = _ts_mas_antiguo(api)
+    pagina = api.llamar(
+        "listarHallazgos",
+        "GET",
+        "/hallazgos",
+        params={"desde": (limite + UN_US).isoformat(), "hasta": limite.isoformat()},
+    )
+    assert pagina["items"] == []
+
+
+def test_hasta_sin_zona_horaria_se_comporta_como_hoy(api: Cliente) -> None:
+    # Entrada inválida según el contrato (`date-time` exige zona): hoy se acepta y la base la
+    # interpreta con su propia zona. Se fija para que un cambio sea una decisión, no un accidente.
+    limite = _ts_mas_antiguo(api).replace(tzinfo=None)
+    resultado = api.http.get(
+        "/api/v1/hallazgos", params={"hasta": limite.isoformat()}, headers=DEMO
+    )
+    assert resultado.status_code == 200
 
 
 def test_la_paginacion_recorre_todo_sin_repetir(api: Cliente, datos: dict[str, Any]) -> None:
