@@ -22,10 +22,11 @@ from gepp_bd.modelos import Regla as FilaRegla
 from gepp_bd.repositorios import evidencias, videos
 from gepp_bd.semilla import cargar, leer
 from gepp_vision.detectores import DetectorFalso, Guion
+from gepp_worker import fuente_archivo
 from gepp_worker import trabajador as modulo_trabajador
-from gepp_worker.cola import MAXIMO_INTENTOS, ColaTrabajos, EstadoTrabajo
+from gepp_worker.cola import MAXIMO_INTENTOS, ColaTrabajos, EstadoTrabajo, Trabajo
 from gepp_worker.trabajador import Aviso, Configuracion, Trabajador
-from gepp_worker.vigilante import Vigilante
+from gepp_worker.vigilante import Vigilante, sha256_de_archivo
 from sqlalchemy import Engine, func, select, update
 from sqlalchemy.exc import OperationalError
 
@@ -205,6 +206,9 @@ def test_un_archivo_que_no_es_video_queda_visible_con_su_motivo(entorno) -> None
     # Sin leerlo no hay duración: el reloj es la fecha del archivo, marcado como de origen dudoso.
     assert estados == [("reintentando", 1), ("reintentando", 2), ("error", MAXIMO_INTENTOS)]
     assert video.error_motivo and video.error_motivo.startswith("No se pudo leer el video")
+    # El motivo llega al navegador por `GET /videos`: el nombre, no el directorio del servidor.
+    assert "roto.mp4" in video.error_motivo and str(entrada) not in video.error_motivo
+    assert str(entrada) not in cola.detalle(trabajo.hash_sha256)["motivo"]
     assert (video.origen_capture_ts, video.capture_ts_inicio) == ("mtime", MTIME)
     assert video.duracion_s is None and video.bytes == roto.stat().st_size
     assert cola.estado(trabajo.hash_sha256) is EstadoTrabajo.ERROR
@@ -388,3 +392,149 @@ def test_si_la_base_no_responde_el_bucle_del_trabajador_sigue(
     vueltas = iter([True, True, False])
     trabajador.correr(seguir=lambda: next(vueltas), espera_s=0)  # no lanza
     assert next(vueltas, "fin") == "fin"
+
+
+# ── El motivo de un fallo no lleva rutas del servidor ──────────────────────────────────
+
+
+def _con_fila_y_trabajo(motor: Engine, cola: ColaTrabajos, ruta: Path) -> Trabajo:
+    """Un video ya registrado (como lo dejaría la API) y su trabajo en la cola."""
+    hash_sha256, tamano = sha256_de_archivo(ruta), ruta.stat().st_size
+    with transaccion(motor) as s:
+        videos.registrar(
+            s,
+            videos.NuevoVideo(
+                fuente_id=1,
+                ruta=str(ruta),
+                hash_sha256=hash_sha256,
+                bytes=tamano,
+                capture_ts_inicio=MTIME,
+                origen_capture_ts="mtime",
+            ),
+        )
+    trabajo = Trabajo(str(ruta), hash_sha256, tamano, fuente_id=1)
+    assert cola.encolar(trabajo)
+    return trabajo
+
+
+def _motivo_guardado(motor: Engine) -> str:
+    with transaccion(motor) as s:
+        (video,) = s.execute(select(Video)).scalars()
+    assert video.estado == "reintentando"
+    return video.error_motivo or ""
+
+
+def test_un_archivo_que_desaparece_deja_su_nombre_y_no_su_ruta(
+    entorno, capsys: pytest.CaptureFixture[str]
+) -> None:  # type: ignore[no-untyped-def]
+    motor, entrada, cola, _vigilante, trabajador, _tmp = entorno
+    ruta = entrada / "borrado.mp4"
+    ruta.write_bytes(b"x" * 64)
+    trabajo = _con_fila_y_trabajo(motor, cola, ruta)
+    ruta.unlink()
+
+    assert trabajador.atender_uno() is None
+
+    motivo = _motivo_guardado(motor)
+    assert "borrado.mp4" in motivo and str(entrada) not in motivo
+    assert str(entrada) not in cola.detalle(trabajo.hash_sha256)["motivo"]
+    # La salida local conserva la ruta completa, para depurar.
+    assert str(ruta) in capsys.readouterr().err
+
+
+def test_un_video_que_opencv_no_abre_deja_su_nombre_y_no_su_ruta(entorno) -> None:  # type: ignore[no-untyped-def]
+    motor, entrada, cola, _vigilante, trabajador, _tmp = entorno
+    ruta = entrada / "corrupto.mp4"
+    ruta.write_bytes(b"esto no es un video" * 100)
+    _con_fila_y_trabajo(motor, cola, ruta)
+
+    assert trabajador.atender_uno() is None
+
+    motivo = _motivo_guardado(motor)
+    assert motivo.startswith("No se pudo leer el video")
+    assert "corrupto.mp4" in motivo and str(entrada) not in motivo
+
+
+def test_un_video_sin_fps_validos_deja_su_nombre_y_no_su_ruta(  # type: ignore[no-untyped-def]
+    entorno, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    motor, entrada, cola, _vigilante, trabajador, _tmp = entorno
+
+    class SinFps:
+        def __init__(self, _ruta: str) -> None: ...
+        def isOpened(self) -> bool:
+            return True
+
+        def get(self, _propiedad: int) -> float:
+            return 0.0
+
+        def release(self) -> None: ...
+
+    monkeypatch.setattr(fuente_archivo.cv2, "VideoCapture", SinFps)
+    ruta = entrada / "sin_fps.mp4"
+    ruta.write_bytes(b"x" * 64)
+    _con_fila_y_trabajo(motor, cola, ruta)
+
+    assert trabajador.atender_uno() is None
+
+    motivo = _motivo_guardado(motor)
+    assert "no declara fps válidos" in motivo
+    assert "sin_fps.mp4" in motivo and str(entrada) not in motivo
+
+
+def test_la_carpeta_con_espacios_tampoco_se_cuela_en_el_motivo(entorno) -> None:  # type: ignore[no-untyped-def]
+    motor, entrada, cola, _vigilante, trabajador, _tmp = entorno
+    carpeta = entrada / "mis videos"
+    carpeta.mkdir()
+    ruta = carpeta / "clip uno.mp4"
+    ruta.write_bytes(b"esto no es un video" * 100)
+    _con_fila_y_trabajo(motor, cola, ruta)
+
+    assert trabajador.atender_uno() is None
+
+    motivo = _motivo_guardado(motor)
+    assert "clip uno.mp4" in motivo
+    assert "mis videos" not in motivo and str(entrada) not in motivo
+
+
+def test_la_ruta_resuelta_de_un_enlace_tampoco_se_cuela_en_el_motivo(entorno) -> None:  # type: ignore[no-untyped-def]
+    motor, entrada, cola, _vigilante, trabajador, _tmp = entorno
+    real = entrada / "carpeta real"  # el mensaje trae la ruta resuelta, con su espacio
+    real.mkdir()
+    (real / "clip.mp4").write_bytes(b"esto no es un video" * 100)
+    enlace = entrada / "enlace"
+    enlace.symlink_to(real)
+    _con_fila_y_trabajo(motor, cola, enlace / "clip.mp4")
+
+    assert trabajador.atender_uno() is None
+
+    motivo = _motivo_guardado(motor)
+    assert "clip.mp4" in motivo
+    assert "carpeta real" not in motivo and str(entrada) not in motivo
+
+
+def test_un_enlace_circular_no_tumba_al_trabajador(entorno) -> None:  # type: ignore[no-untyped-def]
+    """En Python 3.12 `Path.resolve()` lanza `RuntimeError: Symlink loop` con un bucle de enlaces
+    y eso se escapaba de `atender_uno`: el fallo no se anotaba y el proceso moría."""
+    motor, entrada, cola, _vigilante, trabajador, _tmp = entorno
+    bucle = entrada / "bucle.mp4"
+    bucle.symlink_to(bucle.name)  # apunta a sí mismo
+    hash_falso = "ab" * 32
+    with transaccion(motor) as s:
+        videos.registrar(
+            s,
+            videos.NuevoVideo(
+                fuente_id=1,
+                ruta=str(bucle),
+                hash_sha256=hash_falso,
+                bytes=1,
+                capture_ts_inicio=MTIME,
+                origen_capture_ts="mtime",
+            ),
+        )
+    assert cola.encolar(Trabajo(str(bucle), hash_falso, 1, fuente_id=1))
+
+    assert trabajador.atender_uno() is None  # no lanza
+
+    motivo = _motivo_guardado(motor)
+    assert str(entrada) not in motivo and str(entrada) not in cola.detalle(hash_falso)["motivo"]

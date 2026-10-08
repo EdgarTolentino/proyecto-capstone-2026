@@ -38,6 +38,7 @@ from gepp_bd.modelos import Regla as FilaRegla
 from gepp_bd.repositorios import detecciones, evidencias, hallazgos, reglas, videos
 from gepp_bd.sesion import transaccion
 from gepp_core import ClaseDetectada, Deteccion, Hallazgo, Regla
+from gepp_core.textos import sin_rutas
 from gepp_vision.evidencia import EvidenciaEscrita, escribir_evidencia
 from gepp_vision.pipeline import PipelineEtapa1
 from gepp_vision.privacidad import MascaraPrivacidad
@@ -116,6 +117,16 @@ def _sin_leer(trabajo: Trabajo) -> videos.NuevoVideo:
     )
 
 
+def _variantes_de(ruta: str) -> tuple[str, ...]:
+    """La ruta como vino y resuelta (los mensajes de `FuenteArchivo` traen la resuelta). Un
+    enlace circular hace fallar a `resolve()` en Python 3.12 (`RuntimeError`): sin la resuelta
+    se sanea igual con la regla general, pero el trabajador no puede caerse por esto."""
+    try:
+        return (ruta, str(Path(ruta).resolve()))
+    except (OSError, RuntimeError):
+        return (ruta,)
+
+
 def _cuadro_de_evidencia(h: Hallazgo) -> int:
     """El cuadro del medio de los que registró el agregador: ni el primero (la persona
     puede estar entrando) ni el último (puede estar saliendo)."""
@@ -149,7 +160,10 @@ class Trabajador:
         try:
             resultado = self.procesar(trabajo)
         except Exception as e:
-            motivo = str(e) if isinstance(e, VideoIlegible) else f"{type(e).__name__}: {e}"
+            completo = str(e) if isinstance(e, VideoIlegible) else f"{type(e).__name__}: {e}"
+            # A la base y a Redis va sin rutas; la salida local conserva la completa para depurar.
+            motivo = sin_rutas(completo, *_variantes_de(trabajo.ruta))
+            print(f"[trabajador] {trabajo.ruta}: {completo}", file=sys.stderr)
             definitivo: bool | None = None
             try:
                 definitivo = self._anotar_fallo(trabajo, motivo)
