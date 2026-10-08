@@ -46,7 +46,10 @@ def celda(etiqueta: str, n: int, serie: list[float] | None = None) -> dict[str, 
         "n": n,
         "datos_insuficientes": False,
     }
-    if serie is not None:
+    # Cada semana es una celda: una de 1 a 4 casos no se muestra, y como el total va visible
+    # tampoco basta con ocultar solo esa semana (se despeja por diferencia). Va la serie entera
+    # o no va. El contrato la declara opcional.
+    if serie is not None and all(v == 0 or v >= N_MINIMO for v in serie):
         fila["serie"] = serie
     return fila
 
