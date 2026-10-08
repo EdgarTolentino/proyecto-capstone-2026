@@ -2,14 +2,10 @@ import { useCallback, useEffect, useState } from "react";
 
 import type { FiltrosPanel } from "../api/types";
 import { esFechaValida, rangoDefectoPanel } from "../api/fechas";
-
-function esRutaPanel(): boolean {
-  return !window.location.pathname.startsWith("/hallazgos")
-    && !window.location.pathname.startsWith("/reglas");
-}
+import { leerSeccion } from "./useAppNavigation";
 
 function normalizarUrlPanel(url = new URL(window.location.href)): URL {
-  if (!esRutaPanel()) return url;
+  if (leerSeccion() !== "panel") return url;
 
   for (const nombre of ["desde", "hasta"] as const) {
     const valor = url.searchParams.get(nombre);

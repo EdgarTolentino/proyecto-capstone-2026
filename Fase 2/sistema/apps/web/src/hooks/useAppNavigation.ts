@@ -38,7 +38,7 @@ export function construirRutaHallazgos(destino: DestinoHallazgos): string {
   return `/hallazgos${consulta ? `?${consulta}` : ""}`;
 }
 
-function leerSeccion(): SeccionApp {
+export function leerSeccion(): SeccionApp {
   if (window.location.pathname.startsWith("/reglas")) return "reglas";
   if (window.location.pathname.startsWith("/hallazgos")) return "hallazgos";
   if (window.location.pathname.startsWith("/videos")) return "videos";
