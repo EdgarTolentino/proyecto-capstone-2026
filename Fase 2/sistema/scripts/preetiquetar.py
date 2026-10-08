@@ -100,7 +100,7 @@ def main(argv: list[str] | None = None) -> int:
     previas = {str(c): v for c, v in cuenta.items() if v}
     print(
         f"{len(imagenes)} imágenes, {len(coco['annotations'])} cajas "
-        f"({previas} antes del mínimo de 10 px) -> {args.salida}"
+        f"({previas} antes del mínimo por clase) -> {args.salida}"
     )
     return 0
 

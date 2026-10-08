@@ -39,8 +39,9 @@ puesto o no lo decide el sistema al asociar el casco con la franja de la cabeza 
 
 1. **Ajustada al borde visible**, sin margen. Si una parte está tapada, la caja cubre solo lo que
    se ve; no se adivina lo que hay detrás.
-2. **Tamaño mínimo: 10 píxeles de lado** en la imagen original. Lo más chico se deja sin caja y
-   la imagen se marca con la etiqueta de imagen `tiene_pequenos`. V2 (#3) mide que bajo ~20 px
+2. **Tamaño mínimo: 10 píxeles de lado** en la imagen original, y **8 píxeles para el casco**
+   (decisión del 2026-10-08, sección 7). Lo más chico se deja sin caja y la imagen se marca con
+   la etiqueta de imagen `tiene_pequenos`. V2 (#3) mide que bajo ~20 px
    en la entrada del detector no hay nada que aprender.
 3. **Una persona, una caja**, aunque la tape otra persona o una máquina.
 4. Personas **cortadas por el borde** de la imagen: se etiquetan si se ve al menos la cabeza o
@@ -59,7 +60,7 @@ Salen de la lista de `02-plan-de-evaluacion.md`, "Calidad del dato".
 | Chaleco abierto o desabrochado, puesto | `chaleco`, `puesto = si` |
 | Chaleco en la mano o colgado | `chaleco`, `puesto = no` |
 | Polera o chaqueta naranja **sin** cinta reflectante | **Nada.** Es el negativo que enseña que "chaleco" no es "cualquier cosa naranja" |
-| Persona a más de ~30 m, con el casco bajo 10 px | `persona` sí; el casco no. Etiqueta de imagen `tiene_pequenos` |
+| Persona a más de ~30 m, con el casco bajo 8 px | `persona` sí; el casco no. Etiqueta de imagen `tiene_pequenos` |
 | Reflejo en un vidrio o espejo | **Nada** |
 | Persona en un afiche, letrero o pantalla | **Nada** |
 | Maniquí | **Nada** |
@@ -99,7 +100,7 @@ video, partición y hash perceptual; el hash no permite reconstruir la imagen.
 | Tarea | `prueba-youtube-lote0`: los 240 cuadros de `datos/lote0.csv`, en **4 trabajos de 60, uno por tramo**, para repartirlos |
 
 **Pre-etiquetas.** `scripts/preetiquetar.py` corre el modelo con `DetectorMosaico` sobre el foso
-y el modelo normal fuera de él, descarta las cajas de menos de 10 px y escribe COCO 1.0. Se
+y el modelo normal fuera de él, descarta las cajas bajo el mínimo (§4: 10 px, 8 px el casco) y escribe COCO 1.0. Se
 importa en la tarea con *Actions → Upload annotations → COCO 1.0*. **Son sugerencias:** se
 revisa cada caja, se agrega lo que falta y se fijan los atributos, que el modelo no infiere
 (todas llegan con el valor por defecto: `puesto = si`, `ocluida = no`). Corregir una
@@ -113,7 +114,7 @@ Se completa en cada sesión: fecha, caso, decisión y quiénes estaban.
 
 | Fecha | Caso | Decisión | Presentes |
 |---|---|---|---|
-| | | | |
+| 2026-10-08 | Cascos de 8 y 9 px | Se etiquetan; el mínimo del casco baja a 8 px. Persona y chaleco siguen en 10 px | Edgar |
 
 ## 8. Lote 0 y partición
 

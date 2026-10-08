@@ -15,8 +15,22 @@ from gepp_core import Caja, Deteccion
 
 from gepp_vision.entrenamiento import CLASES_V1
 
-#: Guía de etiquetado §4: lo de menos de 10 px de lado no lleva caja.
+#: Guía de etiquetado §4: lo de menos de 10 px de lado no lleva caja, salvo lo que diga
+#: `MINIMO_PX_POR_CLASE`.
 MINIMO_PX = 10
+
+#: Decisión de Edgar del 2026-10-08 (guía §7): el casco se etiqueta desde 8 px. Persona y chaleco
+#: siguen en `MINIMO_PX`.
+MINIMO_PX_POR_CLASE: dict[str, int] = {"casco": 8}
+
+
+def minimo_px(clase: str) -> int:
+    """Lado mínimo, en px de la imagen original, de la caja de una clase de la v1. Un solo lugar
+    de verdad para `a_coco` y la revisión de etiquetas. Una clase fuera de la v1 es un error:
+    devolver el general escondería un nombre mal escrito."""
+    if clase not in CLASES_V1:
+        raise ValueError(f"clase fuera de la v1: {clase!r}")
+    return MINIMO_PX_POR_CLASE.get(clase, MINIMO_PX)
 
 
 def combinar(
@@ -45,7 +59,7 @@ def a_coco(imagenes: Iterable[tuple[str, int, int, Sequence[Deteccion]]]) -> dic
         )
         for d in detecciones:
             w, h = d.caja.ancho * ancho, d.caja.alto * alto
-            if min(w, h) < MINIMO_PX or d.clase not in CLASES_V1:
+            if d.clase not in CLASES_V1 or min(w, h) < minimo_px(d.clase):
                 continue
             salida["annotations"].append(
                 {
