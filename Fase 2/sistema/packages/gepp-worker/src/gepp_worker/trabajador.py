@@ -27,6 +27,7 @@ instante. Ningún instante de este módulo sale del reloj del sistema (ADR-005).
 
 from __future__ import annotations
 
+import re
 import sys
 import time
 from collections.abc import Callable, Iterator
@@ -116,6 +117,29 @@ def _sin_leer(trabajo: Trabajo) -> videos.NuevoVideo:
     )
 
 
+#: Una ruta absoluta de Linux: nunca precedida de letra, `:`, `.` ni `/` (así no toca URLs ni
+#: fracciones) y terminada en su último componente, que es lo único que se conserva.
+_RUTA_ABSOLUTA = re.compile(r"(?<![\w:./])/(?:[^\s'\"<>|:,;()\[\]{}]+/)*([^\s'\"<>|:,;()\[\]{}/]+)")
+
+
+def sin_rutas(motivo: str, ruta: str | None = None) -> str:
+    """El motivo de un fallo con solo nombres de archivo, nunca rutas del servidor.
+
+    Lo que se guarda en `video.error_motivo` lo devuelve `GET /videos` al navegador: una ruta
+    absoluta ahí cuenta cómo está armado el disco del servidor. Primero se sustituye la ruta
+    exacta del trabajo (la única que puede llevar espacios, y la que sale en casi todos los
+    mensajes: `FuenteArchivo`, OpenCV, `stat`); después, cualquier otra ruta absoluta que se
+    haya colado, por su último componente. Se sanea aquí y no en cada mensaje de
+    `fuente_archivo` porque los errores que no escribimos nosotros (`OSError`, OpenCV) también
+    traen rutas, y porque `FuenteArchivo` se usa fuera del trabajador, donde la ruta sí sirve.
+    """
+    if ruta is not None:
+        nombre = Path(ruta).name
+        for candidata in sorted({ruta, str(Path(ruta).resolve())}, key=len, reverse=True):
+            motivo = motivo.replace(candidata, nombre)
+    return _RUTA_ABSOLUTA.sub(r"\1", motivo)
+
+
 def _cuadro_de_evidencia(h: Hallazgo) -> int:
     """El cuadro del medio de los que registró el agregador: ni el primero (la persona
     puede estar entrando) ni el último (puede estar saliendo)."""
@@ -149,7 +173,10 @@ class Trabajador:
         try:
             resultado = self.procesar(trabajo)
         except Exception as e:
-            motivo = str(e) if isinstance(e, VideoIlegible) else f"{type(e).__name__}: {e}"
+            completo = str(e) if isinstance(e, VideoIlegible) else f"{type(e).__name__}: {e}"
+            # A la base y a Redis va sin rutas; la salida local conserva la completa para depurar.
+            motivo = sin_rutas(completo, trabajo.ruta)
+            print(f"[trabajador] {trabajo.ruta}: {completo}", file=sys.stderr)
             definitivo: bool | None = None
             try:
                 definitivo = self._anotar_fallo(trabajo, motivo)
