@@ -119,7 +119,8 @@ def _base(filtros: Filtros, sesion: SesionActual, tz: ZoneInfo) -> Select[Any]:
     if filtros.desde is not None:
         consulta = consulta.where(Hallazgo.ts_inicio >= filtros.desde)
     if filtros.hasta is not None:
-        consulta = consulta.where(Hallazgo.ts_inicio <= filtros.hasta)
+        # Rango semiabierto [desde, hasta): la web manda el inicio del día siguiente.
+        consulta = consulta.where(Hallazgo.ts_inicio < filtros.hasta)
     if filtros.turno:
         consulta = consulta.where(_condicion_turno(filtros.turno, tz))
     if sesion.rol == "supervisor":
