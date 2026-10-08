@@ -2,12 +2,15 @@
 
 from __future__ import annotations
 
-from datetime import datetime, timedelta
+from datetime import UTC, datetime, timedelta, timezone
+from pathlib import Path
 from typing import Any
 
 import pytest
+from gepp_bd import transaccion
+from sqlalchemy import Engine
 
-from .conftest import DEMO, Cliente
+from .conftest import Cliente, _sembrar_video
 
 pytestmark = pytest.mark.integration
 
@@ -131,14 +134,76 @@ def test_desde_mayor_que_hasta_no_devuelve_nada(api: Cliente) -> None:
     assert pagina["items"] == []
 
 
-def test_hasta_sin_zona_horaria_hoy_responde_200(api: Cliente) -> None:
-    # Solo fija que hoy se acepta; la interpretación horaria no se fija: decidir 200 o 422
-    # es aparte (el contrato pide `date-time`, con zona).
-    limite = _ts_mas_antiguo(api).replace(tzinfo=None)
-    resultado = api.http.get(
-        "/api/v1/hallazgos", params={"hasta": limite.isoformat()}, headers=DEMO
+#: Todo endpoint que recibe `desde`/`hasta`: el contrato pide `date-time`, que exige zona.
+CON_FECHAS = [
+    ("listarHallazgos", "/hallazgos"),
+    ("obtenerPanel", "/panel"),
+    ("obtenerReporte", "/reportes/ranking-epp"),
+]
+
+
+@pytest.mark.parametrize("parametro", ["desde", "hasta"])
+@pytest.mark.parametrize(("operacion", "ruta"), CON_FECHAS)
+def test_una_fecha_sin_zona_horaria_es_422(
+    api: Cliente, operacion: str, ruta: str, parametro: str
+) -> None:
+    sin_zona = _ts_mas_antiguo(api).replace(tzinfo=None).isoformat()
+    cuerpo = api.llamar(operacion, "GET", ruta, esperado=422, params={parametro: sin_zona})
+    assert cuerpo["codigo"] == "peticion_invalida"
+
+
+def _visible(operacion: str, respuesta: dict[str, Any]) -> Any:
+    """Lo que cada endpoint muestra del conjunto de hallazgos de la ventana."""
+    if operacion == "listarHallazgos":
+        return sorted(h["id"] for h in respuesta["items"])
+    if operacion == "obtenerPanel":
+        return {i["clave"]: i["valor"] for i in respuesta["indicadores"]}["hallazgos_abiertos"]
+    # Reporte: la celda de `casco` solo muestra `n` si no está suprimida (n >= 5).
+    return {f["etiqueta"]: f["n"] for f in respuesta["filas"]}["casco"]
+
+
+@pytest.mark.parametrize(("operacion", "ruta"), CON_FECHAS)
+def test_el_mismo_instante_en_z_y_en_otro_desfase_da_lo_mismo(
+    api: Cliente, bd: Engine, tmp_path: Path, operacion: str, ruta: str
+) -> None:
+    # 6 hallazgos más, uno por hora, a partir de las 3 h (los dos de `datos` quedan antes).
+    with transaccion(bd) as s:
+        nuevos = [
+            _sembrar_video(
+                s, tmp_path, hash_=f"{i + 1:x}" * 64, t0_s=10800 + 3600 * i, sin_casco=True
+            )[0]
+            for i in range(6)
+        ]
+    ts = {
+        h["id"]: datetime.fromisoformat(h["ts_inicio"])
+        for h in api.llamar("listarHallazgos", "GET", "/hallazgos?limite=200")["items"]
+    }
+    media_hora = timedelta(minutes=30)
+    # El límite cae ENTRE el 5.º y el 6.º: correr `desde` o `hasta` una hora cambia el conjunto.
+    desde, hasta = ts[nuevos[0]] - media_hora, ts[nuevos[5]] - media_hora
+    en_utc = {"desde": desde.astimezone(UTC), "hasta": hasta.astimezone(UTC)}
+    en_santiago = {k: v.astimezone(timezone(timedelta(hours=-3))) for k, v in en_utc.items()}
+    assert en_utc["desde"].isoformat().endswith("+00:00")
+    assert en_santiago["desde"].isoformat().endswith("-03:00")
+    respuestas = [
+        api.llamar(operacion, "GET", ruta, params={k: v.isoformat() for k, v in fechas.items()})
+        for fechas in (en_utc, en_santiago)
+    ]
+    # No trivial: los 5 primeros nuevos, ni uno más ni uno menos, y a la vista.
+    esperado = {"listarHallazgos": sorted(nuevos[:5]), "obtenerPanel": 5, "obtenerReporte": 5}
+    assert [_visible(operacion, r) for r in respuestas] == [esperado[operacion]] * 2
+    assert respuestas[0] == respuestas[1]
+
+
+def test_posponer_hasta_sin_zona_horaria_es_422(api: Cliente, datos: dict[str, Any]) -> None:
+    cuerpo = {"estado": "pospuesto", "posponer_hasta": "2026-10-20T10:00:00"}
+    api.llamar(
+        "triarHallazgo",
+        "POST",
+        f"/hallazgos/{datos['hallazgos'][0]}/triage",
+        esperado=422,
+        json=cuerpo,
     )
-    assert resultado.status_code == 200
 
 
 def test_la_paginacion_recorre_todo_sin_repetir(api: Cliente, datos: dict[str, Any]) -> None:

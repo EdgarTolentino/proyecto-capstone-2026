@@ -2,10 +2,10 @@
 
 from __future__ import annotations
 
-from datetime import date, datetime
+from datetime import date
 from typing import Literal
 
-from pydantic import BaseModel, ConfigDict, Field
+from pydantic import AwareDatetime, BaseModel, ConfigDict, Field
 
 TipoEpp = Literal["casco", "chaleco", "lentes", "guantes", "arnes", "calzado"]
 BaseLicitud = Literal["obligacion_legal", "interes_legitimo", "contrato"]
@@ -17,7 +17,7 @@ class DecisionTriage(BaseModel):
     estado: Literal["confirmado", "falso_positivo", "duplicado", "pospuesto"]
     motivo: str | None = None
     duplicado_de: int | None = None
-    posponer_hasta: datetime | None = None
+    posponer_hasta: AwareDatetime | None = None
 
 
 class TriageLote(BaseModel):
