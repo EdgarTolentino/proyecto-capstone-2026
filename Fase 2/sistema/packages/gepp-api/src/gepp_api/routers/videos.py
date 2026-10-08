@@ -9,6 +9,7 @@ from zoneinfo import ZoneInfo
 from fastapi import APIRouter, Query, Request
 from gepp_bd.modelos import Fuente, Hallazgo, Video
 from gepp_bd.repositorios import auditoria, videos
+from gepp_core.textos import sin_rutas
 from sqlalchemy import func, select
 
 from gepp_api.auth import Bd, Sesion
@@ -17,6 +18,11 @@ from gepp_api.servicios.hallazgos import cursor_de, desplazamiento_de, iso
 from gepp_api.servicios.recalculo import recalcular_video
 
 router = APIRouter(tags=["Videos"])
+
+
+def _motivo_publico(v: Video) -> str | None:
+    """`error_motivo` sin rutas del servidor; la API sí conoce la ruta de la fila."""
+    return sin_rutas(v.error_motivo, v.ruta) if v.error_motivo else v.error_motivo
 
 
 def video_a_json(bd: Bd, v: Video, tz: ZoneInfo) -> dict[str, Any]:
@@ -39,7 +45,8 @@ def video_a_json(bd: Bd, v: Video, tz: ZoneInfo) -> dict[str, Any]:
         "estado": v.estado,
         # El trabajador no publica avance parcial todavía: solo se sabe que empezó o terminó.
         "progreso": 1.0 if v.estado == "listo" else None,
-        "error_motivo": v.error_motivo,
+        # Filas escritas antes de que el trabajador sanease el motivo pueden traer rutas.
+        "error_motivo": _motivo_publico(v),
         "intentos": v.intentos,
         "fps_efectivo": fps_efectivo,
         "cuadros_analizados": v.cuadros_analizados,
@@ -96,7 +103,7 @@ def reprocesar_video(id: int, request: Request, bd: Bd, sesion: Sesion) -> dict[
         raise no_encontrado("video", id)
     tz = request.app.state.config.zona_horaria
     if v.estado in ("error", "reintentando"):
-        previo = f"estaba {v.estado}: {v.error_motivo}"
+        previo = f"estaba {v.estado}: {_motivo_publico(v)}"
         if not videos.pedir_reintento(bd, v.id):
             # El trabajador lo tomó entre la lectura y el UPDATE: ya se está procesando.
             raise ErrorApi(409, "video_no_listo", f"El video {id} ya va a procesarse")

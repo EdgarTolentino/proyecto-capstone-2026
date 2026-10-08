@@ -495,3 +495,46 @@ def test_la_carpeta_con_espacios_tampoco_se_cuela_en_el_motivo(entorno) -> None:
     motivo = _motivo_guardado(motor)
     assert "clip uno.mp4" in motivo
     assert "mis videos" not in motivo and str(entrada) not in motivo
+
+
+def test_la_ruta_resuelta_de_un_enlace_tampoco_se_cuela_en_el_motivo(entorno) -> None:  # type: ignore[no-untyped-def]
+    motor, entrada, cola, _vigilante, trabajador, _tmp = entorno
+    real = entrada / "carpeta real"  # el mensaje trae la ruta resuelta, con su espacio
+    real.mkdir()
+    (real / "clip.mp4").write_bytes(b"esto no es un video" * 100)
+    enlace = entrada / "enlace"
+    enlace.symlink_to(real)
+    _con_fila_y_trabajo(motor, cola, enlace / "clip.mp4")
+
+    assert trabajador.atender_uno() is None
+
+    motivo = _motivo_guardado(motor)
+    assert "clip.mp4" in motivo
+    assert "carpeta real" not in motivo and str(entrada) not in motivo
+
+
+def test_un_enlace_circular_no_tumba_al_trabajador(entorno) -> None:  # type: ignore[no-untyped-def]
+    """En Python 3.12 `Path.resolve()` lanza `RuntimeError: Symlink loop` con un bucle de enlaces
+    y eso se escapaba de `atender_uno`: el fallo no se anotaba y el proceso moría."""
+    motor, entrada, cola, _vigilante, trabajador, _tmp = entorno
+    bucle = entrada / "bucle.mp4"
+    bucle.symlink_to(bucle.name)  # apunta a sí mismo
+    hash_falso = "ab" * 32
+    with transaccion(motor) as s:
+        videos.registrar(
+            s,
+            videos.NuevoVideo(
+                fuente_id=1,
+                ruta=str(bucle),
+                hash_sha256=hash_falso,
+                bytes=1,
+                capture_ts_inicio=MTIME,
+                origen_capture_ts="mtime",
+            ),
+        )
+    assert cola.encolar(Trabajo(str(bucle), hash_falso, 1, fuente_id=1))
+
+    assert trabajador.atender_uno() is None  # no lanza
+
+    motivo = _motivo_guardado(motor)
+    assert str(entrada) not in motivo and str(entrada) not in cola.detalle(hash_falso)["motivo"]

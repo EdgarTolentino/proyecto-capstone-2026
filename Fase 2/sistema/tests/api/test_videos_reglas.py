@@ -68,6 +68,55 @@ def test_un_video_que_fallo_se_ve_con_su_motivo_y_sus_intentos(api: Cliente, bd:
     assert ingesta["activa"] and ingesta["en_cola"] == 1
 
 
+RUTA_VIEJA = "/datos/mis videos/entrada/clip uno.mp4"
+
+
+def test_un_motivo_viejo_con_ruta_no_la_muestra_la_api(api: Cliente, bd: Any) -> None:
+    """Filas escritas antes de que el trabajador sanease el motivo siguen en la base."""
+    from sqlalchemy import text
+
+    with bd.begin() as c:
+        c.execute(
+            text(
+                "UPDATE video SET estado = 'error', intentos = 3, ruta = :ruta,"
+                " error_motivo = :motivo WHERE id = 2"
+            ),
+            {
+                "ruta": RUTA_VIEJA,
+                "motivo": f"No se pudo leer el video: no existe el video: {RUTA_VIEJA}"
+                " (también /var/tmp/otro/x.mov)",
+            },
+        )
+    pagina = api.llamar("listarVideos", "GET", "/videos?estado=error")
+    (v,) = pagina["items"]
+    assert v["error_motivo"] == (
+        "No se pudo leer el video: no existe el video: clip uno.mp4 (también x.mov)"
+    )
+    for ruta in ("/datos", "mis videos", "/var/tmp", "otro"):
+        assert ruta not in str(pagina)
+
+
+def test_la_auditoria_del_reintento_tampoco_guarda_la_ruta(api: Cliente, bd: Any) -> None:
+    from sqlalchemy import text
+
+    with bd.begin() as c:
+        c.execute(
+            text(
+                "UPDATE video SET estado = 'error', ruta = :ruta, error_motivo = :motivo"
+                " WHERE id = 2"
+            ),
+            {"ruta": RUTA_VIEJA, "motivo": f"no existe el video: {RUTA_VIEJA}"},
+        )
+    api.llamar("reprocesarVideo", "POST", "/videos/2/reprocesar", headers=ADMIN, esperado=202)
+    with bd.begin() as c:
+        motivos = (
+            c.execute(text("SELECT motivo FROM auditoria WHERE accion = 'video:reintentar'"))
+            .scalars()
+            .all()
+        )
+    assert motivos == ["estaba error: no existe el video: clip uno.mp4"]
+
+
 def test_reprocesar_exige_permiso_y_video_listo(api: Cliente) -> None:
     api.llamar("reprocesarVideo", "POST", "/videos/1/reprocesar", esperado=403)
     api.llamar("reprocesarVideo", "POST", "/videos/99/reprocesar", headers=ADMIN, esperado=404)
