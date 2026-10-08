@@ -114,7 +114,7 @@ Se completa en cada sesión: fecha, caso, decisión y quiénes estaban.
 
 | Fecha | Caso | Decisión | Presentes |
 |---|---|---|---|
-| 2026-10-08 | Cascos de 8 y 9 px | Se etiquetan; el mínimo del casco baja a 8 px. Persona y chaleco siguen en 10 px | Edgar |
+| 2026-10-08 | Cascos de 8 y 9 px | Se etiquetan; el mínimo del casco baja a 8 px. Persona y chaleco siguen en 10 px | Edgar, Miguel |
 
 ## 8. Lote 0 y partición
 
