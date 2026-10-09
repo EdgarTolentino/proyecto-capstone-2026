@@ -120,6 +120,7 @@ def correr_trabajador() -> None:
     from gepp_worker.muestreo import fps_objetivo_configurado
     from gepp_worker.trabajador import Aviso, Configuracion, Trabajador
     from gepp_worker.vivo import carpeta_configurada as carpeta_vivo_configurada
+    from gepp_worker.vivo import carpeta_de_residuos
 
     carpeta_entrada = _carpeta_entrada()  # antes del modelo: un error de carpeta se ve primero
     fabrica_detector = _fabrica_detector()
@@ -131,6 +132,7 @@ def correr_trabajador() -> None:
         carpeta_entrada=carpeta_entrada,
         carpeta_vivo=carpeta_vivo_configurada(),
         vivo_fps=_fps_vivo(),
+        carpeta_vivo_residuos=carpeta_de_residuos(),
     )
     parar = _detenible()
     trabajador = Trabajador(crear_motor(), _cola(), fabrica_detector, config)

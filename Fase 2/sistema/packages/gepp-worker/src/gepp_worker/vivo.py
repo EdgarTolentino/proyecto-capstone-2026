@@ -1,11 +1,15 @@
 """Escritor de la vista en vivo: un anillo de los últimos cuadros del video, en memoria.
 
 Excepción acotada a la minimización (`02-privacidad-y-cumplimiento.md`, «Excepción: vista en vivo
-del procesamiento»), solo para el prototipo local. Aquí se cumple la parte del trabajador:
+del procesamiento»). Aquí se cumple la parte del trabajador:
 
 - **Apagada por defecto.** Solo con `GEPP_VISTA_EN_VIVO=1`; apagada, no se crea ni se escribe
-  nada y los cuadros que el muestreo salta ni siquiera se decodifican.
-- **Todos los cuadros del video**, también los que el modelo no analizó. En los saltados, las
+  nada y los cuadros que el muestreo salta ni siquiera se decodifican. Aun apagada, al arrancar
+  el trabajador vacía la carpeta (sin crearla): una corrida cortada con la vista prendida no
+  deja cuadros en memoria.
+- **Cuadros muestreados a `GEPP_VIVO_FPS`** (25 por defecto; no es un máximo de la vista: es el
+  ritmo, por segundo de video, con que se escriben), también de los que el modelo no analizó. No
+  es «todos los cuadros»: un origen más rápido que ese ritmo pierde cuadros. En los saltados, las
   cajas son las del ÚLTIMO cuadro analizado (hasta 0,2 s atrás a 5 fps). A todo cuadro, analizado
   o saltado, se le aplican los polígonos de privacidad: `VistaDeVideo` no existe sin la función
   que los aplica.
@@ -17,14 +21,15 @@ del procesamiento»), solo para el prototipo local. Aquí se cumple la parte del
 - **Ritmo:** `GEPP_VIVO_FPS` (25 por defecto) limita los cuadros escritos por segundo de VIDEO, no
   de reloj, con la misma regla del muestreo (`gepp_worker.muestreo.pasa`): 25 fps de un origen a
   30 da 25, sin deriva.
-- **Efímero:** se borra la subcarpeta al terminar el intento (listo, error o reintento) y todo,
-  subcarpetas incluidas, al arrancar el trabajador, por si un corte dejó algo.
+- **Efímero:** se borra la subcarpeta al terminar el intento (listo, error o reintento) y, al
+  arrancar el trabajador, todas las subcarpetas `<video_id>` que haya (solo esas: lo demás de la
+  carpeta no se toca y se avisa), por si un corte dejó algo.
 - **Falla sin detener:** si escribir falla, se dice por stderr (la primera vez por intento) y el
   análisis sigue.
 
 `/dev/shm` puede ir a swap, y los cuadros son NÍTIDOS y sin rostros tapados (decisión de Edgar
-Tolentino del 2026-10-09): lo que llegue a swap puede contener rostros. Solo prototipo
-local; ver la excepción en `02-privacidad-y-cumplimiento.md`.
+Tolentino del 2026-10-09, ver ADR-006): lo que llegue a swap puede contener rostros. Ver la
+excepción en `02-privacidad-y-cumplimiento.md`.
 """
 
 from __future__ import annotations
@@ -77,6 +82,55 @@ def carpeta_configurada(entorno: dict[str, str] | os._Environ[str] | None = None
     if entorno.get("GEPP_VISTA_EN_VIVO", "").strip() != "1":
         return None
     return Path(entorno.get("GEPP_CARPETA_VIVO", "").strip() or CARPETA_POR_DEFECTO)
+
+
+def carpeta_de_residuos(entorno: Mapping[str, str] | None = None) -> Path:
+    """La carpeta de la vista que se vacía al arrancar, esté la vista prendida o apagada: lo que
+    dejó una corrida cortada con la vista prendida no puede quedar en memoria porque ahora esté
+    apagada."""
+    entorno = os.environ if entorno is None else entorno
+    return Path(entorno.get("GEPP_CARPETA_VIVO", "").strip() or CARPETA_POR_DEFECTO)
+
+
+def vaciar_residuos(carpeta: Path) -> None:
+    """Quita de `carpeta` SOLO lo que crea el anillo: las subcarpetas de primer nivel cuyo nombre
+    es todo dígitos (`<video_id>`), propias y que no sean enlaces, con todo lo que tengan adentro.
+    Cualquier otra cosa no se toca y se avisa una vez: `GEPP_CARPETA_VIVO` mal apuntada (a un
+    directorio con datos) no puede costar esos datos. Si la carpeta no existe, no hace nada ni la
+    crea; si es un enlace o no es propia, tampoco la toca. Nunca lanza."""
+    try:
+        info = carpeta.lstat()  # sin seguir enlaces
+    except FileNotFoundError:
+        return
+    except OSError as e:
+        _decir("no se pudo revisar la vista en vivo", e)
+        return
+    if not stat.S_ISDIR(info.st_mode) or info.st_uid != os.getuid():
+        _decir("la carpeta de la vista no es propia: no se vacía", ValueError(str(carpeta)))
+        return
+    try:
+        entradas = list(carpeta.iterdir())
+    except OSError as e:
+        _decir("no se pudo vaciar la vista en vivo", e)
+        return
+    ajenas = False
+    for entrada in entradas:
+        try:
+            propia = entrada.name.isascii() and entrada.name.isdigit()
+            propia = propia and not entrada.is_symlink() and entrada.is_dir()
+            propia = propia and entrada.lstat().st_uid == os.getuid()
+            if propia:
+                shutil.rmtree(entrada)
+            else:
+                ajenas = True
+        except OSError as e:
+            _decir("no se pudo vaciar la vista en vivo", e)
+    if ajenas:
+        print(
+            f"[trabajador] la carpeta de la vista ({carpeta}) tiene archivos que no son del "
+            "anillo: no se tocan",
+            file=sys.stderr,
+        )
 
 
 def nombre_de_cuadro(seq: int, pos_ms: int) -> str:
@@ -206,13 +260,8 @@ class EscritorVivo:
         self._carpeta.chmod(0o700)
 
     def vaciar(self) -> None:
-        """Quita todo lo que haya: subcarpetas de corridas anteriores, temporales y archivos
-        sueltos de versiones viejas."""
-        for entrada in self._carpeta.iterdir():
-            try:
-                _quitar(entrada)
-            except OSError as e:
-                _decir("no se pudo vaciar la vista en vivo", e)
+        """Quita las subcarpetas del anillo de corridas anteriores (ver `vaciar_residuos`)."""
+        vaciar_residuos(self._carpeta)
 
     def abrir(
         self,

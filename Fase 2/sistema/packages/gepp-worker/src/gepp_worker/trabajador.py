@@ -52,7 +52,7 @@ from gepp_worker.fuente import Cuadro, PropiedadesFuente
 from gepp_worker.fuente_archivo import FuenteArchivo, reloj_de_respaldo
 from gepp_worker.muestreo import Muestreador
 from gepp_worker.pedidos import AtencionDePedidos, variantes_de
-from gepp_worker.vivo import FPS_VIVO_POR_DEFECTO, EscritorVivo
+from gepp_worker.vivo import FPS_VIVO_POR_DEFECTO, EscritorVivo, vaciar_residuos
 
 
 class VideoIlegible(Exception):
@@ -78,8 +78,11 @@ class Configuracion:
     avance_cada_s: float = PERIODO_S
     #: Carpeta de la vista en vivo (`gepp_worker.vivo`). None = apagada: no se escribe nada.
     carpeta_vivo: Path | None = None
-    #: Cada cuántos segundos (de reloj) se reescribe el cuadro de la vista: aparte del avance.
+    #: Cuadros por segundo de VIDEO que se escriben a la vista (aparte del avance de la fila).
     vivo_fps: float = FPS_VIVO_POR_DEFECTO
+    #: Carpeta que se vacía al arrancar aunque la vista esté apagada (restos de una corrida cortada
+    #: con la vista prendida). Si es None se usa `carpeta_vivo`. No se crea si no existe.
+    carpeta_vivo_residuos: Path | None = None
 
 
 @dataclass(frozen=True, slots=True)
@@ -256,8 +259,10 @@ class Trabajador:
         return self._pedidos.atender_uno()
 
     def correr(self, seguir: Callable[[], bool] = lambda: True, espera_s: float = 2.0) -> None:
-        if self._vivo is not None:
-            self._vivo.vaciar()  # lo que dejó una corrida cortada no se queda en memoria
+        # Siempre, con la vista prendida o apagada: lo que dejó una corrida cortada no se queda.
+        residuos = self._config.carpeta_vivo_residuos or self._config.carpeta_vivo
+        if residuos is not None:
+            vaciar_residuos(residuos)
         self._cola.recuperar_huerfanos()
         if self._pedidos is None:
             print("[trabajador] sin GEPP_CARPETA_ENTRADA: no atiende pedidos de la web", flush=True)

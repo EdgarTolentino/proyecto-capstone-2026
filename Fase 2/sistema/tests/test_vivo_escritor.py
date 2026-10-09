@@ -22,6 +22,7 @@ from gepp_worker.vivo import (
     EscritorVivo,
     VistaDeVideo,
     carpeta_configurada,
+    carpeta_de_residuos,
     fps_configurado,
 )
 
@@ -92,6 +93,15 @@ def test_encendida_usa_la_carpeta_por_defecto_o_la_configurada() -> None:
     assert carpeta_configurada(entorno) == Path("/x/y")
     entorno = {"GEPP_VISTA_EN_VIVO": "1", "GEPP_CARPETA_VIVO": "  "}
     assert carpeta_configurada(entorno) == Path(CARPETA_POR_DEFECTO)
+
+
+def test_la_carpeta_de_residuos_no_depende_de_que_la_vista_este_prendida() -> None:
+    assert carpeta_de_residuos({}) == Path(CARPETA_POR_DEFECTO)
+    assert carpeta_de_residuos({"GEPP_CARPETA_VIVO": "/x/y"}) == Path("/x/y")
+    assert carpeta_de_residuos({"GEPP_VISTA_EN_VIVO": "0", "GEPP_CARPETA_VIVO": "/x/y"}) == Path(
+        "/x/y"
+    )
+    assert carpeta_de_residuos({"GEPP_CARPETA_VIVO": "  "}) == Path(CARPETA_POR_DEFECTO)
 
 
 # ── GEPP_VIVO_FPS ───────────────────────────────────────────────────────────────────────
@@ -321,20 +331,49 @@ def test_cerrar_borra_la_subcarpeta_entera(mundo: Path) -> None:
     vista.cerrar()  # una segunda vez no es un error
 
 
-def test_vaciar_quita_subcarpetas_temporales_y_sueltos_sin_seguir_enlaces(mundo: Path) -> None:
+def test_vaciar_quita_las_subcarpetas_del_anillo_y_no_sigue_enlaces(mundo: Path) -> None:
     carpeta = mundo / "vivo"
     escritor = EscritorVivo(carpeta)
     (carpeta / "12").mkdir()
     (carpeta / "12" / "00000001_000000000.jpg").write_bytes(b"viejo")
     (carpeta / "12" / ".00000002.tmp").write_bytes(b"a medias")
-    (carpeta / "5.jpg").write_bytes(b"suelto de una version vieja")
     ajeno = mundo / "afuera" / "dato.txt"
     ajeno.write_text("no tocar")
-    (carpeta / "trampa").symlink_to(ajeno)
-    (carpeta / "trampa_dir").symlink_to(mundo / "afuera")
+    (carpeta / "13").symlink_to(mundo / "afuera")  # un enlace con nombre de video: ni se sigue
+    escritor.vaciar()
+    assert nombres(carpeta) == ["13"]  # solo quedó el enlace, sin seguir
+    assert (carpeta / "13").is_symlink()
+    assert ajeno.read_text() == "no tocar"
+
+
+def test_vaciar_deja_lo_que_no_es_del_anillo_y_avisa_una_vez(
+    mundo: Path, capsys: pytest.CaptureFixture[str]
+) -> None:
+    carpeta = mundo / "vivo"
+    escritor = EscritorVivo(carpeta)
+    (carpeta / "12").mkdir()
+    (carpeta / "12" / "00000001_000000000.jpg").write_bytes(b"viejo")
+    (carpeta / "notas.txt").write_text("mis notas")
+    (carpeta / "fotos").mkdir()
+    (carpeta / "fotos" / "a.jpg").write_bytes(b"mia")
+    (carpeta / "12a").mkdir()  # casi un id, pero no lo es
+    escritor.vaciar()
+    assert nombres(carpeta) == ["12a", "fotos", "notas.txt"]
+    assert (carpeta / "notas.txt").read_text() == "mis notas"
+    assert (carpeta / "fotos" / "a.jpg").read_bytes() == b"mia"
+    err = capsys.readouterr().err
+    assert err.count("no son del anillo") == 1
+
+
+def test_vaciar_una_carpeta_solo_del_anillo_no_avisa(
+    mundo: Path, capsys: pytest.CaptureFixture[str]
+) -> None:
+    carpeta = mundo / "vivo"
+    escritor = EscritorVivo(carpeta)
+    (carpeta / "12").mkdir()
     escritor.vaciar()
     assert nombres(carpeta) == []
-    assert ajeno.read_text() == "no tocar"
+    assert capsys.readouterr().err == ""
 
 
 # ── Fallas: avisan y no detienen ─────────────────────────────────────────────────────────

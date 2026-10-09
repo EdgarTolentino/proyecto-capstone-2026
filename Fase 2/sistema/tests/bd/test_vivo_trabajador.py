@@ -313,9 +313,68 @@ def test_al_arrancar_el_trabajador_la_carpeta_se_vacia_con_sus_subcarpetas(mundo
     (mundo.vivo / "9").mkdir()
     (mundo.vivo / "9" / "00000003_000000200.jpg").write_bytes(b"de una corrida cortada")
     (mundo.vivo / "9" / ".00000004.tmp").write_bytes(b"a medias")
-    (mundo.vivo / "5.jpg").write_bytes(b"suelto")
     trabajador.correr(seguir=lambda: False)
     assert list(mundo.vivo.iterdir()) == []
+
+
+def _restos(vivo: Path) -> None:
+    (vivo / "9").mkdir(parents=True)
+    (vivo / "9" / "00000003_000000200.jpg").write_bytes(b"de una corrida cortada")
+
+
+def _trabajador_apagado(mundo: Mundo) -> Trabajador:
+    config = Configuracion(
+        carpeta_evidencia=mundo.tmp / "evidencia",
+        carpeta_vivo=None,  # la vista está apagada...
+        carpeta_vivo_residuos=mundo.vivo,  # ...pero se sabe dónde pudo quedar algo
+    )
+    return Trabajador(
+        mundo.bd,
+        mundo.cola,
+        lambda: None,
+        config,
+        reloj=mundo.reloj,  # type: ignore[arg-type,return-value]
+    )
+
+
+def test_apagada_al_arrancar_se_vacian_los_restos_de_una_corrida_con_la_vista_prendida(
+    mundo: Mundo,
+) -> None:
+    _restos(mundo.vivo)
+    _trabajador_apagado(mundo).correr(seguir=lambda: False)
+    assert mundo.vivo.is_dir() and list(mundo.vivo.iterdir()) == []
+
+
+def test_apagada_y_sin_carpeta_no_falla_ni_la_crea(mundo: Mundo) -> None:
+    inexistente = mundo.tmp / "no-existe"
+    config = Configuracion(
+        carpeta_evidencia=mundo.tmp / "evidencia", carpeta_vivo_residuos=inexistente
+    )
+    Trabajador(
+        mundo.bd,
+        mundo.cola,
+        lambda: None,
+        config,
+        reloj=mundo.reloj,  # type: ignore[arg-type,return-value]
+    ).correr(seguir=lambda: False)
+    assert not inexistente.exists()
+
+
+def test_apagada_no_sigue_un_enlace_a_otra_carpeta(mundo: Mundo) -> None:
+    ajena = mundo.tmp / "ajena"
+    ajena.mkdir()
+    (ajena / "dato.txt").write_text("no tocar")
+    enlace = mundo.tmp / "enlace"
+    enlace.symlink_to(ajena)
+    config = Configuracion(carpeta_evidencia=mundo.tmp / "evidencia", carpeta_vivo_residuos=enlace)
+    Trabajador(
+        mundo.bd,
+        mundo.cola,
+        lambda: None,
+        config,
+        reloj=mundo.reloj,  # type: ignore[arg-type,return-value]
+    ).correr(seguir=lambda: False)
+    assert (ajena / "dato.txt").read_text() == "no tocar"
 
 
 # ── El avance sigue su propio ritmo ─────────────────────────────────────────────────────

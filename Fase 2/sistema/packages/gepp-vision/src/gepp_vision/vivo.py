@@ -1,11 +1,9 @@
 """Cuadro de la vista en vivo: imagen nítida con las cajas de persona, casco y chaleco.
 
 Es una excepción acotada a «nunca cuadros completos» (`02-privacidad-y-cumplimiento.md`, sección
-«Excepción: vista en vivo del procesamiento»), solo para el prototipo local. La imagen sale NÍTIDA
-(reducida a 640 px) y **sin tapar ningún rostro**: hasta el 2026-10-08 llevaba un punto negro en la
-cara de cada persona detectada; Edgar Tolentino lo quitó el 2026-10-09 para las pruebas del
-prototipo, sabiendo que todas las caras quedan visibles. Lo único que se ennegrece son los
-polígonos de privacidad.
+«Excepción: vista en vivo del procesamiento»). La imagen sale NÍTIDA (reducida a 640 px) y **sin
+tapar ningún rostro**, por decisión de Edgar Tolentino del 2026-10-09 (ver ADR-006): todas las
+caras quedan visibles. Lo único que se ennegrece son los polígonos de privacidad.
 
 Función pura: no abre archivos, no lee el reloj, no conoce al trabajador. La imagen que recibe debe
 ser la que vio el detector (con los polígonos de privacidad ya en negro), no el cuadro original.

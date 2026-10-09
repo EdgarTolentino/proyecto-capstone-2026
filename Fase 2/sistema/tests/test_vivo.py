@@ -1,8 +1,8 @@
 """Cuadro de la vista en vivo (`gepp_vision.vivo`): imagen nítida con las cajas, sin tapar rostros.
 
-Lo que se cuida: que la vista no dibuje nada negro sobre las personas (el punto en la cara se quitó
-el 2026-10-09, decisión de Edgar Tolentino solo para el prototipo), que la cara quede tal cual y que
-la vista parta de la imagen con la privacidad aplicada, la misma que vio el detector.
+Lo que se cuida: que la vista no dibuje nada negro sobre las personas (decisión de Edgar Tolentino
+del 2026-10-09, ver ADR-006), que la cara quede tal cual y que la vista
+parta de la imagen con la privacidad aplicada, la misma que vio el detector.
 """
 
 from __future__ import annotations
