@@ -303,6 +303,63 @@ it("con el pedido en vuelo el botón queda deshabilitado y un segundo clic no en
   await waitFor(() => expect(screen.queryByRole("dialog")).not.toBeInTheDocument());
 });
 
+async function pedirYAnunciar() {
+  preparar();
+  vi.mocked(api.pedirIngesta).mockResolvedValue(pedido("pendiente"));
+  vi.mocked(api.listarPedidos).mockResolvedValue({ items: [pedido("pendiente")] });
+  renderizar();
+  const { dialogo } = await abrir();
+  await elegir(dialogo);
+  fireEvent.click(within(dialogo).getByRole("button", { name: "Procesar" }));
+  await screen.findByText(/El archivo CAM-03_08-00\.mp4 quedó pedido/);
+}
+
+it.each(["registrado", "rechazado"] as const)("el aviso «quedó pedido» se va cuando el pedido pasa a %s", async (estado) => {
+  vi.useFakeTimers({ shouldAdvanceTime: true });
+  await pedirYAnunciar();
+
+  vi.mocked(api.listarPedidos).mockResolvedValue({ items: [pedido(estado)] });
+  await vi.advanceTimersByTimeAsync(INTERVALO_REFRESCO_MS + 500);
+
+  await waitFor(() => expect(screen.queryByText(/quedó pedido/)).not.toBeInTheDocument());
+  expect(document.querySelector(".video-message")).toBeEmptyDOMElement();
+});
+
+it("el aviso «quedó pedido» se mantiene mientras el pedido siga pendiente o tomado", async () => {
+  vi.useFakeTimers({ shouldAdvanceTime: true });
+  await pedirYAnunciar();
+
+  vi.mocked(api.listarPedidos).mockResolvedValue({ items: [pedido("tomado")] });
+  await vi.advanceTimersByTimeAsync(INTERVALO_REFRESCO_MS + 500);
+
+  expect(await screen.findByText("Registrando")).toBeVisible();
+  expect(screen.getByText(/El archivo CAM-03_08-00\.mp4 quedó pedido/)).toBeVisible();
+});
+
+it("al registrarse el pedido no se borra un aviso distinto que ya lo reemplazó", async () => {
+  vi.useFakeTimers({ shouldAdvanceTime: true });
+  preparar();
+  vi.mocked(api.listarVideos).mockResolvedValue({
+    items: [{ ...video(22, "otro.mp4"), estado: "error", intentos: 3, error_motivo: "fallo" }],
+  });
+  vi.mocked(api.pedirIngesta).mockResolvedValue(pedido("pendiente"));
+  vi.mocked(api.listarPedidos).mockResolvedValue({ items: [pedido("pendiente")] });
+  vi.mocked(api.reprocesarVideo).mockResolvedValue({ ...video(22, "otro.mp4"), estado: "en_cola" });
+  renderizar();
+  const { dialogo } = await abrir();
+  await elegir(dialogo);
+  fireEvent.click(within(dialogo).getByRole("button", { name: "Procesar" }));
+  await screen.findByText(/quedó pedido/);
+  fireEvent.click(await screen.findByRole("button", { name: "Reprocesar otro.mp4" }));
+  await screen.findByText("El video otro.mp4 volvió a la cola.");
+
+  vi.mocked(api.listarPedidos).mockResolvedValue({ items: [pedido("registrado")] });
+  await vi.advanceTimersByTimeAsync(INTERVALO_REFRESCO_MS + 500);
+  await screen.findByText("Registrado");
+
+  expect(screen.getByText("El video otro.mp4 volvió a la cola.")).toBeVisible();
+});
+
 it("si se cierra el diálogo con el pedido en vuelo, el éxito igual se anuncia en la página", async () => {
   preparar();
   let resolver!: (p: Pedido) => void;

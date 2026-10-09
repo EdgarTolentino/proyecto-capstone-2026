@@ -16,6 +16,7 @@ vi.mock("./api/client", () => ({
     items: [{ archivo: "CAM-03_08-00.mp4", bytes: 1048576, modificado: "2026-10-02T08:00:00Z", posible_duplicado: false }],
   })),
   pedirIngesta: vi.fn(),
+  obtenerCuadrosVivo: vi.fn(),
   obtenerSesion: vi.fn(async () => ({ permisos: ["ver_hallazgos", "ver_evidencia", "triar_hallazgos"] })),
   obtenerCatalogos: vi.fn(async () => ({
     obras: [{ id: 7, nombre: "Edificio Norte" }, { id: 8, nombre: "Edificio Sur" }],
@@ -267,6 +268,31 @@ it("si los catálogos fallan, el diálogo de procesar lo dice", async () => {
 
   const dialogo = await screen.findByRole("dialog", { name: "Procesar video" });
   expect(await within(dialogo).findByText(/No fue posible cargar las cámaras/)).toBeVisible();
+});
+
+const procesando = { id: 22, archivo: "video.mp4", capture_ts_inicio: "2026-10-02T08:00:00Z", estado: "procesando" as const };
+
+it("un rol con ver_evidencia ve la vista del modelo de un video procesando", async () => {
+  window.history.replaceState({}, "", "/videos");
+  vi.mocked(api.listarVideos).mockResolvedValue({ items: [procesando] });
+  vi.mocked(api.obtenerCuadrosVivo).mockRejectedValue(new api.ApiError("sin cuadro", 404));
+  const client = new QueryClient({ defaultOptions: { queries: { retry: false, staleTime: Infinity } } });
+  render(<QueryClientProvider client={client}><App /></QueryClientProvider>);
+
+  expect(await screen.findByRole("region", { name: "Vista del modelo de video.mp4" })).toBeVisible();
+  expect(api.obtenerCuadrosVivo).toHaveBeenCalledWith(22, 0, expect.any(AbortSignal));
+});
+
+it("el administrador (editar_reglas, sin ver_evidencia) no ve la vista del modelo", async () => {
+  window.history.replaceState({}, "", "/videos");
+  vi.mocked(api.obtenerSesion).mockResolvedValueOnce({ permisos: ["ver_hallazgos", "editar_reglas"] } as Awaited<ReturnType<typeof api.obtenerSesion>>);
+  vi.mocked(api.listarVideos).mockResolvedValue({ items: [procesando] });
+  const client = new QueryClient({ defaultOptions: { queries: { retry: false, staleTime: Infinity } } });
+  render(<QueryClientProvider client={client}><App /></QueryClientProvider>);
+
+  expect(await screen.findByText("Procesando…")).toBeVisible();
+  expect(screen.queryByRole("region", { name: /Vista del modelo/ })).not.toBeInTheDocument();
+  expect(api.obtenerCuadrosVivo).not.toHaveBeenCalled();
 });
 
 it("un prevencionista (sin editar_reglas) no ve «Procesar video»", async () => {

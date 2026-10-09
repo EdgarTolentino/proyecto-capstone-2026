@@ -2,20 +2,21 @@
 
 from __future__ import annotations
 
+import base64
 from pathlib import PurePath
 from typing import Annotated, Any
 from zoneinfo import ZoneInfo
 
-from fastapi import APIRouter, Query, Request
+from fastapi import APIRouter, Query, Request, Response
 from gepp_bd.modelos import Fuente, Hallazgo, Video
 from gepp_bd.repositorios import auditoria, videos
 from gepp_core.textos import sin_rutas
 from sqlalchemy import Select, func, select
 
 from gepp_api.auth import Bd, Sesion, SesionActual
-from gepp_api.errores import ErrorApi, no_encontrado
+from gepp_api.errores import ErrorApi, no_encontrado, sin_permiso
 from gepp_api.esquemas import PedidoNuevo
-from gepp_api.servicios import ingesta
+from gepp_api.servicios import ingesta, vivo
 from gepp_api.servicios.hallazgos import cursor_de, desplazamiento_de, iso
 from gepp_api.servicios.recalculo import recalcular_video
 
@@ -191,3 +192,64 @@ def reprocesar_video(id: int, request: Request, bd: Bd, sesion: Sesion) -> dict[
         ),
     )
     return video_a_json(bd, v, tz)
+
+
+def _video_visible_en_vivo(request: Request, bd: Bd, sesion: SesionActual, id: int) -> Video:
+    """Las guardas de la vista en vivo, en este orden: permiso, vista encendida, que el video
+    exista, que sea de un área que la sesión ve y que se esté procesando."""
+    sesion.exigir("ver_evidencia")
+    if not request.app.state.config.vista_en_vivo:
+        raise ErrorApi(404, "vivo_no_disponible", "La vista en vivo no está activada")
+    v = bd.get(Video, id)
+    if v is None:
+        raise no_encontrado("video", id)
+    fuente = bd.get(Fuente, v.fuente_id)
+    if fuente is None or not sesion.puede_ver_area(fuente.area_id):
+        raise sin_permiso("El video es de otra área")
+    if v.estado != "procesando":
+        raise ErrorApi(404, "vivo_no_disponible", f"El video {id} no se está procesando")
+    return v
+
+
+def _sin_cuadro(id: int) -> ErrorApi:
+    return ErrorApi(404, "vivo_no_disponible", f"El video {id} no tiene un cuadro vigente")
+
+
+@router.get("/videos/{id}/vivo", operation_id="obtenerVivoVideo", response_class=Response)
+def obtener_vivo(id: int, request: Request, bd: Bd, sesion: Sesion) -> Response:
+    """El cuadro más reciente, sin tapar rostros, de un video que se está procesando. Sin rutas."""
+    v = _video_visible_en_vivo(request, bd, sesion, id)
+    datos = vivo.ultimo_cuadro(request.app.state.config.carpeta_vivo, v.id)
+    if datos is None:
+        raise _sin_cuadro(id)
+    return Response(content=datos, media_type="image/jpeg", headers={"Cache-Control": "no-store"})
+
+
+@router.get("/videos/{id}/vivo/cuadros", operation_id="listarCuadrosVivo")
+def listar_cuadros_vivo(
+    id: int,
+    request: Request,
+    bd: Bd,
+    sesion: Sesion,
+    response: Response,
+    desde: Annotated[int, Query(ge=0)] = 0,
+) -> dict[str, Any]:
+    """Los cuadros nuevos (`seq > desde`) para reproducir con fluidez: como mucho los 30 más
+    recientes, de viejo a nuevo, cada JPEG sin tapar rostros, en base64. Sin rutas."""
+    v = _video_visible_en_vivo(request, bd, sesion, id)
+    visto = vivo.cuadros_desde(request.app.state.config.carpeta_vivo, v.id, desde)
+    if visto is None:
+        raise _sin_cuadro(id)
+    cuadros, ultimo_seq = visto
+    response.headers["Cache-Control"] = "no-store"
+    return {
+        "cuadros": [
+            {
+                "seq": c.seq,
+                "posicion_s": c.pos_ms / 1000,
+                "jpeg": base64.b64encode(c.jpeg).decode("ascii"),
+            }
+            for c in cuadros
+        ],
+        "ultimo_seq": ultimo_seq,
+    }

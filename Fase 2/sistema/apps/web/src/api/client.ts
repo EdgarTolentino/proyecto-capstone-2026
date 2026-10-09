@@ -19,6 +19,7 @@ import type {
   Sesion,
   Video,
 } from "./types";
+import type { operations } from "./schema";
 import { esFechaValida, inicioDelDiaEnFaena, sumarDias } from "./fechas";
 
 // En desarrollo usamos el mock. En producción esta URL se cambia con VITE_API_URL.
@@ -202,6 +203,23 @@ export async function obtenerEvidencia(ruta: string, signal?: AbortSignal): Prom
   });
   if (!respuesta.ok) throw new ApiError("Evidencia no disponible.", respuesta.status);
   return respuesta.blob();
+}
+
+// Los últimos cuadros que analiza el modelo, con su posición en el video. Nítidos y sin tapar
+// rostros (excepción de ADR-006; decisión de Edgar del 2026-10-09). El tipo sale del contrato.
+export type CuadrosVivo = operations["listarCuadrosVivo"]["responses"][200]["content"]["application/json"];
+export type CuadroVivo = CuadrosVivo["cuadros"][number];
+
+// Solo los cuadros con `seq > desde`, de más viejo a más nuevo. Con el Bearer en la cabecera, como
+// la evidencia: nunca un <img src> directo ni el token en la URL.
+export async function obtenerCuadrosVivo(videoId: number, desde: number, signal?: AbortSignal): Promise<CuadrosVivo> {
+  const respuesta = await fetch(urlApi(`/videos/${videoId}/vivo/cuadros?desde=${desde}`), {
+    headers: cabecerasApi(),
+    cache: "no-store",
+    signal,
+  });
+  if (!respuesta.ok) throw new ApiError("Vista del modelo no disponible.", respuesta.status);
+  return respuesta.json() as Promise<CuadrosVivo>;
 }
 
 export const triarHallazgo = (id: number, decision: DecisionTriage) =>

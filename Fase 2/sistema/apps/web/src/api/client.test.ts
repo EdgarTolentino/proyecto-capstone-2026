@@ -42,6 +42,36 @@ describe("cliente API", () => {
     expect(new Headers(options?.headers).get("Authorization")).toBe("Bearer mortega");
   });
 
+  it("pide los cuadros en vivo con el desde, el Bearer en la cabecera, sin token en la URL ni caché", async () => {
+    vi.stubEnv("VITE_API_TOKEN", "mortega");
+    const cuerpo = { cuadros: [{ seq: 7, posicion_s: 0.25, jpeg: "AAAA" }], ultimo_seq: 7 };
+    const fetchMock = vi.spyOn(globalThis, "fetch").mockResolvedValue(
+      new Response(JSON.stringify(cuerpo), { status: 200, headers: { "Content-Type": "application/json" } }),
+    );
+    const { obtenerCuadrosVivo } = await import("./client");
+    const controlador = new AbortController();
+
+    const resultado = await obtenerCuadrosVivo(88, 6, controlador.signal);
+
+    const [url, options] = fetchMock.mock.calls[0];
+    expect(String(url)).toBe("http://127.0.0.1:4010/videos/88/vivo/cuadros?desde=6");
+    expect(String(url)).not.toContain("mortega");
+    expect(new Headers(options?.headers).get("Authorization")).toBe("Bearer mortega");
+    expect(options?.cache).toBe("no-store");
+    expect(options?.signal).toBe(controlador.signal);
+    expect(resultado).toEqual(cuerpo);
+  });
+
+  it.each([401, 403, 404, 500])("los cuadros en vivo con un %i lanzan ApiError con ese status", async (status) => {
+    vi.spyOn(globalThis, "fetch").mockResolvedValue(new Response(null, { status }));
+    const { ApiError, obtenerCuadrosVivo } = await import("./client");
+
+    const error = await obtenerCuadrosVivo(88, 0).catch((e: unknown) => e);
+
+    expect(error).toBeInstanceOf(ApiError);
+    expect((error as { status: number }).status).toBe(status);
+  });
+
   it("no considera pospuesto dentro de Descartados", async () => {
     vi.spyOn(globalThis, "fetch").mockResolvedValue(
       new Response(JSON.stringify({

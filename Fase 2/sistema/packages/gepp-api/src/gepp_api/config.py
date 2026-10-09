@@ -76,9 +76,21 @@ def _carpeta_entrada_desde_entorno() -> Path | None:
     return validar_carpeta_entrada(texto, os.environ.get("GEPP_CARPETA_VIGILADA"))
 
 
+def _vista_en_vivo_desde_entorno() -> bool:
+    """Apagada por defecto: solo `GEPP_VISTA_EN_VIVO=1` la enciende."""
+    return os.environ.get("GEPP_VISTA_EN_VIVO", "").strip() == "1"
+
+
+def _carpeta_vivo_desde_entorno() -> Path:
+    """Donde el trabajador deja los últimos cuadros de la vista en vivo (memoria compartida)."""
+    return Path(os.environ.get("GEPP_CARPETA_VIVO", "").strip() or "/dev/shm/gepp-vivo")
+
+
 @dataclass(frozen=True, slots=True)
 class Configuracion:
     zona_horaria: ZoneInfo = field(default_factory=lambda: ZoneInfo("America/Santiago"))
     tokens: dict[str, str] = field(default_factory=_tokens_desde_entorno)
     origenes_cors: tuple[str, ...] = ("http://localhost:5173", "http://127.0.0.1:5173")
     carpeta_entrada: Path | None = field(default_factory=_carpeta_entrada_desde_entorno)
+    vista_en_vivo: bool = field(default_factory=_vista_en_vivo_desde_entorno)
+    carpeta_vivo: Path = field(default_factory=_carpeta_vivo_desde_entorno)

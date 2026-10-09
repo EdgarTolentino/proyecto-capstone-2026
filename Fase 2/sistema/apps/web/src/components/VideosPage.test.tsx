@@ -16,6 +16,7 @@ vi.mock("../api/client", () => ({
   listarPedidos: vi.fn(),
   listarEntradaVideos: vi.fn(),
   pedirIngesta: vi.fn(),
+  obtenerCuadrosVivo: vi.fn(),
 }));
 
 afterEach(() => { cleanup(); vi.resetAllMocks(); vi.useRealTimers(); });
@@ -536,4 +537,81 @@ it("al pasar de procesando a reintentando baja al ritmo de 10 s y quita la barra
   expect(api.listarVideos).toHaveBeenCalledTimes(llamadas);
   await vi.advanceTimersByTimeAsync(4000);
   expect(api.listarVideos).toHaveBeenCalledTimes(llamadas + 1);
+});
+
+// --- Vista del modelo (ventana en vivo) -----------------------------------------------------------
+
+function renderizarVivo({ editar = false, evidencia = false }: { editar?: boolean; evidencia?: boolean }) {
+  vi.mocked(api.listarPedidos).mockResolvedValue({ items: [] });
+  vi.mocked(api.obtenerCuadrosVivo).mockRejectedValue(new api.ApiError("sin cuadro", 404));
+  const client = new QueryClient({ defaultOptions: { queries: { retry: false } } });
+  render(
+    <QueryClientProvider client={client}>
+      <VideosPage puedeEditarReglas={editar} puedeVerEvidencia={evidencia} />
+    </QueryClientProvider>,
+  );
+}
+
+it("con ver_evidencia, un video procesando muestra la vista del modelo debajo de su fila, a todo el ancho", async () => {
+  vi.mocked(api.listarVideos).mockResolvedValue({ items: [videoProcesando(150)] });
+  renderizarVivo({ evidencia: true });
+
+  const vista = await screen.findByRole("region", { name: "Vista del modelo de CAM-03_2026-10-02_08-00.mp4" });
+  expect(await within(vista).findByText("Esperando el primer cuadro…")).toBeVisible();
+  expect(api.obtenerCuadrosVivo).toHaveBeenCalledWith(22, 0, expect.any(AbortSignal));
+  const fila = vista.closest("tr") as HTMLTableRowElement;
+  expect(fila.previousElementSibling).toHaveTextContent("Procesando");
+  expect(fila.previousElementSibling).toHaveTextContent("2:30 de 5:00 (50 %)");
+  expect(fila.querySelector("td")).toHaveAttribute("colspan", "5");
+});
+
+it("con editar_reglas la fila de la vista ocupa seis columnas", async () => {
+  vi.mocked(api.listarVideos).mockResolvedValue({ items: [videoProcesando(150)] });
+  renderizarVivo({ evidencia: true, editar: true });
+
+  const vista = await screen.findByRole("region", { name: /Vista del modelo de/ });
+  expect(vista.closest("td")).toHaveAttribute("colspan", "6");
+});
+
+it("sin ver_evidencia no aparece la vista del modelo y no se pide ningún cuadro", async () => {
+  vi.mocked(api.listarVideos).mockResolvedValue({ items: [videoProcesando(150)] });
+  renderizarVivo({ evidencia: false });
+
+  await screen.findByText("2:30 de 5:00 (50 %)");
+  expect(screen.queryByRole("region", { name: /Vista del modelo/ })).not.toBeInTheDocument();
+  expect(api.obtenerCuadrosVivo).not.toHaveBeenCalled();
+});
+
+it("el administrador (editar_reglas sin ver_evidencia) no ve la vista del modelo", async () => {
+  vi.mocked(api.listarVideos).mockResolvedValue({ items: [videoProcesando(150)] });
+  renderizarVivo({ editar: true, evidencia: false });
+
+  await screen.findByText("2:30 de 5:00 (50 %)");
+  expect(screen.queryByRole("region", { name: /Vista del modelo/ })).not.toBeInTheDocument();
+  expect(api.obtenerCuadrosVivo).not.toHaveBeenCalled();
+});
+
+it.each(["listo", "en_cola", "reintentando", "error"] as const)("con un video %s no aparece la vista del modelo ni se pide cuadro", async (estado) => {
+  vi.mocked(api.listarVideos).mockResolvedValue({ items: [videoDePrueba(estado)] });
+  renderizarVivo({ evidencia: true });
+
+  await screen.findByRole("table", { name: "Cola de videos" });
+  expect(screen.queryByRole("region", { name: /Vista del modelo/ })).not.toBeInTheDocument();
+  expect(api.obtenerCuadrosVivo).not.toHaveBeenCalled();
+});
+
+it("al pasar de procesando a listo la vista del modelo desaparece y se deja de pedir", async () => {
+  vi.useFakeTimers({ shouldAdvanceTime: true });
+  vi.mocked(api.listarVideos)
+    .mockResolvedValueOnce({ items: [videoProcesando(150)] })
+    .mockResolvedValue({ items: [{ ...videoDePrueba("listo"), avance: null }] });
+  renderizarVivo({ evidencia: true });
+
+  await screen.findByRole("region", { name: /Vista del modelo/ });
+  await vi.advanceTimersByTimeAsync(3500);
+  expect(await screen.findByText("Listo")).toBeVisible();
+  expect(screen.queryByRole("region", { name: /Vista del modelo/ })).not.toBeInTheDocument();
+  const llamadas = vi.mocked(api.obtenerCuadrosVivo).mock.calls.length;
+  await vi.advanceTimersByTimeAsync(10_000);
+  expect(api.obtenerCuadrosVivo).toHaveBeenCalledTimes(llamadas);
 });

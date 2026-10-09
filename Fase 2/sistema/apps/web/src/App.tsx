@@ -170,7 +170,7 @@ export default function App() {
           onNavigateHallazgos={navegarHallazgos}
         />
       )}
-      {seccion === "videos" && <VideosPage puedeEditarReglas={permisos.has("editar_reglas")} catalogos={catalogos.data} catalogosError={catalogos.isError} />}
+      {seccion === "videos" && <VideosPage puedeEditarReglas={permisos.has("editar_reglas")} puedeVerEvidencia={permiteEvidencia} catalogos={catalogos.data} catalogosError={catalogos.isError} />}
       {seccion === "hallazgos" && (
       <main className="findings-page">
         {mostrarAvisoObraSinFiltro && <div className="state-message" role="status">La obra seleccionada en el panel no se aplica en esta bandeja: el contrato de Hallazgos no ofrece filtro por obra.</div>}

@@ -1,12 +1,13 @@
 import { useInfiniteQuery, useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { AlertTriangle, LoaderCircle, Plus, RotateCcw } from "lucide-react";
-import { useEffect, useMemo, useRef, useState } from "react";
+import { Fragment, useEffect, useMemo, useRef, useState } from "react";
 
 import { ApiError, listarPedidos, listarVideos, pedirIngesta, reprocesarVideo } from "../api/client";
 import type { Catalogos, EstadoPedido, Pedido, PedidoNuevo, Video } from "../api/types";
-import { intervaloDePedidos, intervaloDeRefresco, mensajeDePedido, pedidoDejoListaVieja } from "../api/videos";
+import { intervaloDePedidos, intervaloDeRefresco, mensajeDePedido, pedidoDejoListaVieja, pedidoSigueAbierto } from "../api/videos";
 import { AvanceVideo } from "./AvanceVideo";
 import { ProcesarVideoDialog, type FuenteElegible } from "./ProcesarVideoDialog";
+import { VivoVideo } from "./VivoVideo";
 import "./VideosPage.css";
 
 const estadosPedido: Record<EstadoPedido, { nombre: string; clase: string }> = {
@@ -75,15 +76,19 @@ function fuentesElegibles(catalogos: Catalogos | undefined): FuenteElegible[] | 
 
 interface VideosPageProps {
   puedeEditarReglas?: boolean;
+  // Solo los roles con `ver_evidencia` ven la vista del modelo; quien configura (administrador) no.
+  puedeVerEvidencia?: boolean;
   catalogos?: Catalogos;
   catalogosError?: boolean;
 }
 
-export function VideosPage({ puedeEditarReglas = false, catalogos, catalogosError = false }: VideosPageProps) {
+export function VideosPage({ puedeEditarReglas = false, puedeVerEvidencia = false, catalogos, catalogosError = false }: VideosPageProps) {
   const queryClient = useQueryClient();
   const [mensaje, setMensaje] = useState("");
   const [dialogoAbierto, setDialogoAbierto] = useState(false);
   const [errorDialogo, setErrorDialogo] = useState("");
+  // El aviso «quedó pedido» pertenece a un pedido y deja de ser cierto cuando este se registra o se rechaza.
+  const [anuncio, setAnuncio] = useState<{ pedidoId: number; texto: string } | null>(null);
   // El pedido sigue en vuelo aunque se cierre el diálogo: el resultado se anuncia donde esté la persona.
   // Cada apertura del diálogo tiene un número; una respuesta solo toca el diálogo de su propia apertura.
   const [apertura, setApertura] = useState(0);
@@ -108,6 +113,9 @@ export function VideosPage({ puedeEditarReglas = false, catalogos, catalogosErro
     }
     estadosVistos.current = new Map(items.map((p) => [p.id, p.estado]));
   }, [pedidos.data, queryClient]);
+  const pedidoAnunciado = anuncio ? pedidos.data?.items.find((p) => p.id === anuncio.pedidoId) : undefined;
+  // Se oculta solo ese aviso: si otro mensaje lo reemplazó, no se toca.
+  const avisoVencido = Boolean(anuncio && mensaje === anuncio.texto && pedidoAnunciado && !pedidoSigueAbierto(pedidoAnunciado));
   const pedido = useMutation({
     mutationFn: ({ peticion }: { peticion: PedidoNuevo; apertura: number }) => pedirIngesta(peticion),
     onMutate: () => {
@@ -116,7 +124,9 @@ export function VideosPage({ puedeEditarReglas = false, catalogos, catalogosErro
     },
     onSuccess: async (resultado, enviado) => {
       if (aperturaVigente.current === enviado.apertura) setDialogoAbierto(false);
-      setMensaje(`El archivo ${resultado.archivo} quedó pedido; se registrará cuando el trabajador lo tome.`);
+      const texto = `El archivo ${resultado.archivo} quedó pedido; se registrará cuando el trabajador lo tome.`;
+      setMensaje(texto);
+      setAnuncio({ pedidoId: resultado.id, texto });
       await queryClient.invalidateQueries({ queryKey: ["videos-pedidos"] });
     },
     onError: (error, { peticion, apertura: deEsteEnvio }) => {
@@ -257,7 +267,8 @@ export function VideosPage({ puedeEditarReglas = false, catalogos, catalogosErro
               </thead>
               <tbody>
                 {videos.map((video) => (
-                  <tr key={video.id}>
+                  <Fragment key={video.id}>
+                  <tr>
                     <th scope="row" className="mono video-file">{video.archivo}</th>
                     <td>{video.fuente?.nombre ?? "—"}</td>
                     <td>
@@ -283,6 +294,14 @@ export function VideosPage({ puedeEditarReglas = false, catalogos, catalogosErro
                       </td>
                     )}
                   </tr>
+                  {puedeVerEvidencia && video.estado === "procesando" && (
+                    <tr className="video-live-row">
+                      <td colSpan={puedeEditarReglas ? 6 : 5}>
+                        <VivoVideo videoId={video.id} archivo={video.archivo} />
+                      </td>
+                    </tr>
+                  )}
+                  </Fragment>
                 ))}
               </tbody>
             </table>
@@ -305,7 +324,7 @@ export function VideosPage({ puedeEditarReglas = false, catalogos, catalogosErro
           )}
         </>
       )}
-      <div className="video-message" role="status" aria-live="polite">{mensaje}</div>
+      <div className="video-message" role="status" aria-live="polite">{avisoVencido ? "" : mensaje}</div>
       {dialogoAbierto && (
         <ProcesarVideoDialog
           fuentes={fuentesElegibles(catalogos)}
