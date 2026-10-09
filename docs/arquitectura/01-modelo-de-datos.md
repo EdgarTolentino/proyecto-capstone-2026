@@ -29,6 +29,8 @@
                                          └──< notificacion >     (patrón outbox)
 
    usuario ──< rol >                 auditoria   (append-only, sin UPDATE ni DELETE)
+
+   fuente ──< pedido_ingesta >──? video      (la API pide procesar un archivo; el trabajador lo atiende)
 ```
 
 ## Tablas
@@ -110,6 +112,27 @@ CREATE TABLE video (
     creado_en      TIMESTAMPTZ NOT NULL DEFAULT now()
 );
 CREATE INDEX ON video (estado, creado_en);
+
+-- Un archivo de la carpeta de entrada que alguien pidió procesar desde la web. La API lo crea
+-- 'pendiente'; el trabajador lo toma, lo valida, calcula el hash, crea la fila `video` y lo
+-- cierra. La API no habla con Redis.
+CREATE TABLE pedido_ingesta (
+    id             BIGSERIAL PRIMARY KEY,
+    archivo        TEXT NOT NULL,              -- solo el nombre, nunca la ruta del servidor
+    fuente_id      BIGINT NOT NULL REFERENCES fuente(id),
+    usuario_id     BIGINT REFERENCES usuario(id),
+    estado         TEXT NOT NULL DEFAULT 'pendiente'
+                   CHECK (estado IN ('pendiente','tomado','registrado','rechazado')),
+    motivo         TEXT,                       -- por qué se rechazó; sin rutas
+    video_id       BIGINT REFERENCES video(id) ON DELETE SET NULL,
+    bytes          BIGINT,                     -- lo que vio el trabajador al tomarlo
+    mtime_ns       BIGINT,
+    creado_en      TIMESTAMPTZ NOT NULL DEFAULT now(),
+    actualizado_en TIMESTAMPTZ NOT NULL DEFAULT now()
+);
+-- A lo sumo un pedido abierto por archivo; uno 'rechazado' o 'registrado' no impide pedirlo otra vez.
+CREATE UNIQUE INDEX uq_pedido_ingesta_archivo_abierto ON pedido_ingesta (archivo)
+    WHERE estado IN ('pendiente','tomado');
 ```
 
 ### `deteccion` — la tabla cruda

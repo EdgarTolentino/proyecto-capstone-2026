@@ -23,10 +23,11 @@ from collections.abc import Callable
 from dataclasses import dataclass
 from pathlib import Path
 
+from gepp_core.archivos import EXTENSIONES_VIDEO
+
 from gepp_worker.cola import ColaTrabajos, Trabajo
 from gepp_worker.fuente_archivo import validar_ruta
 
-EXTENSIONES_VIDEO = frozenset({".mp4", ".mov", ".mkv", ".avi"})
 BLOQUE_HASH = 1024 * 1024
 
 
