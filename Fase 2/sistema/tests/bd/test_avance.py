@@ -291,6 +291,25 @@ def test_la_velocidad_es_video_por_segundo_de_reloj(bd: Engine, video_id: int) -
     assert leer_avance(bd, video_id)["avance_velocidad"] == 2.0
 
 
+def test_sin_avance_no_hay_velocidad_aunque_haya_tiempo_transcurrido(
+    bd: Engine, video_id: int
+) -> None:
+    """La primera publicación (posición 0) con tiempo de reloj ya corrido daba 0,0x."""
+    reloj = Reloj()
+    p = PublicadorDeAvance(bd, video_id, 100.0, reloj=reloj)
+    reloj.t = 4.0
+    p.cuadro(0.0, [])
+    assert leer_avance(bd, video_id)["avance_velocidad"] is None
+
+
+def test_con_el_avance_mas_pequeno_posible_ya_hay_velocidad(bd: Engine, video_id: int) -> None:
+    reloj = Reloj()
+    p = PublicadorDeAvance(bd, video_id, 100.0, reloj=reloj)
+    reloj.t = 4.0
+    p.cuadro(0.5, [])  # justo del otro lado de 0
+    assert leer_avance(bd, video_id)["avance_velocidad"] == 0.125
+
+
 def test_el_kpi_cuenta_solo_las_clases_del_avance_en_ese_cuadro() -> None:
     from gepp_core import ClaseDetectada
 

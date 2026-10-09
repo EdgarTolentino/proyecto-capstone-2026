@@ -85,7 +85,8 @@ class PublicadorDeAvance:
 
     def _publicar(self, fase: str, avance_s: float, ahora: float) -> None:
         transcurrido = ahora - self._inicio
-        velocidad = avance_s / transcurrido if transcurrido > 0 else None
+        # Sin avance (la primera publicación) no hay velocidad: 0,0x engañaría.
+        velocidad = avance_s / transcurrido if transcurrido > 0 and avance_s > 0 else None
         self._ultima_publicacion = ahora
         self._intentar(
             lambda s: videos.publicar_avance(

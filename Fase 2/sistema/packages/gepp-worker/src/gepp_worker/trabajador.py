@@ -52,6 +52,7 @@ from gepp_worker.fuente import Cuadro, PropiedadesFuente
 from gepp_worker.fuente_archivo import FuenteArchivo, reloj_de_respaldo
 from gepp_worker.muestreo import Muestreador
 from gepp_worker.pedidos import AtencionDePedidos, variantes_de
+from gepp_worker.vivo import FPS_VIVO_POR_DEFECTO, EscritorVivo
 
 
 class VideoIlegible(Exception):
@@ -75,6 +76,10 @@ class Configuracion:
     carpeta_entrada: Path | None = None
     #: Cada cuántos segundos (de reloj) se publica el avance de un video (`gepp_worker.avance`).
     avance_cada_s: float = PERIODO_S
+    #: Carpeta de la vista en vivo (`gepp_worker.vivo`). None = apagada: no se escribe nada.
+    carpeta_vivo: Path | None = None
+    #: Cada cuántos segundos (de reloj) se reescribe el cuadro de la vista: aparte del avance.
+    vivo_fps: float = FPS_VIVO_POR_DEFECTO
 
 
 @dataclass(frozen=True, slots=True)
@@ -152,6 +157,11 @@ class Trabajador:
         self._pedidos = (
             AtencionDePedidos(motor, cola, config.carpeta_entrada)
             if config.carpeta_entrada is not None
+            else None
+        )
+        self._vivo = (
+            EscritorVivo(config.carpeta_vivo, fps=config.vivo_fps)
+            if config.carpeta_vivo is not None
             else None
         )
 
@@ -246,6 +256,8 @@ class Trabajador:
         return self._pedidos.atender_uno()
 
     def correr(self, seguir: Callable[[], bool] = lambda: True, espera_s: float = 2.0) -> None:
+        if self._vivo is not None:
+            self._vivo.vaciar()  # lo que dejó una corrida cortada no se queda en memoria
         self._cola.recuperar_huerfanos()
         if self._pedidos is None:
             print("[trabajador] sin GEPP_CARPETA_ENTRADA: no atiende pedidos de la web", flush=True)
@@ -354,10 +366,23 @@ class Trabajador:
             mascara=mascara,
         )
         detector_version = pipeline.version_modelo
-        muestreador = Muestreador(
-            FuenteArchivo(ruta, inicio_captura=props.inicio_captura), self._config.fps_objetivo
+        # Con la vista prendida, el muestreador también decodifica los cuadros que salta, y TODO
+        # cuadro (analizado o saltado) pasa por la misma máscara de privacidad del pipeline.
+        vista = (
+            self._vivo.abrir(
+                ctx.video_id,
+                fps_origen=props.fps,
+                inicio_captura=props.inicio_captura,
+                enmascarar=pipeline.enmascarar,
+            )
+            if self._vivo is not None
+            else None
         )
-        muestreador.abrir()
+        muestreador = Muestreador(
+            FuenteArchivo(ruta, inicio_captura=props.inicio_captura),
+            self._config.fps_objetivo,
+            saltados=vista,
+        )
         duracion_s = props.cuadros_totales / props.fps if props.cuadros_totales else None
         avance = PublicadorDeAvance(
             self._motor,
@@ -367,6 +392,7 @@ class Trabajador:
             cada_s=self._config.avance_cada_s,
         )
         try:
+            muestreador.abrir()
 
             def cuadros() -> Iterator[Cuadro]:
                 while muestreador.tomar():
@@ -378,10 +404,15 @@ class Trabajador:
                 # La posición en el video de origen, no el contador de cuadros muestreados.
                 posicion_s = (cuadro.capture_ts - props.inicio_captura).total_seconds()
                 avance.cuadro(posicion_s, r.detecciones)
+                if vista is not None and r.imagen is not None:
+                    # r.imagen es la que vio el detector, con la privacidad aplicada.
+                    vista.analizado(cuadro, r.imagen, r.detecciones)
 
             resultado = pipeline.procesar_todo(cuadros(), por_cuadro=informar)
         finally:
             muestreador.cerrar()
+            if vista is not None:  # listo, error o reintento: los cuadros no sobreviven
+                vista.cerrar()
         # Antes de abrir la transacción del resultado (que toma la fila del video), no después.
         avance.final()
 
