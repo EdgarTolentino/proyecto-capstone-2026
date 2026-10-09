@@ -15,6 +15,9 @@ Configuración desde el entorno (ver `.env.example`):
     GEPP_UMBRAL_CONFIANZA  corte del detector ONNX (0.25 por defecto; ver `rfdetr_comun`)
     GEPP_AVISO_CANAL + GEPP_AVISO_DESTINATARIO: si están, cada hallazgo escribe su aviso
     GEPP_MAXIMO_INTENTOS: intentos antes de dejar un video en `error` (3 por defecto)
+    GEPP_VISTA_EN_VIVO=1 + GEPP_CARPETA_VIVO + GEPP_VIVO_FPS (25 por defecto): vista en
+    vivo del procesamiento (apagada por defecto; ver `gepp_worker.vivo` y la excepción en
+    02-privacidad-y-cumplimiento.md)
 
 Sin `GEPP_GUION_FALSO`, el detector es RF-DETR exportado a ONNX (`docs/operacion/modelo-onnx.md`).
 """
@@ -101,11 +104,23 @@ def _carpeta_entrada() -> Path | None:
         sys.exit(str(e))
 
 
+def _fps_vivo() -> float:
+    """Cuadros por segundo de video de la vista en vivo; un valor inválido detiene el arranque."""
+    from gepp_worker.vivo import fps_configurado
+
+    try:
+        return fps_configurado()
+    except ValueError as e:
+        sys.exit(str(e))
+
+
 def correr_trabajador() -> None:
     from gepp_bd.sesion import crear_motor
 
     from gepp_worker.muestreo import fps_objetivo_configurado
     from gepp_worker.trabajador import Aviso, Configuracion, Trabajador
+    from gepp_worker.vivo import carpeta_configurada as carpeta_vivo_configurada
+    from gepp_worker.vivo import carpeta_de_residuos
 
     carpeta_entrada = _carpeta_entrada()  # antes del modelo: un error de carpeta se ve primero
     fabrica_detector = _fabrica_detector()
@@ -115,6 +130,9 @@ def correr_trabajador() -> None:
         fps_objetivo=fps_objetivo_configurado(),
         aviso=Aviso(canal, destino) if canal and destino else None,
         carpeta_entrada=carpeta_entrada,
+        carpeta_vivo=carpeta_vivo_configurada(),
+        vivo_fps=_fps_vivo(),
+        carpeta_vivo_residuos=carpeta_de_residuos(),
     )
     parar = _detenible()
     trabajador = Trabajador(crear_motor(), _cola(), fabrica_detector, config)

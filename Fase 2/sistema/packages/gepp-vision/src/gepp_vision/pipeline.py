@@ -40,6 +40,9 @@ class ResultadoCuadro:
 
     detecciones: list[Deteccion]
     hallazgos: list[Hallazgo]
+    #: La imagen que vio el detector (con los polígonos de privacidad ya en negro), no el cuadro
+    #: original. Quien quiera mostrar el cuadro (la vista en vivo) parte de esta.
+    imagen: np.ndarray | None = field(default=None, compare=False, repr=False)
 
 
 @dataclass(slots=True)
@@ -70,16 +73,22 @@ class PipelineEtapa1:
     def version_modelo(self) -> str:
         return self._detector.version
 
-    def procesar(self, cuadro: CuadroFechado) -> ResultadoCuadro:
-        imagen = cuadro.imagen
+    def enmascarar(self, imagen: np.ndarray) -> np.ndarray:
+        """La imagen con los polígonos de privacidad aplicados (la misma máscara que ve el
+        detector). Es la ÚNICA forma de preparar un cuadro para mostrarlo: lo que no pasa por
+        aquí no se muestra."""
         if self._mascara is not None and len(self._mascara):
-            imagen = self._mascara.aplicar(imagen)  # ANTES de inferir (ADR-006)
+            return self._mascara.aplicar(imagen)
+        return imagen
+
+    def procesar(self, cuadro: CuadroFechado) -> ResultadoCuadro:
+        imagen = self.enmascarar(cuadro.imagen)  # ANTES de inferir (ADR-006)
         crudas = self._detector.detectar(
             imagen, cuadro_idx=cuadro.indice, capture_ts=cuadro.capture_ts
         )
         seguidas = self._seguidor.actualizar(crudas)
         hallazgos = [h for a in self._agregadores for h in a.procesar_cuadro(seguidas)]
-        return ResultadoCuadro(seguidas, hallazgos)
+        return ResultadoCuadro(seguidas, hallazgos, imagen)
 
     def cerrar(self) -> list[Hallazgo]:
         """Cierra lo pendiente al terminar la fuente y deja el seguidor limpio."""

@@ -19,6 +19,7 @@ from __future__ import annotations
 import math
 import os
 from fractions import Fraction
+from typing import Protocol
 
 from gepp_worker.fuente import Cuadro, FuenteDeCuadros, PropiedadesFuente
 
@@ -59,19 +60,41 @@ def pasa(indice: int, fps_origen: float, fps_objetivo: float) -> bool:
     return math.floor(indice * razon) != math.floor((indice - 1) * razon)
 
 
+class ObservadorDeSaltados(Protocol):
+    """Quien quiere ver también los cuadros que el muestreo salta (la vista en vivo).
+
+    Sin observador los saltados no se decodifican: ese es el comportamiento por defecto.
+    """
+
+    def quiere(self, indice: int) -> bool:
+        """¿Hay que decodificar el cuadro saltado `indice`? Falso: se sigue sin pagarlo."""
+        ...
+
+    def al_saltar(self, cuadro: Cuadro) -> None:
+        """Un cuadro saltado, ya decodificado, en orden de video (antes del próximo muestreado)."""
+        ...
+
+
 class Muestreador:
     """Envuelve una `FuenteDeCuadros` y deja pasar solo los cuadros del objetivo.
 
     `tomar()` avanza la fuente, sin decodificar, hasta el próximo cuadro que pasa;
-    `recuperar()` decodifica solo ese.
+    `recuperar()` decodifica solo ese. Con un `saltados` (ver `ObservadorDeSaltados`), los
+    cuadros que se saltan y que el observador quiere también se decodifican y se le entregan.
     """
 
-    def __init__(self, fuente: FuenteDeCuadros, fps_objetivo: float | None = None) -> None:
+    def __init__(
+        self,
+        fuente: FuenteDeCuadros,
+        fps_objetivo: float | None = None,
+        saltados: ObservadorDeSaltados | None = None,
+    ) -> None:
         objetivo = fps_objetivo_configurado() if fps_objetivo is None else fps_objetivo
         if objetivo <= 0:
             raise ValueError("fps_objetivo debe ser positivo")
         self._fuente = fuente
         self._fps_objetivo = objetivo
+        self._saltados = saltados
         self._indice = -1
 
     @property
@@ -89,6 +112,10 @@ class Muestreador:
             self._indice += 1
             if pasa(self._indice, fps_origen, self._fps_objetivo):
                 return True
+            if self._saltados is not None and self._saltados.quiere(self._indice):
+                saltado = self._fuente.recuperar()
+                if saltado is not None:
+                    self._saltados.al_saltar(saltado)
         return False
 
     def recuperar(self) -> Cuadro | None:
