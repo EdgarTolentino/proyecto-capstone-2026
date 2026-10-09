@@ -449,3 +449,121 @@ def test_si_borrar_falla_lo_dice_y_no_levanta(
     monkeypatch.setattr(modulo.shutil, "rmtree", roto)
     vista.cerrar()
     assert "no se pudo borrar la vista en vivo" in capsys.readouterr().err
+
+
+# ── Correcciones de la revisión ──────────────────────────────────────────────────────────
+
+
+@pytest.mark.parametrize("ajeno", ["archivo", "enlace"])
+def test_abrir_no_pisa_lo_ajeno_que_se_llama_como_un_video(
+    mundo: Path, capsys: pytest.CaptureFixture[str], ajeno: str
+) -> None:
+    """Lo que `vaciar_residuos` respeta, `abrir` tampoco lo borra: la vista de ese video no se
+    abre (avisa una vez) y nada de lo ajeno cambia."""
+    carpeta = mundo / "vivo"
+    escritor = EscritorVivo(carpeta)
+    dato = mundo / "afuera" / "dato.txt"
+    dato.write_text("no tocar")
+    if ajeno == "archivo":
+        (carpeta / "7").write_text("mío")
+    else:
+        (carpeta / "7").symlink_to(mundo / "afuera")
+    vista = escritor.abrir(7, fps_origen=30, inicio_captura=T0, enmascarar=sin_mascara)
+    assert capsys.readouterr().err.count("no es del anillo") == 1
+    assert vista.quiere(0) is False
+    vista.al_saltar(cuadro(0))  # no escribe ni levanta
+    vista.cerrar()  # y cerrar tampoco borra lo ajeno
+    if ajeno == "archivo":
+        assert (carpeta / "7").read_text() == "mío"
+    else:
+        assert (carpeta / "7").is_symlink() and dato.read_text() == "no tocar"
+
+
+def test_abrir_si_pisa_una_subcarpeta_propia_de_un_intento_anterior(mundo: Path) -> None:
+    carpeta = mundo / "vivo"
+    escritor = EscritorVivo(carpeta)
+    (carpeta / "7").mkdir()
+    (carpeta / "7" / "00000009_000000000.jpg").write_bytes(b"viejo")
+    vista = escritor.abrir(7, fps_origen=30, inicio_captura=T0, enmascarar=sin_mascara)
+    assert vista.quiere(0) is True and nombres(carpeta / "7") == []
+
+
+@pytest.mark.parametrize("error", [OSError(28, "sin espacio"), PermissionError(13, "sin permiso")])
+def test_si_la_carpeta_raiz_no_se_puede_crear_la_vista_se_apaga_y_no_levanta(
+    mundo: Path,
+    monkeypatch: pytest.MonkeyPatch,
+    capsys: pytest.CaptureFixture[str],
+    error: OSError,
+) -> None:
+    def roto(*_: object, **__: object) -> None:
+        raise error
+
+    monkeypatch.setattr(Path, "mkdir", roto)
+    escritor = EscritorVivo(mundo / "vivo")  # antes: salía la excepción
+    assert "no se pudo preparar la vista en vivo" in capsys.readouterr().err
+    vista = escritor.abrir(7, fps_origen=30, inicio_captura=T0, enmascarar=sin_mascara)
+    assert vista.quiere(0) is False
+    vista.al_saltar(cuadro(0))
+    vista.cerrar()
+    monkeypatch.undo()
+    # y si el problema pasa (se liberó espacio), el siguiente video sí abre la vista
+    vista = escritor.abrir(8, fps_origen=30, inicio_captura=T0, enmascarar=sin_mascara)
+    assert vista.quiere(0) is True
+
+
+def test_si_fallan_abrir_el_temporal_y_limpiarlo_el_error_no_sale(
+    mundo: Path, monkeypatch: pytest.MonkeyPatch, capsys: pytest.CaptureFixture[str]
+) -> None:
+    def sin_abrir(*_: object, **__: object) -> int:
+        raise OSError(28, "sin espacio")
+
+    def sin_permiso(_self: Path, *_: object, **__: object) -> None:
+        raise PermissionError(13, "sin permiso")
+
+    vista = abrir(mundo / "vivo", fps_vivo=30)
+    monkeypatch.setattr(modulo.os, "open", sin_abrir)
+    monkeypatch.setattr(Path, "unlink", sin_permiso)
+    vista.al_saltar(cuadro(0))  # antes: PermissionError hasta atender_uno()
+    assert "no se pudo escribir la vista en vivo" in capsys.readouterr().err
+
+
+def _fallar_el_borrado_de(monkeypatch: pytest.MonkeyPatch, prefijo: str) -> dict[str, bool]:
+    estado = {"falla": True}
+    real = Path.unlink
+
+    def unlink(self: Path, missing_ok: bool = False) -> None:
+        if estado["falla"] and self.name.startswith(prefijo):
+            raise PermissionError(13, "no se puede borrar")
+        real(self, missing_ok=missing_ok)
+
+    monkeypatch.setattr(Path, "unlink", unlink)
+    return estado
+
+
+@pytest.mark.parametrize("escritos", [59, 60, 61])
+def test_el_anillo_con_la_poda_fallando_en_59_60_y_61(
+    mundo: Path, monkeypatch: pytest.MonkeyPatch, escritos: int
+) -> None:
+    """Con el borrado del más viejo fallando, 59 y 60 no podan nada y 61 lo deja en disco (no hay
+    otra opción); lo que importa: no se pierde de vista y, cuando el borrado vuelve, la poda
+    siguiente lo quita y el anillo vuelve a 60."""
+    vista = abrir(mundo / "vivo", fps_vivo=30, fps_origen=30)
+    sub = mundo / "vivo" / "7"
+    estado = _fallar_el_borrado_de(monkeypatch, "00000001_")
+    for i in range(escritos):
+        vista.al_saltar(cuadro(i))
+    assert len(nombres(sub)) == escritos
+    estado["falla"] = False
+    vista.al_saltar(cuadro(escritos))
+    assert len(nombres(sub)) == min(escritos + 1, 60)
+    assert any(n.startswith("00000001_") for n in nombres(sub)) is (escritos < 60)
+
+
+def test_un_borrado_fallido_avisa_una_sola_vez_aunque_siga_fallando(
+    mundo: Path, monkeypatch: pytest.MonkeyPatch, capsys: pytest.CaptureFixture[str]
+) -> None:
+    vista = abrir(mundo / "vivo", fps_vivo=30, fps_origen=30)
+    _fallar_el_borrado_de(monkeypatch, "00000001_")
+    for i in range(65):
+        vista.al_saltar(cuadro(i))
+    assert capsys.readouterr().err.count("no se pudo podar la vista en vivo") == 1

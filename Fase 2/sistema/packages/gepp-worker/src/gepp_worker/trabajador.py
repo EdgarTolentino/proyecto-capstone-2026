@@ -415,9 +415,11 @@ class Trabajador:
 
             resultado = pipeline.procesar_todo(cuadros(), por_cuadro=informar)
         finally:
-            muestreador.cerrar()
-            if vista is not None:  # listo, error o reintento: los cuadros no sobreviven
-                vista.cerrar()
+            try:
+                muestreador.cerrar()
+            finally:
+                if vista is not None:  # listo, error o reintento: los cuadros no sobreviven
+                    vista.cerrar()
         # Antes de abrir la transacción del resultado (que toma la fila del video), no después.
         avance.final()
 

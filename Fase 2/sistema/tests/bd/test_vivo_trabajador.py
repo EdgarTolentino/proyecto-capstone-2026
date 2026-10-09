@@ -411,3 +411,31 @@ def test_el_avance_sigue_a_los_2_segundos_aunque_la_vista_escriba_todos_los_cuad
     assert resultado is not None and resultado.cuadros == 15
     assert len(escritos) == 30
     assert avances == [0.25, 2.25]
+
+
+# ── Correcciones de la revisión ─────────────────────────────────────────────────────────
+
+
+def test_si_la_carpeta_de_la_vista_no_se_puede_crear_el_trabajador_arranca_y_analiza(
+    mundo: Mundo, capsys: pytest.CaptureFixture[str]
+) -> None:
+    """Un fallo de la vista nunca tumba el análisis: la raíz cuelga de un ARCHIVO (mkdir falla
+    con OSError) y aun así el trabajador se construye y procesa el video."""
+    (mundo.tmp / "archivo").write_text("no es carpeta")
+    mundo.vivo = mundo.tmp / "archivo" / "vivo"
+    mundo.encolar()
+    resultado = mundo.trabajador().atender_uno()  # antes: OSError ya en Trabajador.__init__
+    assert resultado is not None and resultado.hallazgos == 1
+    assert "no se pudo preparar la vista en vivo" in capsys.readouterr().err
+
+
+def test_si_cerrar_el_muestreador_falla_igual_se_borran_los_cuadros(
+    mundo: Mundo, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    def roto(_self: Any) -> None:
+        raise RuntimeError("no se pudo cerrar el video")
+
+    mundo.encolar()
+    monkeypatch.setattr(modulo_trabajador.Muestreador, "cerrar", roto)
+    mundo.trabajador().atender_uno()  # el intento falla (va a reintento), pero sin dejar JPEG
+    assert list(mundo.vivo.iterdir()) == []

@@ -41,6 +41,7 @@ import stat
 import sys
 from collections import deque
 from collections.abc import Callable, Iterable, Mapping
+from contextlib import suppress
 from datetime import datetime
 from pathlib import Path
 
@@ -92,6 +93,17 @@ def carpeta_de_residuos(entorno: Mapping[str, str] | None = None) -> Path:
     return Path(entorno.get("GEPP_CARPETA_VIVO", "").strip() or CARPETA_POR_DEFECTO)
 
 
+def _es_subcarpeta_del_anillo(entrada: Path) -> bool:
+    """La única regla de qué puede pisar o borrar el anillo: una subcarpeta de primer nivel cuyo
+    nombre es todo dígitos (`<video_id>`), directorio, propia y que no sea un enlace. La usan el
+    vaciado y `abrir`, para que no puedan diferir. Puede lanzar `OSError`."""
+    if not (entrada.name.isascii() and entrada.name.isdigit()):
+        return False
+    if entrada.is_symlink() or not entrada.is_dir():
+        return False
+    return entrada.lstat().st_uid == os.getuid()
+
+
 def vaciar_residuos(carpeta: Path) -> None:
     """Quita de `carpeta` SOLO lo que crea el anillo: las subcarpetas de primer nivel cuyo nombre
     es todo dígitos (`<video_id>`), propias y que no sean enlaces, con todo lo que tengan adentro.
@@ -116,10 +128,7 @@ def vaciar_residuos(carpeta: Path) -> None:
     ajenas = False
     for entrada in entradas:
         try:
-            propia = entrada.name.isascii() and entrada.name.isdigit()
-            propia = propia and not entrada.is_symlink() and entrada.is_dir()
-            propia = propia and entrada.lstat().st_uid == os.getuid()
-            if propia:
+            if _es_subcarpeta_del_anillo(entrada):
                 shutil.rmtree(entrada)
             else:
                 ajenas = True
@@ -176,6 +185,7 @@ class VistaDeVideo:
         self._escritos: deque[Path] = deque()
         self._ultimas: list[Deteccion] = []  # las del último cuadro analizado
         self._avisado = False
+        self._aviso_poda = False
 
     # ── Lo que llama el muestreador (cuadros saltados) ───────────────────────────────────
 
@@ -216,7 +226,8 @@ class VistaDeVideo:
                 f.write(datos)
             os.replace(temporal, destino)
         except Exception as e:
-            temporal.unlink(missing_ok=True)
+            with suppress(OSError):  # la limpieza del temporal tampoco detiene el análisis
+                temporal.unlink(missing_ok=True)
             if not self._avisado:  # a 25 cuadros por segundo, un aviso por intento basta
                 self._avisado = True
                 _decir("no se pudo escribir la vista en vivo", e)
@@ -225,9 +236,15 @@ class VistaDeVideo:
         self._escritos.append(destino)
         while len(self._escritos) > self._maximo:
             try:
-                self._escritos.popleft().unlink(missing_ok=True)
+                self._escritos[0].unlink(missing_ok=True)
             except OSError as e:
-                _decir("no se pudo podar la vista en vivo", e)
+                # Sigue en seguimiento: la poda siguiente lo reintenta y no queda un JPEG
+                # huérfano sobre el tope.
+                if not self._aviso_poda:
+                    self._aviso_poda = True
+                    _decir("no se pudo podar la vista en vivo", e)
+                break
+            self._escritos.popleft()
 
     def cerrar(self) -> None:
         """Al terminar el intento, pase lo que pase: la subcarpeta entera. Nunca lanza."""
@@ -246,11 +263,25 @@ class EscritorVivo:
             raise ValueError(f"fps de la vista debe ser positivo, no {fps!r}")
         self._carpeta = carpeta
         self._fps = fps
-        self._preparar()
+        self._lista = False
+        self._intentar_preparar()
 
     @property
     def carpeta(self) -> Path:
         return self._carpeta
+
+    def _intentar_preparar(self) -> bool:
+        """Prepara la carpeta raíz. Un fallo del disco (sin espacio, sin permiso) apaga la vista y
+        avisa: nunca tumba al trabajador. Una carpeta que no es propia sigue siendo un error de
+        configuración y se lanza."""
+        try:
+            self._preparar()
+        except OSError as e:
+            _decir("no se pudo preparar la vista en vivo", e)
+            self._lista = False
+        else:
+            self._lista = True
+        return self._lista
 
     def _preparar(self) -> None:
         self._carpeta.mkdir(mode=0o700, parents=True, exist_ok=True)
@@ -275,9 +306,21 @@ class EscritorVivo:
         subcarpeta: Path | None = self._carpeta / str(int(video_id))
         try:
             assert subcarpeta is not None
-            _quitar(subcarpeta)  # lo que dejó un intento anterior de este video
-            subcarpeta.mkdir(mode=0o700)
-            subcarpeta.chmod(0o700)
+            if not self._lista and not self._intentar_preparar():
+                subcarpeta = None  # la raíz sigue sin poder prepararse (ya se avisó)
+            elif os.path.lexists(subcarpeta):
+                if not _es_subcarpeta_del_anillo(subcarpeta):
+                    # Algo ajeno con el nombre de este video: no se borra, no hay vista.
+                    _decir(
+                        "no se abre la vista de este video",
+                        ValueError(f"{subcarpeta} no es del anillo"),
+                    )
+                    subcarpeta = None
+                else:
+                    shutil.rmtree(subcarpeta)  # lo que dejó un intento anterior de este video
+            if subcarpeta is not None:
+                subcarpeta.mkdir(mode=0o700)
+                subcarpeta.chmod(0o700)
         except OSError as e:
             _decir("no se pudo preparar la vista en vivo", e)
             subcarpeta = None
