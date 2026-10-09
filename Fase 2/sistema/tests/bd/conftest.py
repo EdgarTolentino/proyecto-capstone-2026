@@ -28,6 +28,7 @@ TABLAS = (
     "fuente",
     "hallazgo",
     "notificacion",
+    "pedido_ingesta",
     "regla",
     "usuario",
     "video",

@@ -63,6 +63,7 @@ TIPOS_NOTIFICACION = ("inmediata", "resumen_turno", "escalamiento")
 CANALES_NOTIFICACION = ("correo", "telegram", "whatsapp", "webhook")
 ESTADOS_NOTIFICACION = ("pendiente", "enviada", "fallida", "acusada")
 ROLES = ("administrador", "prevencionista", "supervisor", "auditor")
+ESTADOS_PEDIDO = ("pendiente", "tomado", "registrado", "rechazado")
 
 
 def en(columna: str, valores: tuple[str, ...]) -> str:
@@ -382,3 +383,39 @@ class Auditoria(Base):
     motivo: Mapped[str | None] = mapped_column(Text)
     ip: Mapped[str | None] = mapped_column(INET)
     ts: Mapped[datetime] = mapped_column(TSTZ, server_default=func.now())
+
+
+class PedidoIngesta(Base):
+    """Un archivo de la carpeta de entrada que alguien pidió procesar desde la web.
+
+    La API lo crea `pendiente` y el trabajador lo toma, lo valida, calcula el hash, crea la
+    fila `video` y lo cierra (`registrado` o `rechazado`). La API no habla con Redis. Un
+    archivo tiene a lo sumo un pedido abierto (`pendiente` o `tomado`); uno `rechazado` no
+    impide volver a pedirlo.
+    """
+
+    __tablename__ = "pedido_ingesta"
+    __table_args__ = (
+        CheckConstraint(en("estado", ESTADOS_PEDIDO), name="estado"),
+        Index(
+            "uq_pedido_ingesta_archivo_abierto",
+            "archivo",
+            unique=True,
+            postgresql_where=text("estado IN ('pendiente','tomado')"),
+        ),
+    )
+
+    id: Mapped[int] = mapped_column(BigInteger, primary_key=True)
+    #: Solo el nombre, nunca la ruta del servidor.
+    archivo: Mapped[str] = mapped_column(Text)
+    fuente_id: Mapped[int] = mapped_column(ForeignKey("fuente.id"))
+    usuario_id: Mapped[int | None] = mapped_column(ForeignKey("usuario.id"))
+    estado: Mapped[str] = mapped_column(Text, server_default="pendiente")
+    #: Por qué se rechazó. Sin rutas del servidor.
+    motivo: Mapped[str | None] = mapped_column(Text)
+    video_id: Mapped[int | None] = mapped_column(ForeignKey("video.id", ondelete="SET NULL"))
+    #: Tamaño y mtime que vio el trabajador al tomarlo (detectan un archivo que cambia).
+    bytes: Mapped[int | None] = mapped_column(BigInteger)
+    mtime_ns: Mapped[int | None] = mapped_column(BigInteger)
+    creado_en: Mapped[datetime] = mapped_column(TSTZ, server_default=func.now())
+    actualizado_en: Mapped[datetime] = mapped_column(TSTZ, server_default=func.now())

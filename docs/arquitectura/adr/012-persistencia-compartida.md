@@ -46,3 +46,12 @@ Reglas:
   Actions para las pruebas marcadas `integration`.
 - El recálculo sin GPU (ADR-004) queda en `gepp-api/servicios/recalculo.py`: lee `deteccion` a
   través de `gepp-bd` y usa el agregador de `gepp-core`, el mismo código que corre el trabajador.
+
+## Anotación 2026-10-08 — `pedido_ingesta`
+
+La API escribe una tabla más: `pedido_ingesta`, el pedido de procesar un archivo de la carpeta
+de entrada desde la web. El trabajador la lee, valida el archivo, calcula el hash, crea la fila
+`video` y cierra el pedido (`registrado` o `rechazado`). Es el mismo camino que el reintento de
+un video (`pedir_reintento`): la API deja constancia en la base y **no habla con Redis**; quien
+encola es el trabajador. Un índice único parcial impide dos pedidos abiertos del mismo archivo.
+El repositorio es `gepp_bd.repositorios.pedidos`; las reglas del ADR siguen igual.
