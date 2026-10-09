@@ -524,3 +524,102 @@ it("si los pedidos no se pueden cargar lo avisa sin tapar la tabla y permite rei
   expect(await screen.findByText("Pedido pendiente")).toBeVisible();
   expect(screen.queryByText(/No fue posible cargar los pedidos/)).not.toBeInTheDocument();
 });
+
+// --- correcciones de la revisión ---------------------------------------------------------------
+
+it("si la primera respuesta de los pedidos ya trae uno registrado que la tabla no tiene, la tabla se pone al día", async () => {
+  vi.mocked(api.listarVideos)
+    .mockResolvedValueOnce({ items: [] })
+    .mockResolvedValue({ items: [{ ...video(9, "CAM-03_08-00.mp4"), estado: "listo" }] });
+  vi.mocked(api.listarPedidos).mockResolvedValue({ items: [pedido("registrado", { video_id: 9 })] });
+  renderizar();
+
+  expect(await screen.findByText("Registrado")).toBeVisible();
+  const tabla = await screen.findByRole("table", { name: "Cola de videos" });
+  expect(within(tabla).getByText("CAM-03_08-00.mp4")).toBeVisible();
+  expect(screen.queryByText("No hay videos en la cola.")).not.toBeInTheDocument();
+});
+
+it("un pedido registrado que la tabla nunca muestra no hace pedir la tabla una y otra vez", async () => {
+  vi.mocked(api.listarVideos).mockResolvedValue({ items: [] });
+  let n = 0;
+  vi.mocked(api.listarPedidos).mockImplementation(async () => ({
+    items: [pedido("registrado", { video_id: 9, creado_en: `2026-10-08T10:00:0${++n % 10}Z` })],
+  }));
+  const client = renderizar();
+  await screen.findByText("Registrado");
+  await screen.findByText("No hay videos en la cola.");
+
+  for (let i = 0; i < 3; i += 1) await client.invalidateQueries({ queryKey: ["videos-pedidos"] });
+  await new Promise((resolve) => setTimeout(resolve, 50));
+
+  expect(vi.mocked(api.listarPedidos).mock.calls.length).toBeGreaterThanOrEqual(4);
+  expect(vi.mocked(api.listarVideos).mock.calls.length).toBeLessThanOrEqual(2);
+});
+
+it("la respuesta de un pedido anterior no cierra ni toca el diálogo de una apertura nueva", async () => {
+  preparar();
+  let resolver!: (p: Pedido) => void;
+  vi.mocked(api.pedirIngesta).mockImplementation(() => new Promise((resolve) => { resolver = resolve; }));
+  renderizar();
+  const primero = await abrir();
+  await elegir(primero.dialogo);
+  fireEvent.click(within(primero.dialogo).getByRole("button", { name: "Procesar" }));
+  await within(primero.dialogo).findByRole("button", { name: "Enviando…" });
+  fireEvent.click(within(primero.dialogo).getByRole("button", { name: "Cancelar" }));
+  await waitFor(() => expect(screen.queryByRole("dialog")).not.toBeInTheDocument());
+
+  const { dialogo } = await abrir();
+  await elegir(dialogo, "CAM-03_09-00.mp4", "4");
+  resolver(pedido("pendiente"));
+
+  await screen.findByText(/El archivo CAM-03_08-00\.mp4 quedó pedido/);
+  expect(screen.getByRole("dialog", { name: "Procesar video" })).toBeVisible();
+  expect(within(dialogo).getByRole("radio", { name: /CAM-03_09-00/ })).toBeChecked();
+  expect(within(dialogo).getByRole("combobox", { name: "Cámara" })).toHaveValue("4");
+});
+
+it("el fallo de un pedido anterior no aparece dentro del diálogo de una apertura nueva", async () => {
+  preparar();
+  let rechazar!: (e: unknown) => void;
+  vi.mocked(api.pedirIngesta).mockImplementation(() => new Promise((_resolve, reject) => { rechazar = reject; }));
+  renderizar();
+  const primero = await abrir();
+  await elegir(primero.dialogo);
+  fireEvent.click(within(primero.dialogo).getByRole("button", { name: "Procesar" }));
+  await within(primero.dialogo).findByRole("button", { name: "Enviando…" });
+  fireEvent.click(within(primero.dialogo).getByRole("button", { name: "Cancelar" }));
+  await waitFor(() => expect(screen.queryByRole("dialog")).not.toBeInTheDocument());
+
+  const { dialogo } = await abrir();
+  rechazar(new api.ApiError("x", 409, "pedido_existente"));
+
+  const region = document.querySelector(".video-message");
+  await waitFor(() => expect(region).toHaveTextContent("El archivo CAM-03_08-00.mp4 ya tiene un pedido en curso."));
+  expect(within(dialogo).queryByRole("alert")).not.toBeInTheDocument();
+});
+
+it("Shift+Tab nada más abrir el diálogo no deja escapar el foco", async () => {
+  preparar();
+  renderizar();
+  const { dialogo } = await abrir();
+  await within(dialogo).findByRole("radio", { name: /CAM-03_08-00/ });
+  expect(document.activeElement).toBe(dialogo);
+
+  const seguiaElEvento = fireEvent.keyDown(document.activeElement as Element, { key: "Tab", shiftKey: true });
+
+  expect(seguiaElEvento).toBe(false); // el diálogo tomó el Tab y evitó el salto del navegador
+  expect(dialogo.contains(document.activeElement)).toBe(true);
+  expect(document.activeElement).not.toBe(dialogo);
+});
+
+it.each([401, 403])("un %d al leer los pedidos dice que no hay permiso y no ofrece reintentar", async (status) => {
+  vi.mocked(api.listarVideos).mockResolvedValue({ items: [{ ...video(1, "a.mp4"), estado: "listo" }] });
+  vi.mocked(api.listarPedidos).mockRejectedValue(new api.ApiError("x", status));
+  renderizar();
+
+  expect(await screen.findByText("No tienes permiso para ver los pedidos de procesamiento.")).toBeVisible();
+  expect(screen.queryByText(/No fue posible cargar los pedidos/)).not.toBeInTheDocument();
+  expect(screen.queryByRole("button", { name: "Reintentar" })).not.toBeInTheDocument();
+  expect(screen.getByRole("table", { name: "Cola de videos" })).toBeVisible();
+});

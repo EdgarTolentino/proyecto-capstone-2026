@@ -1,6 +1,6 @@
 import { useInfiniteQuery, useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { AlertTriangle, LoaderCircle, Plus, RotateCcw } from "lucide-react";
-import { useEffect, useRef, useState } from "react";
+import { useEffect, useMemo, useRef, useState } from "react";
 
 import { ApiError, listarPedidos, listarVideos, pedirIngesta, reprocesarVideo } from "../api/client";
 import type { Catalogos, EstadoPedido, Pedido, PedidoNuevo, Video } from "../api/types";
@@ -84,10 +84,12 @@ export function VideosPage({ puedeEditarReglas = false, catalogos, catalogosErro
   const [dialogoAbierto, setDialogoAbierto] = useState(false);
   const [errorDialogo, setErrorDialogo] = useState("");
   // El pedido sigue en vuelo aunque se cierre el diálogo: el resultado se anuncia donde esté la persona.
-  const dialogoAbiertoRef = useRef(false);
+  // Cada apertura del diálogo tiene un número; una respuesta solo toca el diálogo de su propia apertura.
+  const [apertura, setApertura] = useState(0);
+  const aperturaVigente = useRef<number | null>(null);
   useEffect(() => {
-    dialogoAbiertoRef.current = dialogoAbierto;
-  }, [dialogoAbierto]);
+    aperturaVigente.current = dialogoAbierto ? apertura : null;
+  }, [dialogoAbierto, apertura]);
   const pedidos = useQuery({
     queryKey: ["videos-pedidos"],
     queryFn: listarPedidos,
@@ -106,19 +108,19 @@ export function VideosPage({ puedeEditarReglas = false, catalogos, catalogosErro
     estadosVistos.current = new Map(items.map((p) => [p.id, p.estado]));
   }, [pedidos.data, queryClient]);
   const pedido = useMutation({
-    mutationFn: (peticion: PedidoNuevo) => pedirIngesta(peticion),
+    mutationFn: ({ peticion }: { peticion: PedidoNuevo; apertura: number }) => pedirIngesta(peticion),
     onMutate: () => {
       setMensaje("");
       setErrorDialogo("");
     },
-    onSuccess: async (resultado) => {
-      setDialogoAbierto(false);
+    onSuccess: async (resultado, enviado) => {
+      if (aperturaVigente.current === enviado.apertura) setDialogoAbierto(false);
       setMensaje(`El archivo ${resultado.archivo} quedó pedido; se registrará cuando el trabajador lo tome.`);
       await queryClient.invalidateQueries({ queryKey: ["videos-pedidos"] });
     },
-    onError: (error, peticion) => {
+    onError: (error, { peticion, apertura: deEsteEnvio }) => {
       const texto = mensajeDePedido(error, peticion.archivo);
-      if (dialogoAbiertoRef.current) setErrorDialogo(texto);
+      if (aperturaVigente.current === deEsteEnvio) setErrorDialogo(texto);
       else setMensaje(texto);
       if (pedidoDejoListaVieja(error)) {
         void queryClient.invalidateQueries({ queryKey: ["videos-entrada"] });
@@ -128,6 +130,7 @@ export function VideosPage({ puedeEditarReglas = false, catalogos, catalogosErro
   });
   const abrirDialogo = () => {
     setErrorDialogo("");
+    setApertura((n) => n + 1);
     setDialogoAbierto(true);
   };
   const consulta = useInfiniteQuery({
@@ -141,11 +144,28 @@ export function VideosPage({ puedeEditarReglas = false, catalogos, catalogosErro
     // Si un refresco falla, se deja de insistir hasta que la persona reintente.
     refetchInterval: (query) => (query.state.status === "error" ? false : intervaloDeRefresco(query.state.data?.pages)),
   });
-  const videosPorId = new Map<number, Video>();
-  for (const pagina of consulta.data?.pages ?? []) {
-    for (const video of pagina.items) videosPorId.set(video.id, video);
-  }
+  const paginas = consulta.data?.pages;
+  const videosPorId = useMemo(() => {
+    const porId = new Map<number, Video>();
+    for (const pagina of paginas ?? []) {
+      for (const video of pagina.items) porId.set(video.id, video);
+    }
+    return porId;
+  }, [paginas]);
   const videos = [...videosPorId.values()];
+  // Un pedido registrado cuyo video la tabla no tiene (p. ej. la primera respuesta ya llegó registrada
+  // y la tabla se pidió antes): se pide la tabla una sola vez por pedido, aunque el video nunca aparezca.
+  const pedidosPuestosAlDia = useRef<Set<number>>(new Set());
+  useEffect(() => {
+    const items = pedidos.data?.items;
+    if (!items || !consulta.isSuccess) return;
+    const faltan = items.filter(
+      (p) => p.estado === "registrado" && p.video_id != null && !videosPorId.has(p.video_id) && !pedidosPuestosAlDia.current.has(p.id),
+    );
+    if (faltan.length === 0) return;
+    for (const p of faltan) pedidosPuestosAlDia.current.add(p.id);
+    void queryClient.invalidateQueries({ queryKey: ["videos"] });
+  }, [pedidos.data, videosPorId, consulta.isSuccess, queryClient]);
   const errorPrincipal = consulta.isLoadingError;
   const reproceso = useMutation({
     mutationFn: (video: Video) => reprocesarVideo(video.id),
@@ -188,7 +208,10 @@ export function VideosPage({ puedeEditarReglas = false, catalogos, catalogosErro
         </div>
       </div>
 
-      {puedeEditarReglas && pedidos.isError && (
+      {puedeEditarReglas && pedidos.isError && esSinPermiso(pedidos.error) && (
+        <div className="state-message" role="status">No tienes permiso para ver los pedidos de procesamiento.</div>
+      )}
+      {puedeEditarReglas && pedidos.isError && !esSinPermiso(pedidos.error) && (
         <div className="state-message" role="status">
           No fue posible cargar los pedidos de procesamiento.
           <button type="button" onClick={() => void pedidos.refetch()}>Reintentar</button>
@@ -283,10 +306,10 @@ export function VideosPage({ puedeEditarReglas = false, catalogos, catalogosErro
         <ProcesarVideoDialog
           fuentes={fuentesElegibles(catalogos)}
           fuentesError={catalogosError}
-          enviando={pedido.isPending}
+          enviando={pedido.isPending && pedido.variables?.apertura === apertura}
           error={errorDialogo}
           onCancel={() => setDialogoAbierto(false)}
-          onConfirm={(peticion) => pedido.mutate(peticion)}
+          onConfirm={(peticion) => pedido.mutate({ peticion, apertura })}
         />
       )}
     </main>
