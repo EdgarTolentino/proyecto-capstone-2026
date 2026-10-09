@@ -44,3 +44,10 @@ reglas: ocurrencia, ausencia, persistencia, cruce de línea, conteo, intersecci�
 Se adopta **MediaMTX** desde la S6 para probar la ruta RTSP con los mismos videos del dataset. Y
 se cita a Frigate en el informe como referencia de diseño: reconocer de dónde viene una buena idea
 es más sólido que fingir que se inventó.
+
+## Actualización — 2026-10-08
+
+Los pedidos de procesar un video desde la web (`pedido_ingesta`, ADR-012) los atiende **un solo
+trabajador**, asegurado con `pg_try_advisory_lock`; si otro proceso tiene el candado, este sigue
+con la cola de Redis pero no atiende pedidos. La base manda sobre Redis: la fila `video` se crea
+antes de encolar, y `procesar` usa la ruta y la cámara de esa fila.

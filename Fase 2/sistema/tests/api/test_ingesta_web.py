@@ -367,6 +367,22 @@ def test_los_pedidos_van_del_mas_nuevo_al_mas_viejo_con_la_camara_y_el_motivo(
     _sin_rutas(r, str(tmp_path))
 
 
+def test_el_motivo_de_un_pedido_se_muestra_sin_rutas(
+    web: Cliente, entrada: Path, bd: Engine, tmp_path: Path
+) -> None:
+    # Un motivo escrito por otra vía (o antes del saneo del trabajador) no sale con rutas.
+    _video(entrada, "a.mp4")
+    a = _pedir(web, "a.mp4", 1)
+    with Session(bd) as s, s.begin():
+        tomado = pedidos.tomar_siguiente(s)
+        assert tomado is not None and tomado.id == a["id"]
+        motivo = f"no se pudo leer: {entrada / 'a.mp4'} (copia en /srv/respaldo/a.mp4)"
+        assert pedidos.rechazar(s, tomado.id, motivo)
+    r = web.llamar("listarPedidos", "GET", "/videos/pedidos", headers=ADMIN)
+    assert r["items"][0]["motivo"] == "no se pudo leer: a.mp4 (copia en a.mp4)"
+    _sin_rutas(r, str(tmp_path))
+
+
 def test_los_pedidos_se_listan_sin_carpeta_de_entrada(sin_carpeta: Cliente) -> None:
     """Solo lee la base: no depende de la carpeta."""
     assert sin_carpeta.llamar("listarPedidos", "GET", "/videos/pedidos", headers=ADMIN) == {

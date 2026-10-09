@@ -19,6 +19,7 @@ la API (PT-09) no exponga `GET /videos`.
 from __future__ import annotations
 
 import builtins
+import contextlib
 import json
 from dataclasses import asdict, dataclass, replace
 from enum import StrEnum
@@ -94,8 +95,16 @@ class ColaTrabajos:
         clave = self._clave(trabajo.hash_sha256)
         if not self._r.hsetnx(clave, "estado", EstadoTrabajo.PENDIENTE.value):
             return False
-        self._r.hset(clave, mapping={"ruta": trabajo.ruta, "intentos": trabajo.intentos})
-        self._r.lpush(self._pendientes, trabajo.a_json())
+        try:
+            self._r.hset(clave, mapping={"ruta": trabajo.ruta, "intentos": trabajo.intentos})
+            self._r.lpush(self._pendientes, trabajo.a_json())
+        except Exception:
+            # Entre el estado y la lista Redis cayó: un hash `pendiente` que no está en la lista
+            # haría que `reencolar_pedidos` lo creyera en marcha y el video quedara detenido. Se
+            # deshace el estado (mejor esfuerzo) y se deja subir el error.
+            with contextlib.suppress(Exception):
+                self._r.delete(clave)
+            raise
         return True
 
     def reencolar(self, trabajo: Trabajo) -> None:

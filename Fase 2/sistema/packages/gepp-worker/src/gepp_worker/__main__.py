@@ -7,6 +7,9 @@ Configuración desde el entorno (ver `.env.example`):
 
     GEPP_BD_URL · GEPP_REDIS_URL · GEPP_CARPETA_VIGILADA · GEPP_CARPETA_EVIDENCIA
     GEPP_FPS_OBJETIVO · GEPP_FUENTE_ID (fuente a la que pertenece la carpeta, 1 por defecto)
+    GEPP_CARPETA_ENTRADA   opcional: carpeta de los videos que se piden desde la web. Sin ella el
+                           trabajador no atiende pedidos. Debe existir, no estar bajo /mnt/ ni
+                           coincidir o anidarse con GEPP_CARPETA_VIGILADA
     GEPP_GUION_FALSO   ruta a un guion JSON: usa el detector falso (demostración sin modelo)
     GEPP_MODELO_RUTA   si no hay guion: RF-DETR exportado a ONNX, con su `.clases.json` al lado
     GEPP_UMBRAL_CONFIANZA  corte del detector ONNX (0.25 por defecto; ver `rfdetr_comun`)
@@ -85,18 +88,33 @@ def _fabrica_detector() -> Callable[[], Detector]:
     return lambda: detector
 
 
+def _carpeta_entrada() -> Path | None:
+    """La carpeta de los pedidos desde la web, validada; None si no está configurada."""
+    from gepp_worker.pedidos import validar_carpeta_entrada
+
+    texto = os.environ.get("GEPP_CARPETA_ENTRADA")
+    if not texto:
+        return None
+    try:
+        return validar_carpeta_entrada(texto, os.environ["GEPP_CARPETA_VIGILADA"])
+    except ValueError as e:
+        sys.exit(str(e))
+
+
 def correr_trabajador() -> None:
     from gepp_bd.sesion import crear_motor
 
     from gepp_worker.muestreo import fps_objetivo_configurado
     from gepp_worker.trabajador import Aviso, Configuracion, Trabajador
 
+    carpeta_entrada = _carpeta_entrada()  # antes del modelo: un error de carpeta se ve primero
     fabrica_detector = _fabrica_detector()
     canal, destino = os.environ.get("GEPP_AVISO_CANAL"), os.environ.get("GEPP_AVISO_DESTINATARIO")
     config = Configuracion(
         carpeta_evidencia=Path(os.environ.get("GEPP_CARPETA_EVIDENCIA", "/datos/evidencia")),
         fps_objetivo=fps_objetivo_configurado(),
         aviso=Aviso(canal, destino) if canal and destino else None,
+        carpeta_entrada=carpeta_entrada,
     )
     parar = _detenible()
     trabajador = Trabajador(crear_motor(), _cola(), fabrica_detector, config)
