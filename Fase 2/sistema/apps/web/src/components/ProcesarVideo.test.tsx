@@ -52,7 +52,7 @@ function renderizar(
   const client = new QueryClient({ defaultOptions: { queries: { retry: false } } });
   render(
     <QueryClientProvider client={client}>
-      <VideosPage puedeEditarReglas={puede} catalogos={catalogos ?? undefined} catalogosError={catalogosError} />
+      <VideosPage puedeProcesar={puede} catalogos={catalogos ?? undefined} catalogosError={catalogosError} />
     </QueryClientProvider>,
   );
   return client;
@@ -78,7 +78,7 @@ async function elegir(dialogo: HTMLElement, archivo = "CAM-03_08-00.mp4", camara
 
 // --- permiso y apertura ----------------------------------------------------------------------
 
-it("sin el permiso editar_reglas no hay botón, ni panel, ni se piden los pedidos", async () => {
+it("sin el permiso procesar_videos no hay botón, ni panel, ni se piden los pedidos", async () => {
   preparar();
   renderizar({ puede: false });
 

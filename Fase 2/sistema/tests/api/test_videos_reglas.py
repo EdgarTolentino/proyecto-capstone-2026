@@ -17,7 +17,9 @@ ADMIN = {"Authorization": "Bearer admin"}
 @pytest.fixture(autouse=True)
 def _tokens(monkeypatch: pytest.MonkeyPatch) -> None:
     monkeypatch.setenv(
-        "GEPP_API_TOKENS", "demo=prevencionista@obra.invalid,admin=administrador@obra.invalid"
+        "GEPP_API_TOKENS",
+        "demo=prevencionista@obra.invalid,admin=administrador@obra.invalid,"
+        "aud=auditor@obra.invalid",
     )
 
 
@@ -119,7 +121,12 @@ def test_la_auditoria_del_reintento_tampoco_guarda_la_ruta(api: Cliente, bd: Any
 
 
 def test_reprocesar_exige_permiso_y_video_listo(api: Cliente) -> None:
-    api.llamar("reprocesarVideo", "POST", "/videos/1/reprocesar", esperado=403)
+    auditor = {"Authorization": "Bearer aud"}  # sin `procesar_videos`
+    api.llamar("reprocesarVideo", "POST", "/videos/1/reprocesar", headers=auditor, esperado=403)
+    prevencionista = {"Authorization": "Bearer demo"}  # con `procesar_videos`
+    api.llamar(
+        "reprocesarVideo", "POST", "/videos/99/reprocesar", headers=prevencionista, esperado=404
+    )
     api.llamar("reprocesarVideo", "POST", "/videos/99/reprocesar", headers=ADMIN, esperado=404)
 
 

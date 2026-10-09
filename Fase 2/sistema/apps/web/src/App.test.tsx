@@ -231,9 +231,9 @@ it("abre la cola de videos desde la navegación y consulta listarVideos", async 
   expect(api.reprocesarVideo).not.toHaveBeenCalled();
 });
 
-it("con el permiso editar_reglas, la cola ofrece reprocesar", async () => {
+it("con el permiso procesar_videos, la cola ofrece reprocesar", async () => {
   window.history.replaceState({}, "", "/videos");
-  vi.mocked(api.obtenerSesion).mockResolvedValueOnce({ permisos: ["ver_hallazgos", "editar_reglas"] } as Awaited<ReturnType<typeof api.obtenerSesion>>);
+  vi.mocked(api.obtenerSesion).mockResolvedValueOnce({ permisos: ["ver_hallazgos", "editar_reglas", "procesar_videos"] } as Awaited<ReturnType<typeof api.obtenerSesion>>);
   vi.mocked(api.listarVideos).mockResolvedValueOnce({
     items: [{ id: 22, archivo: "video.mp4", capture_ts_inicio: "2026-10-02T08:00:00Z", estado: "listo" }],
   });
@@ -243,9 +243,9 @@ it("con el permiso editar_reglas, la cola ofrece reprocesar", async () => {
   expect(await screen.findByRole("button", { name: "Reprocesar video.mp4" })).toBeVisible();
 });
 
-it("con editar_reglas, «Procesar video» ofrece las cámaras de los catálogos de la aplicación", async () => {
+it("con procesar_videos, «Procesar video» ofrece las cámaras de los catálogos de la aplicación", async () => {
   window.history.replaceState({}, "", "/videos");
-  vi.mocked(api.obtenerSesion).mockResolvedValueOnce({ permisos: ["ver_hallazgos", "editar_reglas"] } as Awaited<ReturnType<typeof api.obtenerSesion>>);
+  vi.mocked(api.obtenerSesion).mockResolvedValueOnce({ permisos: ["ver_hallazgos", "editar_reglas", "procesar_videos"] } as Awaited<ReturnType<typeof api.obtenerSesion>>);
   vi.mocked(api.obtenerCatalogos).mockResolvedValueOnce({ fuentes: [{ id: 3, nombre: "CAM-03" }] } as Awaited<ReturnType<typeof api.obtenerCatalogos>>);
   const client = new QueryClient({ defaultOptions: { queries: { retry: false, staleTime: Infinity } } });
   render(<QueryClientProvider client={client}><App /></QueryClientProvider>);
@@ -259,7 +259,7 @@ it("con editar_reglas, «Procesar video» ofrece las cámaras de los catálogos 
 
 it("si los catálogos fallan, el diálogo de procesar lo dice", async () => {
   window.history.replaceState({}, "", "/videos");
-  vi.mocked(api.obtenerSesion).mockResolvedValueOnce({ permisos: ["ver_hallazgos", "editar_reglas"] } as Awaited<ReturnType<typeof api.obtenerSesion>>);
+  vi.mocked(api.obtenerSesion).mockResolvedValueOnce({ permisos: ["ver_hallazgos", "editar_reglas", "procesar_videos"] } as Awaited<ReturnType<typeof api.obtenerSesion>>);
   vi.mocked(api.obtenerCatalogos).mockRejectedValueOnce(new api.ApiError("fallo", 500));
   const client = new QueryClient({ defaultOptions: { queries: { retry: false, staleTime: Infinity } } });
   render(<QueryClientProvider client={client}><App /></QueryClientProvider>);
@@ -283,9 +283,9 @@ it("un rol con ver_evidencia ve la vista del modelo de un video procesando", asy
   expect(api.obtenerCuadrosVivo).toHaveBeenCalledWith(22, 0, expect.any(AbortSignal));
 });
 
-it("el administrador (editar_reglas, sin ver_evidencia) no ve la vista del modelo", async () => {
+it("el administrador (procesar_videos, sin ver_evidencia) no ve la vista del modelo", async () => {
   window.history.replaceState({}, "", "/videos");
-  vi.mocked(api.obtenerSesion).mockResolvedValueOnce({ permisos: ["ver_hallazgos", "editar_reglas"] } as Awaited<ReturnType<typeof api.obtenerSesion>>);
+  vi.mocked(api.obtenerSesion).mockResolvedValueOnce({ permisos: ["ver_hallazgos", "editar_reglas", "procesar_videos"] } as Awaited<ReturnType<typeof api.obtenerSesion>>);
   vi.mocked(api.listarVideos).mockResolvedValue({ items: [procesando] });
   const client = new QueryClient({ defaultOptions: { queries: { retry: false, staleTime: Infinity } } });
   render(<QueryClientProvider client={client}><App /></QueryClientProvider>);
@@ -295,12 +295,25 @@ it("el administrador (editar_reglas, sin ver_evidencia) no ve la vista del model
   expect(api.obtenerCuadrosVivo).not.toHaveBeenCalled();
 });
 
-it("un prevencionista (sin editar_reglas) no ve «Procesar video»", async () => {
+it("un supervisor (sin procesar_videos) no ve «Procesar video»", async () => {
   window.history.replaceState({}, "", "/videos");
+  vi.mocked(api.obtenerSesion).mockResolvedValueOnce({ permisos: ["ver_hallazgos", "triar_hallazgos", "ver_evidencia", "asignar_acciones"] } as Awaited<ReturnType<typeof api.obtenerSesion>>);
   const client = new QueryClient({ defaultOptions: { queries: { retry: false, staleTime: Infinity } } });
   render(<QueryClientProvider client={client}><App /></QueryClientProvider>);
 
   await screen.findByRole("heading", { name: "Cola de videos" });
   expect(screen.queryByRole("button", { name: "Procesar video" })).not.toBeInTheDocument();
   expect(api.listarPedidos).not.toHaveBeenCalled();
+});
+
+it("el prevencionista procesa y mira la vista del modelo en la misma página", async () => {
+  window.history.replaceState({}, "", "/videos");
+  vi.mocked(api.obtenerSesion).mockResolvedValueOnce({ permisos: ["ver_hallazgos", "triar_hallazgos", "ver_evidencia", "procesar_videos", "ver_reportes", "asignar_acciones"] } as Awaited<ReturnType<typeof api.obtenerSesion>>);
+  vi.mocked(api.listarVideos).mockResolvedValue({ items: [procesando] });
+  vi.mocked(api.obtenerCuadrosVivo).mockRejectedValue(new api.ApiError("sin cuadro", 404));
+  const client = new QueryClient({ defaultOptions: { queries: { retry: false, staleTime: Infinity } } });
+  render(<QueryClientProvider client={client}><App /></QueryClientProvider>);
+
+  expect(await screen.findByRole("button", { name: "Procesar video" })).toBeVisible();
+  expect(await screen.findByRole("region", { name: "Vista del modelo de video.mp4" })).toBeVisible();
 });

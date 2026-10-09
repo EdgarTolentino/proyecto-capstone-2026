@@ -338,12 +338,18 @@ CREATE RULE auditoria_no_delete AS ON DELETE TO auditoria DO INSTEAD NOTHING;
 
 ## Roles y qué ve cada uno
 
-| Rol | Hallazgos | Evidencia | Reglas | Auditoría |
-|---|---|---|---|---|
-| **Administrador** | Todos | ❌ sin acceso | Crear y editar | Leer |
-| **Prevencionista** | Todos | Anonimizada | Leer | — |
-| **Supervisor de área** | Solo su área | Anonimizada | Leer | — |
-| **Auditor** | Todos, solo lectura | Anonimizada | Leer | Leer |
+| Rol | Hallazgos | Evidencia | Vista en vivo | Procesar videos | Reglas | Auditoría |
+|---|---|---|---|---|---|---|
+| **Administrador** | Todos | ❌ sin acceso | ❌ | ✅ | Crear y editar | Leer |
+| **Prevencionista** | Todos | Anonimizada | ✅ | ✅ | Leer | — |
+| **Supervisor de área** | Solo su área | Anonimizada | Solo su área | ❌ | Leer | — |
+| **Auditor** | Todos, solo lectura | Anonimizada | ✅ | ❌ | Leer | Leer |
+
+«Procesar videos» (permiso `procesar_videos`) es ver la carpeta de entrada, pedir que se procese
+un video de ella, ver la lista de pedidos y reprocesar un video: uno con error vuelve a la cola, y
+uno listo recalcula sus hallazgos con las reglas vigentes. Lo tiene también el prevencionista desde el 2026-10-09
+(decisión de Edgar Tolentino), para procesar y mirar la vista en vivo en la misma web. La vista
+en vivo muestra el cuadro **sin** anonimizar: es la excepción de ADR-006 (nota del 2026-10-09).
 
 Que el administrador **no** vea la evidencia no es un descuido: es lo que separa "quien configura"
 de "quien observa", y es la traducción a esquema de la exigencia de que el control sea general e

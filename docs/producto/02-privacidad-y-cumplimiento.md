@@ -115,7 +115,7 @@ incumplimiento, ese hallazgo **sí** es accionable.
 | **Zonas de privacidad** | Polígonos por cámara, aplicados **antes** de la inferencia. |
 | **Minimización** | Solo se guardan recortes de evidencia, nunca cuadros completos "por si acaso". Una sola excepción, acotada: la vista en vivo del procesamiento (ver «Excepción: vista en vivo del procesamiento», más abajo). |
 | **Retención en tres anillos** | Recortes 30 días · hallazgos y detecciones 12 meses · agregados anonimizados, indefinido. Purgado como tarea programada con su propio registro. |
-| **Control de acceso** | Cuatro roles. El administrador configura pero **no** ve evidencia; el supervisor solo ve su área. Ningún rol tiene descarga masiva. |
+| **Control de acceso** | Cuatro roles. El administrador configura pero **no** ve evidencia; el supervisor solo ve su área. El administrador y el prevencionista pueden procesar videos (`procesar_videos`); procesar no da acceso a la evidencia. Ningún rol tiene descarga masiva. |
 | **Registro de auditoría** | Tabla *append-only* con reglas que impiden `UPDATE` y `DELETE`. |
 | **Vista identificada** | Una vista que **asocia una detección con la identidad de una persona** (nombre, RUT, credencial). Si alguna vez se requiere, es un flujo aparte con doble autorización y motivo obligatorio en texto libre. El camino por defecto es el anónimo; el identificado es el caro y trazable. |
 

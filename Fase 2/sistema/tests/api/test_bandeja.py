@@ -319,13 +319,16 @@ def test_el_supervisor_solo_ve_su_area(api: Cliente) -> None:
     assert len(api.llamar("listarHallazgos", "GET", "/hallazgos", headers=SUPERVISOR)["items"]) == 2
     yo = api.llamar("obtenerSesion", "GET", "/yo", headers=SUPERVISOR)
     assert yo["area_id"] == 1 and "editar_reglas" not in yo["permisos"]
+    assert "procesar_videos" not in yo["permisos"]
 
 
 def test_yo_catalogos_y_estado(api: Cliente) -> None:
     yo = api.llamar("obtenerSesion", "GET", "/yo")
     assert "ver_evidencia" in yo["permisos"]
+    assert "procesar_videos" in yo["permisos"]  # el prevencionista procesa y mira en una web
     admin = api.llamar("obtenerSesion", "GET", "/yo", headers=ADMIN)
     assert "ver_evidencia" not in admin["permisos"]  # quien configura no observa
+    assert "procesar_videos" in admin["permisos"]
     cat = api.llamar("obtenerCatalogos", "GET", "/catalogos")
     assert [t["codigo"] for t in cat["turnos"]] == ["A", "B"]
     assert len(cat["fuentes"]) == 2

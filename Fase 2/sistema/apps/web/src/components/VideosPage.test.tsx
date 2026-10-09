@@ -92,10 +92,10 @@ it("no duplica videos ni sigue paginando si la API repite la página y el cursor
   expect(screen.queryByRole("button", { name: "Cargar más videos" })).not.toBeInTheDocument();
 });
 
-function renderizar(puedeEditarReglas = false) {
+function renderizar(puedeProcesar = false) {
   vi.mocked(api.listarPedidos).mockResolvedValue({ items: [] });
   const client = new QueryClient({ defaultOptions: { queries: { retry: false } } });
-  render(<QueryClientProvider client={client}><VideosPage puedeEditarReglas={puedeEditarReglas} /></QueryClientProvider>);
+  render(<QueryClientProvider client={client}><VideosPage puedeProcesar={puedeProcesar} /></QueryClientProvider>);
   return client;
 }
 
@@ -340,7 +340,7 @@ it.each([
   expect(within(cabecera).getByText("Acciones")).toBeInTheDocument();
 });
 
-it("sin el permiso editar_reglas no hay columna Acciones ni botón Reprocesar", async () => {
+it("sin el permiso procesar_videos no hay columna Acciones ni botón Reprocesar", async () => {
   const video = videoDePrueba("listo");
   vi.mocked(api.listarVideos).mockResolvedValue({ items: [video] });
   renderizar(false);
@@ -547,7 +547,7 @@ function renderizarVivo({ editar = false, evidencia = false }: { editar?: boolea
   const client = new QueryClient({ defaultOptions: { queries: { retry: false } } });
   render(
     <QueryClientProvider client={client}>
-      <VideosPage puedeEditarReglas={editar} puedeVerEvidencia={evidencia} />
+      <VideosPage puedeProcesar={editar} puedeVerEvidencia={evidencia} />
     </QueryClientProvider>,
   );
 }
@@ -565,7 +565,7 @@ it("con ver_evidencia, un video procesando muestra la vista del modelo debajo de
   expect(fila.querySelector("td")).toHaveAttribute("colspan", "5");
 });
 
-it("con editar_reglas la fila de la vista ocupa seis columnas", async () => {
+it("con procesar_videos la fila de la vista ocupa seis columnas", async () => {
   vi.mocked(api.listarVideos).mockResolvedValue({ items: [videoProcesando(150)] });
   renderizarVivo({ evidencia: true, editar: true });
 
@@ -582,7 +582,7 @@ it("sin ver_evidencia no aparece la vista del modelo y no se pide ningún cuadro
   expect(api.obtenerCuadrosVivo).not.toHaveBeenCalled();
 });
 
-it("el administrador (editar_reglas sin ver_evidencia) no ve la vista del modelo", async () => {
+it("el administrador (procesar_videos sin ver_evidencia) no ve la vista del modelo", async () => {
   vi.mocked(api.listarVideos).mockResolvedValue({ items: [videoProcesando(150)] });
   renderizarVivo({ editar: true, evidencia: false });
 

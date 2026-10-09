@@ -16,11 +16,18 @@ from gepp_api.errores import ErrorApi, sin_permiso
 #: Quien configura no observa: el administrador NO tiene `ver_evidencia`. No existe ningún
 #: permiso de descarga masiva (ver `01-modelo-de-datos.md`, "Roles y qué ve cada uno").
 PERMISOS: dict[str, tuple[str, ...]] = {
-    "administrador": ("ver_hallazgos", "editar_reglas", "ver_reportes", "ver_auditoria"),
+    "administrador": (
+        "ver_hallazgos",
+        "editar_reglas",
+        "procesar_videos",
+        "ver_reportes",
+        "ver_auditoria",
+    ),
     "prevencionista": (
         "ver_hallazgos",
         "triar_hallazgos",
         "ver_evidencia",
+        "procesar_videos",
         "ver_reportes",
         "asignar_acciones",
     ),
