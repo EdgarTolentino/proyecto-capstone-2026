@@ -271,6 +271,18 @@ def test_la_posicion_se_acota_al_total_y_nunca_es_negativa(bd: Engine, video_id:
     assert leer_avance(bd, video_id)["avance_s"] == 0
 
 
+@pytest.mark.parametrize(
+    ("posicion", "guardado"),
+    [(-0.25, 0.0), (0.0, 0.0), (0.25, 0.25), (9.75, 9.75), (10.0, 10.0), (10.25, 10.0)],
+)
+def test_la_posicion_justo_en_los_topes_y_a_cada_lado(
+    bd: Engine, video_id: int, posicion: float, guardado: float
+) -> None:
+    """Topes 0 y total (10 s): valores diádicos, resultados exactos."""
+    PublicadorDeAvance(bd, video_id, 10.0, reloj=Reloj(), cada_s=0).cuadro(posicion, [])
+    assert leer_avance(bd, video_id)["avance_s"] == guardado
+
+
 def test_la_velocidad_es_video_por_segundo_de_reloj(bd: Engine, video_id: int) -> None:
     reloj = Reloj()
     p = PublicadorDeAvance(bd, video_id, 100.0, reloj=reloj)
