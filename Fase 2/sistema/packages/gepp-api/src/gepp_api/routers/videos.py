@@ -37,6 +37,24 @@ def _motivo_publico(v: Video) -> str | None:
     return sin_rutas(v.error_motivo, v.ruta) if v.error_motivo else v.error_motivo
 
 
+def _avance(v: Video, tz: ZoneInfo) -> dict[str, Any] | None:
+    """Lo que el trabajador publicó mientras procesa. Solo con el video `procesando`: en `listo`,
+    `error` o `en_cola` las columnas pueden guardar un avance viejo y la web no debe pintarlo."""
+    if v.estado != "procesando" or v.avance_fase is None:
+        return None
+    ultimo = v.avance_ultimo
+    if not (isinstance(ultimo, dict) and {"persona", "casco", "chaleco"} <= ultimo.keys()):
+        ultimo = None  # sin el cuadro más reciente completo, no se inventa
+    return {
+        "fase": v.avance_fase,
+        "segundos": float(v.avance_s or 0.0),
+        "total_segundos": v.avance_total_s,
+        "velocidad": v.avance_velocidad,
+        "ultimo": {k: int(ultimo[k]) for k in ("persona", "casco", "chaleco")} if ultimo else None,
+        "actualizado": iso(v.avance_actualizado, tz),
+    }
+
+
 def video_a_json(bd: Bd, v: Video, tz: ZoneInfo) -> dict[str, Any]:
     fuente = bd.get(Fuente, v.fuente_id)
     fps_objetivo = fuente.fps_objetivo if fuente else None
@@ -55,8 +73,9 @@ def video_a_json(bd: Bd, v: Video, tz: ZoneInfo) -> dict[str, Any]:
         "capture_ts_inicio": iso(v.capture_ts_inicio, tz),
         "origen_capture_ts": v.origen_capture_ts,
         "estado": v.estado,
-        # El trabajador no publica avance parcial todavía: solo se sabe que empezó o terminó.
+        # `progreso` es solo 0/1; el avance parcial viaja en `avance` (solo `procesando`).
         "progreso": 1.0 if v.estado == "listo" else None,
+        "avance": _avance(v, tz),
         # Filas escritas antes de que el trabajador sanease el motivo pueden traer rutas.
         "error_motivo": _motivo_publico(v),
         "intentos": v.intentos,

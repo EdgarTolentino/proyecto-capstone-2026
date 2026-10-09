@@ -1,6 +1,6 @@
 import { expect, it } from "vitest";
 
-import { formatearBytes } from "./format";
+import { duracionEnPalabras, formatearBytes, formatearReloj, formatearVelocidad } from "./format";
 
 it.each([
   [0, "0 B"],
@@ -22,4 +22,56 @@ it.each([
 
 it.each([-1, Number.NaN, Number.POSITIVE_INFINITY])("un tamaño inválido (%s) se muestra como guion", (bytes) => {
   expect(formatearBytes(bytes)).toBe("—");
+});
+
+it.each([
+  [0, "0:00"],
+  [9, "0:09"],
+  [59, "0:59"], // justo antes del minuto
+  [60, "1:00"], // justo en el minuto
+  [150, "2:30"],
+  [59.9, "0:59"], // los segundos sueltos se truncan, no se redondean
+  [3599, "59:59"],
+  [3600, "1:00:00"], // justo en la hora
+  [3723, "1:02:03"],
+])("formatea %d s como reloj %s", (segundos, esperado) => {
+  expect(formatearReloj(segundos)).toBe(esperado);
+});
+
+it.each([-1, Number.NaN, Number.POSITIVE_INFINITY])("un reloj inválido (%s) se muestra como guion", (segundos) => {
+  expect(formatearReloj(segundos)).toBe("—");
+});
+
+it.each([
+  [0, "0 segundos"],
+  [1, "1 segundo"],
+  [30, "30 segundos"],
+  [60, "1 minuto"],
+  [61, "1 minuto 1 segundo"],
+  [150, "2 minutos 30 segundos"],
+  [300, "5 minutos"],
+  [3600, "1 hora"],
+  [3723, "1 hora 2 minutos 3 segundos"],
+  [7200, "2 horas"],
+])("dice %d s en palabras como «%s»", (segundos, esperado) => {
+  expect(duracionEnPalabras(segundos)).toBe(esperado);
+});
+
+it("una duración inválida no se inventa", () => {
+  expect(duracionEnPalabras(Number.NaN)).toBe("duración desconocida");
+  expect(duracionEnPalabras(-3)).toBe("duración desconocida");
+});
+
+it.each([
+  [0, "0,0× tiempo real"],
+  [0.8, "0,8× tiempo real"],
+  [1, "1,0× tiempo real"],
+  [2.5, "2,5× tiempo real"],
+  [12, "12,0× tiempo real"],
+])("formatea la velocidad %d como «%s»", (velocidad, esperado) => {
+  expect(formatearVelocidad(velocidad)).toBe(esperado);
+});
+
+it.each([-0.1, Number.NaN, Number.POSITIVE_INFINITY])("una velocidad inválida (%s) da null", (velocidad) => {
+  expect(formatearVelocidad(velocidad)).toBeNull();
 });

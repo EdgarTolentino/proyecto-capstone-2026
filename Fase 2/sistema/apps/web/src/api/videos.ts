@@ -2,6 +2,7 @@ import { ApiError } from "./client";
 import type { EstadoPedido, PaginaVideos, Pedido, Video } from "./types";
 
 export const INTERVALO_REFRESCO_MS = 10_000;
+export const INTERVALO_AVANCE_MS = 3_000;
 
 const estadosPendientes: ReadonlySet<Video["estado"]> = new Set(["en_cola", "procesando", "reintentando"]);
 
@@ -43,8 +44,10 @@ export function intervaloDePedidos(pedidos: Pedido[] | undefined): number | fals
   return pedidos?.some((pedido) => pedidosAbiertos.has(pedido.estado)) ? INTERVALO_REFRESCO_MS : false;
 }
 
-// La cola se vuelve a pedir solo mientras algún video puede cambiar de estado.
+// La cola se vuelve a pedir solo mientras algún video puede cambiar de estado. Con uno
+// procesando se pide más seguido, para que la barra de avance se mueva.
 export function intervaloDeRefresco(paginas: PaginaVideos[] | undefined): number | false {
-  const hayPendientes = paginas?.some((pagina) => pagina.items.some((video) => estadosPendientes.has(video.estado)));
-  return hayPendientes ? INTERVALO_REFRESCO_MS : false;
+  const videos = paginas?.flatMap((pagina) => pagina.items) ?? [];
+  if (videos.some((video) => video.estado === "procesando")) return INTERVALO_AVANCE_MS;
+  return videos.some((video) => estadosPendientes.has(video.estado)) ? INTERVALO_REFRESCO_MS : false;
 }

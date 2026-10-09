@@ -5,11 +5,11 @@ from __future__ import annotations
 from dataclasses import dataclass
 from datetime import datetime
 
-from sqlalchemy import select, update
+from sqlalchemy import func, select, update
 from sqlalchemy.dialects.postgresql import insert
 from sqlalchemy.orm import Session
 
-from gepp_bd.modelos import ESTADOS_VIDEO, ORIGENES_CAPTURE_TS, Video
+from gepp_bd.modelos import ESTADOS_VIDEO, FASES_AVANCE, ORIGENES_CAPTURE_TS, Video
 
 
 @dataclass(frozen=True, slots=True)
@@ -135,4 +135,52 @@ def pedidos_de_reintento(sesion: Session) -> list[Video]:
     """Los videos `en_cola` en la base. El trabajador encola los que Redis no tiene ya."""
     return list(
         sesion.execute(select(Video).where(Video.estado == "en_cola").order_by(Video.id)).scalars()
+    )
+
+
+def publicar_avance(
+    sesion: Session,
+    video_id: int,
+    *,
+    fase: str,
+    avance_s: float,
+    total_s: float | None,
+    velocidad: float | None,
+    ultimo: dict[str, int],
+) -> None:
+    """Deja el avance del análisis en la fila del video. Va en una transacción propia y corta:
+    nunca dentro de la del resultado, que toma la misma fila.
+
+    `avance_actualizado` lo pone la base (`now()`): es telemetría, no el reloj del video
+    (ADR-005).
+    """
+    if fase not in FASES_AVANCE:
+        raise ValueError(f"fase de avance inválida: {fase!r}")
+    sesion.execute(
+        update(Video)
+        .where(Video.id == video_id)
+        .values(
+            avance_fase=fase,
+            avance_s=avance_s,
+            avance_total_s=total_s,
+            avance_velocidad=velocidad,
+            avance_ultimo=ultimo,
+            avance_actualizado=func.now(),
+        )
+    )
+
+
+def reiniciar_avance(sesion: Session, video_id: int) -> None:
+    """Borra el avance: cada intento parte de cero y no muestra el del anterior."""
+    sesion.execute(
+        update(Video)
+        .where(Video.id == video_id)
+        .values(
+            avance_fase=None,
+            avance_s=None,
+            avance_total_s=None,
+            avance_velocidad=None,
+            avance_ultimo=None,
+            avance_actualizado=None,
+        )
     )

@@ -13,7 +13,7 @@ pipeline no convierte nada a cuadros, y por eso da el mismo hallazgo a cualquier
 
 from __future__ import annotations
 
-from collections.abc import Iterable, Sequence
+from collections.abc import Callable, Iterable, Sequence
 from dataclasses import dataclass, field
 from datetime import datetime
 from typing import Protocol
@@ -87,10 +87,18 @@ class PipelineEtapa1:
         self._seguidor.reiniciar()
         return hallazgos
 
-    def procesar_todo(self, cuadros: Iterable[CuadroFechado]) -> ResultadoVideo:
+    def procesar_todo(
+        self,
+        cuadros: Iterable[CuadroFechado],
+        por_cuadro: Callable[[CuadroFechado, ResultadoCuadro], None] | None = None,
+    ) -> ResultadoVideo:
+        """Procesa todos los cuadros. `por_cuadro`, si se pasa, se llama al terminar cada uno
+        (para informar el avance); no puede cambiar el resultado."""
         resultado = ResultadoVideo()
         for cuadro in cuadros:
             r = self.procesar(cuadro)
+            if por_cuadro is not None:
+                por_cuadro(cuadro, r)
             resultado.detecciones.extend(r.detecciones)
             resultado.hallazgos.extend(r.hallazgos)
             resultado.cuadros += 1
