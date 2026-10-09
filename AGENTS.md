@@ -94,8 +94,9 @@ Un cambio está terminado cuando se cumplen las cinco condiciones:
 
 Si una tarea choca con uno de estos, **detenerse y avisar** citando el ADR. No esquivarlo.
 
-- Sin identificación de personas: sin reconocimiento facial, sin inferir género, edad ni etnia
-  (ADR-006).
+- Sin identificación de personas: sin reconocimiento facial, sin inferir género, edad ni etnia,
+  y el rostro se difumina antes de escribir el recorte (ADR-006). Única excepción: la vista en vivo
+  del procesamiento muestra caras sin tapar, en memoria y sin guardarse (nota del 2026-10-09).
 - El contrato no se rompe en silencio: un campo opcional se agrega y se avisa; renombrar o
   quitar algo va en un PR aparte, acordado con el equipo.
 - Nada AGPL ni propietario en dependencias (ADR-002).

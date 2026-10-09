@@ -51,7 +51,8 @@ Traducción a arquitectura, no a un párrafo de relleno:
 - Los `track_id` son **efímeros**: viven dentro de un video y se destruyen al cerrarlo. Nunca se
   cruzan entre fuentes ni se persisten como identidad.
 - El recorte de evidencia se escribe **con el rostro ya difuminado**. El cuadro original nunca
-  toca el disco.
+  toca el disco. Única excepción: la vista en vivo del procesamiento muestra el cuadro sin tapar
+  rostros desde un anillo en memoria, que puede ir a swap (ADR-006, nota del 2026-10-09).
 - La tabla de reglas lleva columnas de gobernanza (`base_licitud`, `norma_fundante`,
   `retencion_dias`), de modo que la trazabilidad jurídica se audita con un `SELECT`.
 

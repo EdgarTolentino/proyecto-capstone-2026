@@ -51,3 +51,19 @@ ajustado o de talla incorrecta explica parte del incumplimiento.
 Se documenta como decisión deliberada, no como limitación técnica, y se acompaña de una *model
 card* con los usos explícitamente fuera de alcance: **este modelo no debe usarse para identificar
 personas, evaluar desempeño individual ni fundar sanciones disciplinarias.**
+
+## Nota (2026-10-09): excepción de la vista en vivo
+
+La vista «en vivo» del procesamiento muestra cuadros completos y **nítidos**, con las cajas de
+persona, casco y chaleco y **sin tapar ningún rostro**. Lo decide Edgar Tolentino el 2026-10-09,
+sabiendo que todas las caras quedan visibles. Antes se probaron, y se descartaron, un pixelado del
+cuadro entero (no se distinguía nada) y un punto negro sobre la cara de cada persona detectada.
+
+Lo que esta excepción **no** cambia: no se identifica a nadie, el sistema no escribe los cuadros de
+la vista en disco (salvo lo que el sistema operativo lleve a swap, límite declarado) y la evidencia
+persistida sigue siendo el recorte con el rostro difuminado. Lo que **sí** cambia: dentro
+de la vista se suspende la garantía de «rostro anonimizado antes de salir». Por eso la vista está
+apagada por defecto, la ven solo los roles con `ver_evidencia` y los cuadros viven en un anillo en
+memoria que se borra al terminar el procesamiento. Condiciones y límites en
+[`02-privacidad-y-cumplimiento.md`](../../producto/02-privacidad-y-cumplimiento.md), sección
+«Excepción: vista en vivo del procesamiento».
