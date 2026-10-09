@@ -117,7 +117,7 @@ incumplimiento, ese hallazgo **sí** es accionable.
 | **Retención en tres anillos** | Recortes 30 días · hallazgos y detecciones 12 meses · agregados anonimizados, indefinido. Purgado como tarea programada con su propio registro. |
 | **Control de acceso** | Cuatro roles. El administrador configura pero **no** ve evidencia; el supervisor solo ve su área. Ningún rol tiene descarga masiva. |
 | **Registro de auditoría** | Tabla *append-only* con reglas que impiden `UPDATE` y `DELETE`. |
-| **Vista identificada** | Si alguna vez se requiere, es un flujo aparte con doble autorización y motivo obligatorio en texto libre. El camino por defecto es el anónimo; el identificado es el caro y trazable. |
+| **Vista identificada** | Una vista que **asocia una detección con la identidad de una persona** (nombre, RUT, credencial). Si alguna vez se requiere, es un flujo aparte con doble autorización y motivo obligatorio en texto libre. El camino por defecto es el anónimo; el identificado es el caro y trazable. |
 
 La carga de acreditar las medidas de seguridad recae sobre el responsable del tratamiento. Sin
 registro inmutable, en una controversia el proyecto no puede probar nada aunque haya hecho todo
@@ -146,6 +146,10 @@ polígonos de privacidad.
 > **Riesgo aceptado por Edgar Tolentino el 2026-10-09: en la vista en vivo todas las caras quedan
 > visibles.** No hay ninguna capa que anonimice el cuadro; solo se
 > ennegrecen los polígonos de privacidad.
+
+La vista en vivo **no es una vista identificada**: muestra la imagen, pero no asocia a nadie con un
+nombre, un RUT ni una credencial, y el sistema no tiene cómo hacerlo. Por eso no pide la doble
+autorización de la medida «Vista identificada» (decisión de Edgar Tolentino del 2026-10-09).
 
 Condiciones (todas, no una a elección):
 
