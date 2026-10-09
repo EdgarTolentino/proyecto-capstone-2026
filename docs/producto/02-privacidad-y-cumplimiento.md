@@ -155,7 +155,7 @@ Condiciones (todas, no una a elección):
 | 2 | **Solo los roles con `ver_evidencia`** y, dentro de ellos, solo el área del supervisor. El administrador no la ve |
 | 3 | **Apagada por defecto**: `GEPP_VISTA_EN_VIVO=1` en el trabajador (y en la API). Apagada no se escribe nada y el endpoint responde 404 |
 | 4 | **Un anillo de hasta 60 cuadros por video, en memoria**: `<GEPP_CARPETA_VIVO>/<video_id>/<seq>_<pos_ms>.jpg`, por defecto en `/dev/shm/gepp-vivo`, subcarpeta 0700, cada cuadro escrito atómico y los más viejos borrados. `GEPP_CARPETA_VIVO` tiene que estar en memoria (tmpfs): el sistema **no lo comprueba**, y apuntarla a un disco rompe esta condición |
-| 5 | **Borrado al terminar** el intento (la subcarpeta entera, sea listo, error o reintento) y vaciado de todo, subcarpetas incluidas, al arrancar el trabajador |
+| 5 | **Borrado al terminar** el intento (la subcarpeta entera, sea listo, error o reintento) y, al arrancar el trabajador, **con la vista prendida o apagada**, borrado de las subcarpetas del anillo (`<video_id>`, nombre todo dígitos). Lo que no sea del anillo no se toca y se avisa: una `GEPP_CARPETA_VIVO` mal apuntada no puede costar datos |
 | 6 | **10 s de vigencia**: un cuadro más viejo que eso no se sirve |
 | 7 | **Solo clientes dentro de la infraestructura controlada** (ADR-010). Con cómputo en la nube el video de obra saldría de ella; la vista no se habilita en ese despliegue |
 
