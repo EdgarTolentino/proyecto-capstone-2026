@@ -5,10 +5,14 @@ import type {
   FiltrosHallazgos,
   Hallazgo,
   HallazgoDetalle,
+  ListaEntrada,
+  ListaPedidos,
   PaginaHallazgos,
   PaginaVideos,
   Panel,
   FiltrosPanel,
+  Pedido,
+  PedidoNuevo,
   Regla,
   ReglaEntrada,
   ResultadoSimulacion,
@@ -44,6 +48,8 @@ export class ApiError extends Error {
   constructor(
     message: string,
     public readonly status: number,
+    // `codigo` del cuerpo de error del contrato (p. ej. `pedido_existente`): distingue los 409.
+    public readonly codigo?: string,
   ) {
     super(message);
   }
@@ -58,8 +64,12 @@ async function api<T>(ruta: string, opciones?: RequestInit): Promise<T> {
   });
 
   if (!respuesta.ok) {
-    const error = (await respuesta.json().catch(() => null)) as { mensaje?: string } | null;
-    throw new ApiError(error?.mensaje ?? "No pudimos comunicarnos con la API.", respuesta.status);
+    const error = (await respuesta.json().catch(() => null)) as { mensaje?: string; codigo?: string } | null;
+    throw new ApiError(
+      error?.mensaje ?? "No pudimos comunicarnos con la API.",
+      respuesta.status,
+      typeof error?.codigo === "string" ? error.codigo : undefined,
+    );
   }
 
   return respuesta.json() as Promise<T>;
@@ -126,6 +136,13 @@ export function listarVideos(cursor?: string): Promise<PaginaVideos> {
 
 export const reprocesarVideo = (id: number) =>
   api<Video>(`/videos/${id}/reprocesar`, { method: "POST" });
+
+export const listarEntradaVideos = () => api<ListaEntrada>("/videos/entrada");
+
+export const listarPedidos = () => api<ListaPedidos>("/videos/pedidos");
+
+export const pedirIngesta = (peticion: PedidoNuevo) =>
+  api<Pedido>("/videos", { method: "POST", body: JSON.stringify(peticion) });
 
 function parametrosDelPanel(filtros: FiltrosPanel = {}): URLSearchParams {
   const parametros = new URLSearchParams();

@@ -9,10 +9,13 @@ import { VideosPage } from "./VideosPage";
 
 vi.mock("../api/client", () => ({
   ApiError: class extends Error {
-    constructor(message: string, public readonly status: number) { super(message); }
+    constructor(message: string, public readonly status: number, public readonly codigo?: string) { super(message); }
   },
   listarVideos: vi.fn(),
   reprocesarVideo: vi.fn(),
+  listarPedidos: vi.fn(),
+  listarEntradaVideos: vi.fn(),
+  pedirIngesta: vi.fn(),
 }));
 
 afterEach(() => { cleanup(); vi.resetAllMocks(); vi.useRealTimers(); });
@@ -89,6 +92,7 @@ it("no duplica videos ni sigue paginando si la API repite la página y el cursor
 });
 
 function renderizar(puedeEditarReglas = false) {
+  vi.mocked(api.listarPedidos).mockResolvedValue({ items: [] });
   const client = new QueryClient({ defaultOptions: { queries: { retry: false } } });
   render(<QueryClientProvider client={client}><VideosPage puedeEditarReglas={puedeEditarReglas} /></QueryClientProvider>);
   return client;
