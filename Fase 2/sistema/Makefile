@@ -52,8 +52,8 @@ mock:  ## Levanta el servidor simulado del contrato en el puerto 4010
 	@echo "Recuerda la cabecera:  Authorization: Bearer demo"
 	npx --yes @stoplight/prism-cli@latest mock contracts/openapi.yaml -p 4010
 
-up:  ## Levanta PostgreSQL y Redis
-	docker compose -f docker/compose.yml up -d
+up:  ## Levanta PostgreSQL y Redis y espera a que estén listos
+	docker compose -f docker/compose.yml up -d --wait
 
 down:  ## Detiene los servicios
 	docker compose -f docker/compose.yml down

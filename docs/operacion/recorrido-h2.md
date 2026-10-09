@@ -36,15 +36,18 @@ En Windows todo se corre dentro de WSL2 y el repositorio se clona en el disco de
 ## Recorrido principal: el video se pide desde la web
 
 Se levantan cuatro cosas: la base (con Redis), la API, el trabajador y la web. Los puertos son el
-8000 (API) y el 5173 (web); si `make demo-todo` o `make demo-api` están corriendo, apágalos antes
-(`make demo-apagar`), porque usan los mismos puertos.
+8000 (API) y el 5173 (web). Si algo del camino alternativo está corriendo, apágalo antes porque
+usa los mismos puertos: lo que levantó `make demo-todo` se apaga con `make demo-apagar`; una
+`make demo-api` levantada a mano, con Ctrl+C en su terminal (`make demo-apagar` no la toca).
+Al terminar, el recorrido principal se apaga con Ctrl+C en cada una de sus tres terminales, y
+la base y Redis con `make down`.
 
 ### 1. Preparar (solo la primera vez)
 
 ```bash
 cd "Fase 2/sistema"
 make setup                 # dependencias de Python
-make up                    # PostgreSQL y Redis (Docker)
+make up                    # PostgreSQL y Redis (Docker); espera a que estén listos
 make migrar                # crea las tablas en la base `gepp`
 make semilla               # cámaras, reglas y las cuentas del equipo
 cp .env.example .env
@@ -61,7 +64,7 @@ importan para este recorrido; el resto déjalo como viene:
 | `GEPP_CARPETA_EVIDENCIA` | `/home/<tú>/gepp/evidencia` | Donde quedan los recortes difuminados |
 | `GEPP_CARPETA_ENTRADA` | `/home/<tú>/gepp/entrada` | Los videos que se piden desde la web. Debe existir, no estar bajo `/mnt/` y **no ser ni estar dentro de** la vigilada (ni al revés). La leen la API y el trabajador: deben ver la misma ruta |
 | `GEPP_VISTA_EN_VIVO` | `1` | La vista en vivo viene **apagada** (`0`); solo el valor `1` la enciende |
-| `GEPP_GUION_FALSO` | `demo/guion_cam03.json` si usas `generativa.mp4` sin modelo; si usas el modelo, **borra la línea** | Sin modelo el detector lee un guion escrito a mano; con modelo no debe estar |
+| `GEPP_GUION_FALSO` | `demo/guion_cam03.json` si usas `generativa.mp4` sin modelo; si usas el modelo, **borra la línea** | Sin modelo el detector lee un guion escrito a mano; con modelo no debe estar, porque el trabajador la prioriza sobre `GEPP_MODELO_RUTA`. Si ya cargaste el `.env` en esa terminal, borrar la línea no basta: la variable sigue exportada. Corre `unset GEPP_GUION_FALSO` o abre una terminal nueva |
 | `GEPP_MODELO_RUTA` | Solo con modelo: la ruta al `.onnx` (con su `.clases.json` al lado) | Corre en CPU, sin GPU. Ver [modelo-onnx.md](modelo-onnx.md) |
 
 `GEPP_CARPETA_VIVO` (por defecto `/dev/shm/gepp-vivo`, memoria) y `GEPP_VIVO_FPS` (por defecto
@@ -78,11 +81,15 @@ cd apps/web && npm ci && VITE_API_URL=http://localhost:8000/api/v1 npm run dev  
 El trabajador imprime `[trabajador] esperando videos`. Si en su lugar dice
 `sin GEPP_CARPETA_ENTRADA: no atiende pedidos de la web`, la variable no llegó a su entorno.
 
-Copia el video a la carpeta de entrada (no a la vigilada):
+Copia el video a la carpeta de entrada (no a la vigilada), **conservando la fecha** (`-p`):
 
 ```bash
-cp ~/videos/generativa.mp4 ~/gepp/entrada/
+cp -p ~/videos/generativa.mp4 ~/gepp/entrada/
 ```
+
+Sin `-p`, `cp` pone la hora de la copia como fecha del archivo; si el video no trae fecha en sus
+metadatos, el reloj de captura sale de esa fecha y los hallazgos quedan fechados en el momento de
+la copia y no en el de la grabación (ADR-005).
 
 ### 3. Recorrer la web
 
@@ -102,6 +109,11 @@ el que la web usa si no defines otro). También sirve `lgrandon` (prevencionista
 | 6 | Bajo la fila «Procesando» | **Vista en vivo.** Primero «Esperando el primer cuadro…»; después el cuadro con las cajas de persona, casco y chaleco y el rótulo «Vista del modelo · en vivo (~1 s de atraso)» |
 | 7 | Menú lateral → **Hallazgos** | «Bandeja de hallazgos» con lo que salió |
 | 8 | **Ver** en un hallazgo | El visor: el recorte difuminado, la línea de tiempo y «Por qué se disparó» |
+
+> **Con un video corto no alcanzas a ver el avance ni la vista en vivo.** `generativa.mp4` dura
+> 8 s y, con el guion falso, puede terminar antes de que la web se actualice: los pedidos y la
+> cola se consultan cada 10 s. Para ver el avance y la vista en vivo conviene un video de al menos
+> un par de minutos (video a definir por Edgar).
 
 > **La vista en vivo muestra las caras sin tapar.** Es una excepción decidida por Edgar Tolentino el
 > 2026-10-09 (nota del 2026-10-09 en [ADR-006](../arquitectura/adr/006-sin-identificacion.md) y
