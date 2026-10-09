@@ -1150,6 +1150,7 @@ export interface components {
              *       "ver_hallazgos",
              *       "triar_hallazgos",
              *       "ver_evidencia",
+             *       "procesar_videos",
              *       "ver_reportes",
              *       "asignar_acciones"
              *     ]
@@ -2391,6 +2392,7 @@ export interface operations {
                      *         "ver_hallazgos",
                      *         "triar_hallazgos",
                      *         "ver_evidencia",
+                     *         "procesar_videos",
                      *         "ver_reportes",
                      *         "asignar_acciones"
                      *       ]

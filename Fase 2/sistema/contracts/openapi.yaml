@@ -940,7 +940,8 @@ paths:
                 rol: prevencionista
                 area_id: null
                 permisos:
-                  [ver_hallazgos, triar_hallazgos, ver_evidencia, ver_reportes, asignar_acciones]
+                  [ver_hallazgos, triar_hallazgos, ver_evidencia, procesar_videos, ver_reportes,
+                   asignar_acciones]
 
         '4XX': { $ref: '#/components/responses/Error' }
 components:
@@ -1669,7 +1670,9 @@ components:
             enum:
               [ver_hallazgos, triar_hallazgos, ver_evidencia, editar_reglas,
                procesar_videos, ver_reportes, ver_auditoria, asignar_acciones]
-          example: [ver_hallazgos, triar_hallazgos, ver_evidencia, ver_reportes, asignar_acciones]
+          example:
+            [ver_hallazgos, triar_hallazgos, ver_evidencia, procesar_videos, ver_reportes,
+             asignar_acciones]
 
     Referencia:
       type: [object, 'null']
