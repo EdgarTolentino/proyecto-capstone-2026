@@ -44,8 +44,9 @@ def test_del_video_a_la_bandeja_y_el_visor(entorno) -> None:  # type: ignore[no-
         (h,) = pagina["items"]
         assert pagina["contadores"]["por_revisar"] == 1
         assert h["epp_faltante"] == ["casco"]
-        # Terminado significa (#33): cuadros_confirmados ~ duracion_s * 5 en hallazgos reales.
-        assert abs(h["cuadros_confirmados"] - h["duracion_s"] * 5) <= 5
+        # Coherencia con la duración (#33, #163): a 5 fps, N cuadros abarcan N - 1 intervalos y
+        # los huecos tolerados suman duración pero no cuadros.
+        assert 1 <= h["cuadros_confirmados"] <= round(h["duracion_s"] * 5) + 1
 
         # ... el visor explica por qué se disparó y la evidencia se sirve difuminada.
         d = api.llamar("obtenerHallazgo", "GET", f"/hallazgos/{h['id']}")

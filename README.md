@@ -91,7 +91,7 @@ Cada elección está justificada en un [ADR](docs/arquitectura/adr/).
 | 📅 [Plan de trabajo](docs/producto/03-plan-de-trabajo.md) | Las 18 semanas |
 | 🧭 [Plan de desarrollo](docs/producto/09-plan-de-desarrollo-vision.md) | Visión, ingesta, API y datos: paquetes de trabajo S5-S15 |
 | 🎨 [Diseño de interfaz](docs/producto/05-diseno-interfaz.md) | Las 10 pantallas y el estilo |
-| ▶️ [Recorrido de punta a punta](docs/operacion/recorrido-h2.md) | Del video a la bandeja en un portátil sin GPU, y el guion de la demo |
+| ▶️ [Recorrido de punta a punta](docs/operacion/recorrido-h2.md) | Del video a la bandeja en un portátil sin GPU, pidiendo el video desde la web (o por la carpeta vigilada), y el guion de la demo |
 
 ## Estructura del repositorio
 
@@ -104,7 +104,7 @@ Fase 2/sistema/               El código
 │   ├── gepp-bd/              Esquema, migraciones y repositorios: dueño de la base (ADR-012)
 │   ├── gepp-vision/          Detector, seguidor, privacidad, pipeline de la Etapa 1
 │   ├── gepp-api/             FastAPI + PostgreSQL — NO importa gepp-vision
-│   └── gepp-worker/          Ingesta: carpeta vigilada (v1) y RTSP (v2)
+│   └── gepp-worker/          Ingesta: carpeta vigilada y pedidos desde la web (v1), RTSP (v2)
 ├── apps/web/                 React + Vite
 ├── perfiles/                 El dominio como configuración: construcción (ADR-011)
 ├── demo/                     Guion del detector simulado para `make demo`
@@ -122,12 +122,35 @@ make setup      # máquinas sin GPU y CI
 make setup-gpu  # la máquina con GPU
 
 make up        # PostgreSQL y Redis (Docker)
-make test       # 227 pruebas sin GPU; 90 de ellas usan la base de `make up` (sin ella se omiten)
+make test       # 1242 pruebas sin GPU; 482 de ellas usan la base de `make up` (sin ella se omiten)
 make lint
 make demo VIDEO=ruta.mp4   # recorrido de punta a punta: ver docs/operacion/recorrido-h2.md
 make api        # la API real en :8000
 make ayuda      # todos los comandos
 ```
+
+### Procesar un video desde la web
+
+El recorrido principal de la demo: se elige el video en la web (Videos → «Procesar video») y se ve
+el pedido, el avance y la vista en vivo del modelo. Necesita la base, la API, el trabajador y la web
+corriendo, y estas variables en el `.env`:
+
+| Variable | Para qué | Por defecto |
+|---|---|---|
+| `GEPP_CARPETA_ENTRADA` | Carpeta con los videos que se piden desde la web. Debe existir, no estar bajo `/mnt/` y no ser ni estar dentro de `GEPP_CARPETA_VIGILADA` | Sin valor: la web no puede pedirlos |
+| `GEPP_VISTA_EN_VIVO` | `1` enciende la vista en vivo | `0` (apagada) |
+| `GEPP_CARPETA_VIVO` | Dónde deja el trabajador los cuadros de la vista | `/dev/shm/gepp-vivo` (memoria) |
+| `GEPP_VIVO_FPS` | Cuadros por segundo de video de la vista | `25` |
+| `GEPP_MODELO_RUTA` | El modelo ONNX, que corre en CPU ([cómo](docs/operacion/modelo-onnx.md)) | Sin valor: usar `GEPP_GUION_FALSO` |
+
+Los pasos, uno por uno y con lo que se ve en cada pantalla, están en el
+[recorrido](docs/operacion/recorrido-h2.md). Piden el video y ven la vista en vivo el prevencionista
+(`demo`, `lgrandon`); el administrador (`mortega`) puede pedirlo pero no ve la vista en vivo.
+
+> **La vista en vivo muestra las caras sin tapar.** Es una excepción acotada, decidida el 2026-10-09
+> (ver la nota del 2026-10-09 en [ADR-006](docs/arquitectura/adr/006-sin-identificacion.md)): está
+> apagada por defecto, solo la ven los roles con `ver_evidencia`, queda en memoria y no se guarda.
+> La evidencia que se guarda sigue difuminada.
 
 La web entra con la cuenta de `VITE_API_TOKEN` (`demo`, el prevencionista de demostración, si no
 se define). Cada integrante tiene la suya, la parte del correo antes de la arroba: copia

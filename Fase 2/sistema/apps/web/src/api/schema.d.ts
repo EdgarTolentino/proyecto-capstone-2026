@@ -535,9 +535,12 @@ export interface components {
              *     la razón del umbral ("4 de 5 en 2,0 s") pertenece al visor, en `por_que_se_disparo`.
              *     Mostrarla en la bandeja reintroduce el pensamiento en cuadros que el ADR-005 prohíbe.
              *
-             *     **Coherencia obligatoria con `duracion_s`:** el sistema muestrea a 5 fps, así que este
-             *     valor ronda `duracion_s × 5`. Un hallazgo de 192 s tiene del orden de 900 cuadros
-             *     confirmados, no 47. Si la razón entre ambos no da ~5, uno de los dos está mal.
+             *     **Coherencia obligatoria con `duracion_s`:** el sistema muestrea a 5 fps y cuenta solo
+             *     los cuadros con incumplimiento, así que siempre se cumple
+             *     `1 ≤ cuadros_confirmados ≤ round(duracion_s × 5) + 1` (N cuadros abarcan N − 1
+             *     intervalos). La igualdad se da sin huecos; los huecos menores que `cierre_segundos`
+             *     (oclusiones breves) suman duración pero no cuadros. Un hallazgo de 192 s tiene a lo
+             *     más 961 cuadros confirmados; un valor sobre la cota indica un error.
              * @example 912
              */
             cuadros_confirmados: number;
