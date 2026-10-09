@@ -3,6 +3,10 @@ import type { EstadoPedido, PaginaVideos, Pedido, Video } from "./types";
 
 export const INTERVALO_REFRESCO_MS = 10_000;
 export const INTERVALO_AVANCE_MS = 3_000;
+// Mínimo entre el inicio de dos pedidos de cuadros en vivo (cada pedido trae hasta 30 cuadros).
+export const INTERVALO_VIVO_MS = 500;
+// Sin cuadro (404) o con un error: no se golpea la API cuatro veces por segundo.
+export const ESPERA_VIVO_SIN_CUADRO_MS = 1_000;
 
 const estadosPendientes: ReadonlySet<Video["estado"]> = new Set(["en_cola", "procesando", "reintentando"]);
 
@@ -38,6 +42,11 @@ export function pedidoDejoListaVieja(error: unknown): boolean {
 }
 
 const pedidosAbiertos: ReadonlySet<EstadoPedido> = new Set(["pendiente", "tomado"]);
+
+// Un pedido sigue «pedido» mientras espera al trabajador o este lo está registrando.
+export function pedidoSigueAbierto(pedido: Pedido): boolean {
+  return pedidosAbiertos.has(pedido.estado);
+}
 
 // Los pedidos se vuelven a pedir solo mientras alguno espera al trabajador.
 export function intervaloDePedidos(pedidos: Pedido[] | undefined): number | false {

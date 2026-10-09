@@ -204,6 +204,31 @@ export async function obtenerEvidencia(ruta: string, signal?: AbortSignal): Prom
   return respuesta.blob();
 }
 
+// Los últimos cuadros que analiza el modelo (fondo pixelado y rostros tapados desde el servidor),
+// con su posición en el video (prototipo local). El tipo vive aquí hasta que el contrato lo traiga.
+export interface CuadroVivo {
+  seq: number;
+  posicion_s: number;
+  jpeg: string; // base64
+}
+
+export interface CuadrosVivo {
+  cuadros: CuadroVivo[];
+  ultimo_seq: number;
+}
+
+// Solo los cuadros con `seq > desde`, de más viejo a más nuevo. Con el Bearer en la cabecera, como
+// la evidencia: nunca un <img src> directo ni el token en la URL.
+export async function obtenerCuadrosVivo(videoId: number, desde: number, signal?: AbortSignal): Promise<CuadrosVivo> {
+  const respuesta = await fetch(urlApi(`/videos/${videoId}/vivo/cuadros?desde=${desde}`), {
+    headers: cabecerasApi(),
+    cache: "no-store",
+    signal,
+  });
+  if (!respuesta.ok) throw new ApiError("Vista del modelo no disponible.", respuesta.status);
+  return respuesta.json() as Promise<CuadrosVivo>;
+}
+
 export const triarHallazgo = (id: number, decision: DecisionTriage) =>
   api<Hallazgo>(`/hallazgos/${id}/triage`, {
     method: "POST",

@@ -42,6 +42,58 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/videos/{id}/vivo": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /**
+         * Último cuadro anonimizado de un video que se está procesando
+         * @description Requiere `ver_evidencia`; el supervisor, solo el área de la cámara del video. El
+         *     administrador no la ve. Devuelve el cuadro ya anonimizado (ADR-006), nunca rutas.
+         *     `404` si la vista en vivo está apagada en el servidor, si el video no existe o no está
+         *     `procesando`, si no hay cuadro o si el último tiene más de 10 s. Se pide por sondeo y la
+         *     respuesta no se guarda (`Cache-Control: no-store`).
+         */
+        get: operations["obtenerVivoVideo"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/videos/{id}/vivo/cuadros": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /**
+         * Cuadros nuevos de la vista en vivo, para reproducirlos con fluidez
+         * @description Mismas guardas que `/videos/{id}/vivo`: `ver_evidencia`, el supervisor solo el área de la
+         *     cámara, el administrador no la ve. `404` si la vista en vivo está apagada, el video no
+         *     existe o no está `procesando`, no hay cuadros o el más reciente tiene más de 10 s.
+         *
+         *     Devuelve los cuadros con `seq > desde`, de más viejo a más nuevo, como máximo 30. Si hay
+         *     más, entrega los 30 MÁS NUEVOS: saltar es mejor que quedarse atrás. Cada JPEG ya está
+         *     anonimizado (ADR-006). `ultimo_seq` es el del cuadro más reciente aunque `cuadros` venga
+         *     vacío. `seq` vuelve a empezar en 1 en cada intento de procesamiento: si `ultimo_seq` es
+         *     menor que el `desde` enviado, el cliente debe reiniciar su cursor. Nunca trae rutas.
+         */
+        get: operations["listarCuadrosVivo"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/evidencias/{id}": {
         parameters: {
             query?: never;
@@ -1728,6 +1780,77 @@ export interface operations {
                     "application/json": components["schemas"]["HallazgoDetalle"];
                 };
             };
+            403: components["responses"]["SinPermiso"];
+            404: components["responses"]["NoEncontrado"];
+            "4XX": components["responses"]["Error"];
+        };
+    };
+    obtenerVivoVideo: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                id: number;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description JPEG anonimizado del cuadro más reciente */
+            200: {
+                headers: {
+                    /** @description Siempre `no-store` */
+                    "Cache-Control"?: string;
+                    [name: string]: unknown;
+                };
+                content: {
+                    "image/jpeg": string;
+                };
+            };
+            401: components["responses"]["NoAutenticado"];
+            403: components["responses"]["SinPermiso"];
+            404: components["responses"]["NoEncontrado"];
+            "4XX": components["responses"]["Error"];
+        };
+    };
+    listarCuadrosVivo: {
+        parameters: {
+            query?: {
+                /** @description Último `seq` que el cliente ya tiene */
+                desde?: number;
+            };
+            header?: never;
+            path: {
+                id: number;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Cuadros nuevos, del más viejo al más nuevo */
+            200: {
+                headers: {
+                    /** @description Siempre `no-store` */
+                    "Cache-Control"?: string;
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": {
+                        cuadros: {
+                            seq: number;
+                            /** @description Posición del cuadro en el video, en segundos */
+                            posicion_s: number;
+                            /**
+                             * Format: byte
+                             * @description JPEG anonimizado en base64
+                             */
+                            jpeg: string;
+                        }[];
+                        ultimo_seq: number;
+                    };
+                };
+            };
+            401: components["responses"]["NoAutenticado"];
             403: components["responses"]["SinPermiso"];
             404: components["responses"]["NoEncontrado"];
             "4XX": components["responses"]["Error"];

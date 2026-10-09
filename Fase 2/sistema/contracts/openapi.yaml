@@ -358,6 +358,97 @@ paths:
 
         '4XX': { $ref: '#/components/responses/Error' }
 
+  /videos/{id}/vivo:
+    get:
+      tags: [Videos]
+      summary: Último cuadro anonimizado de un video que se está procesando
+      description: |
+        Requiere `ver_evidencia`; el supervisor, solo el área de la cámara del video. El
+        administrador no la ve. Devuelve el cuadro ya anonimizado (ADR-006), nunca rutas.
+        `404` si la vista en vivo está apagada en el servidor, si el video no existe o no está
+        `procesando`, si no hay cuadro o si el último tiene más de 10 s. Se pide por sondeo y la
+        respuesta no se guarda (`Cache-Control: no-store`).
+      operationId: obtenerVivoVideo
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema: { type: integer, format: int64 }
+      responses:
+        '200':
+          description: JPEG anonimizado del cuadro más reciente
+          headers:
+            Cache-Control:
+              description: Siempre `no-store`
+              schema: { type: string, example: no-store }
+          content:
+            image/jpeg:
+              schema: { type: string, format: binary }
+        '401': { $ref: '#/components/responses/NoAutenticado' }
+        '403': { $ref: '#/components/responses/SinPermiso' }
+        '404': { $ref: '#/components/responses/NoEncontrado' }
+        '4XX': { $ref: '#/components/responses/Error' }
+
+  /videos/{id}/vivo/cuadros:
+    get:
+      tags: [Videos]
+      summary: Cuadros nuevos de la vista en vivo, para reproducirlos con fluidez
+      description: |
+        Mismas guardas que `/videos/{id}/vivo`: `ver_evidencia`, el supervisor solo el área de la
+        cámara, el administrador no la ve. `404` si la vista en vivo está apagada, el video no
+        existe o no está `procesando`, no hay cuadros o el más reciente tiene más de 10 s.
+
+        Devuelve los cuadros con `seq > desde`, de más viejo a más nuevo, como máximo 30. Si hay
+        más, entrega los 30 MÁS NUEVOS: saltar es mejor que quedarse atrás. Cada JPEG ya está
+        anonimizado (ADR-006). `ultimo_seq` es el del cuadro más reciente aunque `cuadros` venga
+        vacío. `seq` vuelve a empezar en 1 en cada intento de procesamiento: si `ultimo_seq` es
+        menor que el `desde` enviado, el cliente debe reiniciar su cursor. Nunca trae rutas.
+      operationId: listarCuadrosVivo
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema: { type: integer, format: int64 }
+        - name: desde
+          in: query
+          required: false
+          description: Último `seq` que el cliente ya tiene
+          schema: { type: integer, minimum: 0, default: 0 }
+      responses:
+        '200':
+          description: Cuadros nuevos, del más viejo al más nuevo
+          headers:
+            Cache-Control:
+              description: Siempre `no-store`
+              schema: { type: string, example: no-store }
+          content:
+            application/json:
+              schema:
+                type: object
+                required: [cuadros, ultimo_seq]
+                properties:
+                  cuadros:
+                    type: array
+                    maxItems: 30
+                    items:
+                      type: object
+                      required: [seq, posicion_s, jpeg]
+                      properties:
+                        seq: { type: integer, minimum: 1 }
+                        posicion_s:
+                          type: number
+                          minimum: 0
+                          description: Posición del cuadro en el video, en segundos
+                        jpeg:
+                          type: string
+                          format: byte
+                          description: JPEG anonimizado en base64
+                  ultimo_seq: { type: integer, minimum: 1 }
+        '401': { $ref: '#/components/responses/NoAutenticado' }
+        '403': { $ref: '#/components/responses/SinPermiso' }
+        '404': { $ref: '#/components/responses/NoEncontrado' }
+        '4XX': { $ref: '#/components/responses/Error' }
+
   /evidencias/{id}:
     get:
       tags: [Hallazgos]
