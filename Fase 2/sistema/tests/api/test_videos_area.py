@@ -28,13 +28,26 @@ def _tokens(monkeypatch: pytest.MonkeyPatch) -> None:
 
 @pytest.fixture(autouse=True)
 def _dos_areas(bd: Engine, datos: dict[str, Any]) -> None:
-    """Video 1 (área 1) `listo`, video 3 (área 1) `en_cola`, video 2 (área 2) `procesando`."""
+    """Video 1 (cámara 1, área 1) `listo`; video 3 (cámara nueva, también área 1) `en_cola`;
+    video 2 (cámara 2, área 2) `procesando`."""
     del datos
     with bd.begin() as c:
         area = c.execute(text("SELECT area_id FROM fuente WHERE id = 2")).scalar_one()
         assert area != 1, "la prueba necesita una cámara de otra área"
         c.execute(text("UPDATE video SET fuente_id = 2, estado = 'procesando' WHERE id = 2"))
-        c.execute(text("UPDATE video SET estado = 'en_cola' WHERE id = 3"))
+        # El video 3 (área 1) vive en una cámara cuyo id NO es el del área: si el filtro
+        # comparara el id de la cámara con el del área, el supervisor no lo vería.
+        nueva = c.execute(
+            text(
+                "INSERT INTO fuente (area_id, nombre, tipo, uri)"
+                " SELECT 1, 'Cámara extra del área 1', tipo, uri FROM fuente WHERE id = 1"
+                " RETURNING id"
+            )
+        ).scalar_one()
+        assert nueva not in (1, 2)
+        c.execute(
+            text("UPDATE video SET estado = 'en_cola', fuente_id = :f WHERE id = 3"), {"f": nueva}
+        )
 
 
 def _ids(api: Cliente, headers: dict[str, str], consulta: str = "") -> list[int]:
@@ -96,3 +109,29 @@ def test_si_en_su_area_no_hay_nada_en_marcha_la_ingesta_figura_inactiva(
         c.execute(text("UPDATE video SET estado = 'listo' WHERE id = 3"))
     assert _ingesta(api, SUPER) == {"activa": False, "en_proceso": 0, "en_cola": 0}
     assert _ingesta(api, DEMO)["en_proceso"] == 1
+
+
+def _supervisor_con_area(bd: Engine, area: int | None) -> None:
+    with bd.begin() as c:
+        c.execute(
+            text("UPDATE usuario SET area_id = :a WHERE email = :e"),
+            {"a": area, "e": "supervisor.acceso@obra.invalid"},
+        )
+
+
+def test_un_supervisor_sin_area_no_ve_ningun_video(api: Cliente, bd: Engine) -> None:
+    _supervisor_con_area(bd, None)
+    pagina = api.llamar("listarVideos", "GET", "/videos", headers=SUPER)
+    assert pagina == {"items": [], "siguiente_cursor": None}
+    assert _ingesta(api, SUPER) == {"activa": False, "en_proceso": 0, "en_cola": 0}
+    assert _ids(api, DEMO) == [3, 2, 1]  # y los demás roles siguen viendo todo
+
+
+def test_un_supervisor_de_un_area_sin_videos_no_ve_ninguno(api: Cliente, bd: Engine) -> None:
+    with bd.begin() as c:  # el área 2 tiene la cámara 2, pero sin videos
+        c.execute(text("UPDATE video SET fuente_id = 1 WHERE id = 2"))
+    _supervisor_con_area(bd, 2)
+    pagina = api.llamar("listarVideos", "GET", "/videos", headers=SUPER)
+    assert pagina == {"items": [], "siguiente_cursor": None}
+    assert _ingesta(api, SUPER) == {"activa": False, "en_proceso": 0, "en_cola": 0}
+    assert _ids(api, DEMO) == [3, 2, 1]
