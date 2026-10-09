@@ -19,12 +19,27 @@ export const INICIO_S = 1;
 // Lo más que se guarda; lo que sobra, de lo más viejo, se cierra y se descarta.
 export const TOPE_BUFFER_S = 3;
 
+// Cuántos segundos seguidos de 404 se esperan antes de dar por terminada la vista. El servidor
+// responde 404 mientras no hay un cuadro vigente (menos de 10 s) y cuando el video ya no se procesa.
+export const LIMITE_SIN_CUADRO_S = 60;
+
+// `primerMs`: cuándo empezó la racha de 404 (`undefined` si no hay). Una hora inválida o anterior
+// al inicio de la racha nunca da por terminada la vista.
+export function vistaTerminada(primerMs: number | undefined, ahoraMs: number): boolean {
+  if (primerMs === undefined || !Number.isFinite(primerMs) || !Number.isFinite(ahoraMs)) return false;
+  if (ahoraMs < primerMs) return false;
+  return (ahoraMs - primerMs) / 1000 >= LIMITE_SIN_CUADRO_S;
+}
+
 export class ReproductorVivo {
   // Último `seq` recibido: es el `desde` del siguiente pedido.
   ultimoSeq = 0;
 
   private buffer: CuadroListo[] = [];
   private reproduciendo = false;
+  // Hubo un salto de `seq`: el cliente se atrasó y el servidor entregó solo lo más nuevo. Con lotes
+  // de 30 cuadros a 30 cuadros/s no se llega nunca a `INICIO_S`; tras un salto se empieza igual.
+  private huboSalto = false;
   private reloj = 0; // posición de reproducción, en segundos de video
   private ultimaMarca: number | undefined;
 
@@ -41,7 +56,10 @@ export class ReproductorVivo {
     if (nuevos.length === 0) return;
 
     // Si el servidor devolvió solo los más nuevos, lo que había queda atrás: se sigue desde lo nuevo.
-    if (nuevos[0].seq > this.ultimoSeq + 1) this.descartarBuffer();
+    if (nuevos[0].seq > this.ultimoSeq + 1) {
+      this.descartarBuffer();
+      this.huboSalto = true;
+    }
     this.buffer.push(...nuevos);
     this.ultimoSeq = nuevos[nuevos.length - 1].seq;
 
@@ -59,8 +77,9 @@ export class ReproductorVivo {
     this.ultimaMarca = marcaMs;
 
     if (!this.reproduciendo) {
-      if (this.buffer.length === 0 || this.duracion() < INICIO_S) return;
+      if (this.buffer.length === 0 || (this.duracion() < INICIO_S && !this.huboSalto)) return;
       this.reproduciendo = true;
+      this.huboSalto = false;
       this.reloj = this.buffer[0].posicion_s;
     } else {
       this.reloj += delta / 1000;
@@ -87,6 +106,7 @@ export class ReproductorVivo {
   vaciar(): void {
     this.descartarBuffer();
     this.reproduciendo = false;
+    this.huboSalto = false;
     this.ultimaMarca = undefined;
   }
 

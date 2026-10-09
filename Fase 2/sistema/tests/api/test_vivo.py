@@ -11,6 +11,7 @@ import os
 import time
 from collections.abc import Iterator
 from pathlib import Path
+from types import SimpleNamespace
 from typing import Any
 
 import pytest
@@ -515,3 +516,97 @@ def test_cada_cuadro_se_filtra_por_su_propia_edad(
     cuerpo = _cuadros(web)
     assert _seqs(cuerpo) == esperado
     assert cuerpo["ultimo_seq"] == 2  # el seq devuelto sigue siendo el del más nuevo
+
+
+# ── Correcciones de la revisión ────────────────────────────────────────────────────────────
+
+
+def test_una_raiz_enlazada_no_se_sigue(
+    bd: Engine, datos: dict[str, Any], tmp_path: Path, vista: Any
+) -> None:
+    """`O_NOFOLLOW` en la subcarpeta no basta: con la raíz enlazada se serviría otro directorio."""
+    del datos
+    real = tmp_path / "real"
+    real.mkdir()
+    _cuadro(real, 1, datos=_jpeg(1))
+    enlace = tmp_path / "enlace"
+    enlace.symlink_to(real, target_is_directory=True)
+    for cliente in _cliente(bd, enlace):
+        assert _pedir(cliente, vista, 404)["codigo"] == "vivo_no_disponible"
+    # Control: la misma carpeta, sin enlace, sí se sirve.
+    for cliente in _cliente(bd, real):
+        _pedir(cliente, vista, 200)
+
+
+def test_una_tuberia_con_nombre_valido_y_con_datos_vigentes_no_se_sirve(
+    web: Cliente, vivo: Path
+) -> None:
+    carpeta = vivo / "1"
+    carpeta.mkdir()
+    ruta = carpeta / _nombre(2)
+    os.mkfifo(ruta)
+    escritor = os.open(
+        ruta, os.O_RDWR | os.O_NONBLOCK
+    )  # mantiene la tubería con bytes y fecha de ahora
+    try:
+        assert os.write(escritor, JPEG) == len(JPEG)
+        _cuadro(vivo, 1, datos=_jpeg(1))
+        cuerpo = _cuadros(web)
+        assert _seqs(cuerpo) == [1]
+        assert cuerpo["ultimo_seq"] == 1
+        assert JPEG not in [base64.b64decode(c["jpeg"]) for c in cuerpo["cuadros"]]
+    finally:
+        os.close(escritor)
+
+
+def test_un_anillo_con_solo_el_seq_cero_no_se_sirve(web: Cliente, vivo: Path, vista: Any) -> None:
+    """El contrato exige `ultimo_seq >= 1`: el seq 0 es un nombre inválido."""
+    _cuadro(vivo, 0, pos_ms=0, datos=_jpeg(0))
+    assert _pedir(web, vista, 404)["codigo"] == "vivo_no_disponible"
+
+
+def test_el_seq_cero_se_ignora_y_los_demas_cuadros_salen(web: Cliente, vivo: Path) -> None:
+    _cuadro(vivo, 0, pos_ms=0, datos=_jpeg(0))
+    _cuadro(vivo, 1, datos=_jpeg(1))
+    cuerpo = _cuadros(web)
+    assert _seqs(cuerpo) == [1]
+    assert cuerpo["ultimo_seq"] == 1
+
+
+AHORA = 2_000_000_000.0  # entero: con edades diádicas, las fechas del archivo son exactas
+
+
+@pytest.fixture
+def reloj(monkeypatch: pytest.MonkeyPatch) -> None:
+    """Fija `time.time` solo dentro del servicio: la vigencia deja de depender del reloj real."""
+    monkeypatch.setattr(servicio, "time", SimpleNamespace(time=lambda: AHORA))
+
+
+def _cuadro_fechado(vivo: Path, seq: int, edad_s: float) -> None:
+    ruta = _cuadro(vivo, seq, datos=_jpeg(seq))
+    os.utime(ruta, (AHORA - edad_s, AHORA - edad_s))
+
+
+@pytest.mark.usefixtures("reloj")
+@pytest.mark.parametrize(
+    ("edad_s", "esperado"),
+    [(9.75, 200), (10.0, 200), (10.25, 404), (-9.75, 200), (-10.0, 200), (-10.25, 404)],
+)
+def test_vigencia_exacta_del_cuadro_mas_nuevo(
+    web: Cliente, vivo: Path, vista: Any, edad_s: float, esperado: int
+) -> None:
+    _cuadro_fechado(vivo, 1, edad_s)
+    _pedir(web, vista, esperado)
+
+
+@pytest.mark.usefixtures("reloj")
+@pytest.mark.parametrize(
+    ("edad_s", "esperado"),
+    [(9.75, [1, 2]), (10.0, [1, 2]), (10.25, [2]), (-9.75, [1, 2]), (-10.0, [1, 2]), (-10.25, [2])],
+)
+def test_vigencia_exacta_de_cada_cuadro_del_anillo(
+    web: Cliente, vivo: Path, edad_s: float, esperado: list[int]
+) -> None:
+    _cuadro_fechado(vivo, 1, edad_s)
+    _cuadro_fechado(vivo, 2, 0.0)
+    assert _seqs(_cuadros(web)) == esperado

@@ -667,3 +667,72 @@ it("si tras un error llegan respuestas sin cuadros, el aviso de error pasa a «e
   expect(screen.queryByText("No fue posible actualizar la vista del modelo.")).not.toBeInTheDocument();
   expect(screen.getByText("Esperando el primer cuadro…")).toBeVisible();
 });
+
+// --- Correcciones de la revisión ---------------------------------------------------------------
+
+it("a ~31 cuadros/s, con el cliente atrasado y lotes de 30 con saltos de seq, igual empieza a mostrar", async () => {
+  const paso = 0.03125; // 30 cuadros = 0,906 s: nunca llegan solos a 1 s de buffer
+  servir(respuesta(1, 30, paso), respuesta(61, 90, paso), respuesta(121, 150, paso));
+  montar();
+  await vaciar();
+  ticks(2, 31.25);
+  await avanzar(500);
+  ticks(2, 31.25);
+  await avanzar(500);
+  ticks(4, 31.25);
+
+  expect(dibujados().length).toBeGreaterThan(0);
+  expect(screen.getByRole("img", { name: ETIQUETA })).toBeVisible();
+  expect(screen.queryByText("Esperando el primer cuadro…")).not.toBeInTheDocument();
+});
+
+it("sin saltos, un lote de 30 a ~31 cuadros/s sigue esperando 1 s de buffer (el colchón no se pierde)", async () => {
+  servir(respuesta(1, 30, 0.03125));
+  montar();
+  await vaciar();
+  ticks(4, 31.25);
+
+  expect(dibujados()).toEqual([]);
+  expect(screen.getByText("Esperando el primer cuadro…")).toBeVisible();
+});
+
+const SEGUNDO = 1000;
+const terminada = () => screen.queryByText("La vista del modelo terminó.");
+
+it("tras 59 s de 404 seguidos sigue esperando y pidiendo; al llegar a 60 s declara que la vista terminó y deja de pedir", async () => {
+  servir(...Array.from({ length: 200 }, () => error(404)));
+  montar();
+  await vaciar();
+
+  await avanzar(59 * SEGUNDO);
+  expect(terminada()).not.toBeInTheDocument();
+  expect(screen.getByText("Esperando el primer cuadro…")).toBeVisible();
+  const antes = pedidos().length;
+
+  await avanzar(1 * SEGUNDO);
+  expect(terminada()).toBeVisible();
+  expect(screen.queryByText("Esperando el primer cuadro…")).not.toBeInTheDocument();
+  const alTerminar = pedidos().length;
+  expect(alTerminar).toBeGreaterThan(antes);
+
+  await avanzar(30 * SEGUNDO);
+  expect(pedidos().length).toBe(alTerminar);
+});
+
+it("un cuadro recibido reinicia la cuenta de los 404 seguidos", async () => {
+  servir(...Array.from({ length: 50 }, () => error(404)), respuesta(1, 4), ...Array.from({ length: 200 }, () => error(404)));
+  montar();
+  await vaciar();
+
+  await avanzar(95 * SEGUNDO); // 50 s de 404, un 200, y luego ~45 s de 404: ninguna racha llega a 60 s
+  expect(terminada()).not.toBeInTheDocument();
+});
+
+it("otro error entre los 404 también corta la racha", async () => {
+  servir(...Array.from({ length: 40 }, () => error(404)), error(500), ...Array.from({ length: 200 }, () => error(404)));
+  montar();
+  await vaciar();
+
+  await avanzar(95 * SEGUNDO);
+  expect(terminada()).not.toBeInTheDocument();
+});

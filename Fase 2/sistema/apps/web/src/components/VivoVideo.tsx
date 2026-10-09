@@ -2,12 +2,13 @@ import { useEffect, useRef, useState } from "react";
 
 import { ApiError, obtenerCuadrosVivo, type CuadroVivo } from "../api/client";
 import { ESPERA_VIVO_SIN_CUADRO_MS, INTERVALO_VIVO_MS } from "../api/videos";
-import { ReproductorVivo, type CuadroListo, type Imagen } from "./reproductorVivo";
+import { ReproductorVivo, vistaTerminada, type CuadroListo, type Imagen } from "./reproductorVivo";
 
 type Vista =
   | { tipo: "esperando" }
   | { tipo: "imagen" }
   | { tipo: "error" }
+  | { tipo: "terminada" }
   | { tipo: "sin_permiso" };
 
 async function decodificar(cuadro: CuadroVivo): Promise<CuadroListo> {
@@ -31,7 +32,8 @@ export function VivoVideo({ videoId, archivo }: { videoId: number; archivo: stri
     let controlador: AbortController | undefined;
     let enVuelo = false;
     let corriendo = false;
-    let bloqueado = false; // sin permiso: no se vuelve a pedir
+    let bloqueado = false; // sin permiso o vista terminada: no se vuelve a pedir
+    let primer404: number | undefined; // inicio de la racha de 404 seguidos
     let minimoPasado = true; // ya pasó el mínimo desde el inicio del último pedido
     let dibujado = false;
     let temporizadorMinimo: number | undefined;
@@ -108,6 +110,7 @@ export function VivoVideo({ videoId, archivo }: { videoId: number; archivo: stri
           } else {
             if (respuesta.ultimo_seq < desde) reproductor.reiniciarSecuencia();
             reproductor.agregar(listos);
+            primer404 = undefined;
             setVista((actual) => (actual.tipo === "error" ? { tipo: "esperando" } : actual));
             despues = "seguir";
           }
@@ -121,8 +124,18 @@ export function VivoVideo({ videoId, archivo }: { videoId: number; archivo: stri
             setVista({ tipo: "sin_permiso" });
           } else {
             // 404: todavía no hay cuadro (o es viejo). Otro error: aviso corto. En ambos se espera.
-            setVista(error instanceof ApiError && error.status === 404 ? { tipo: "esperando" } : { tipo: "error" });
-            despues = "esperar";
+            // Una racha de 404 más larga que el límite es que el video ya no se procesa.
+            const es404 = error instanceof ApiError && error.status === 404;
+            if (es404) primer404 ??= Date.now();
+            else primer404 = undefined;
+            if (es404 && vistaTerminada(primer404, Date.now())) {
+              bloqueado = true;
+              pausar();
+              setVista({ tipo: "terminada" });
+            } else {
+              setVista(es404 ? { tipo: "esperando" } : { tipo: "error" });
+              despues = "esperar";
+            }
           }
         }
       }
@@ -171,6 +184,7 @@ export function VivoVideo({ videoId, archivo }: { videoId: number; archivo: stri
         <figcaption>Vista del modelo · en vivo (~1 s de atraso)</figcaption>
       </figure>
       {vista.tipo === "esperando" && <p role="status">Esperando el primer cuadro…</p>}
+      {vista.tipo === "terminada" && <p role="status">La vista del modelo terminó.</p>}
       {vista.tipo === "error" && <p role="status">No fue posible actualizar la vista del modelo.</p>}
     </section>
   );
