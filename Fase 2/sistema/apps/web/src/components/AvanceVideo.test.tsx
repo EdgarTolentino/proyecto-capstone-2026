@@ -173,3 +173,36 @@ describe("hora de publicación", () => {
     expect(screen.queryByText(/2026|10:00/)).not.toBeInTheDocument();
   });
 });
+
+describe("con un total menor que un segundo", () => {
+  it("lo accesible dice lo mismo que lo visible: el porcentaje, no 0 de 0 segundos", () => {
+    mostrar(avanceDePrueba({ segundos: 0.25, total_segundos: 0.5 }));
+
+    expect(screen.getByText("0:00 de 0:00 (50 %)")).toBeVisible();
+    const barra = screen.getByRole("progressbar");
+    expect(barra).toHaveAttribute("aria-valuemax", "100");
+    expect(barra).toHaveAttribute("aria-valuenow", "50");
+    expect(barra).toHaveAttribute("aria-valuetext", "50 %");
+  });
+
+  it.each([
+    [0, 0.75, "0"],
+    [0.75, 0.75, "100"],
+    [0.875, 0.75, "100"],
+  ])("en los extremos: %s de %s s marca %s por ciento", (segundos, total, esperado) => {
+    mostrar(avanceDePrueba({ segundos, total_segundos: total }));
+
+    const barra = screen.getByRole("progressbar");
+    expect(barra).toHaveAttribute("aria-valuenow", esperado);
+    expect(barra).toHaveAttribute("aria-valuetext", `${esperado} %`);
+  });
+
+  it("con un total de justo 1 s vuelve a usar segundos", () => {
+    mostrar(avanceDePrueba({ segundos: 0.5, total_segundos: 1 }));
+
+    const barra = screen.getByRole("progressbar");
+    expect(barra).toHaveAttribute("aria-valuemax", "1");
+    expect(barra).toHaveAttribute("aria-valuenow", "0");
+    expect(barra).toHaveAttribute("aria-valuetext", "0 segundos de 1 segundo");
+  });
+});

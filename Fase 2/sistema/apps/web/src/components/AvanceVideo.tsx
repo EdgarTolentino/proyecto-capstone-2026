@@ -40,6 +40,10 @@ export function AvanceVideo({ avance, archivo }: { avance: Avance | null | undef
   // Hacia abajo: 100 % solo cuando de verdad terminó de recorrer el video.
   const porcentaje = actual !== null && maximo !== null ? Math.floor((actual / maximo) * 100) : null;
 
+  // Un total menor que 1 s no cabe en segundos enteros (daría «0 de 0»): ahí la barra habla en
+  // porcentaje, lo mismo que se ve.
+  const enPorcentaje = !guardando && total !== null && Math.floor(total) < 1;
+
   let textoVisible: string;
   let textoAccesible: string;
   if (guardando) {
@@ -47,7 +51,9 @@ export function AvanceVideo({ avance, archivo }: { avance: Avance | null | undef
     textoAccesible = "Guardando resultados";
   } else if (total !== null && actual !== null) {
     textoVisible = `${formatearReloj(actual)} de ${formatearReloj(total)} (${porcentaje} %)`;
-    textoAccesible = `${duracionEnPalabras(actual)} de ${duracionEnPalabras(total)}`;
+    textoAccesible = enPorcentaje
+      ? `${porcentaje} %`
+      : `${duracionEnPalabras(actual)} de ${duracionEnPalabras(total)}`;
   } else {
     textoVisible = `${formatearReloj(hecho)} transcurridos`;
     textoAccesible = `${duracionEnPalabras(hecho)} transcurridos`;
@@ -60,8 +66,8 @@ export function AvanceVideo({ avance, archivo }: { avance: Avance | null | undef
         role="progressbar"
         aria-label={`Avance de ${archivo}`}
         aria-valuemin={0}
-        aria-valuemax={maximo === null ? undefined : Math.floor(maximo)}
-        aria-valuenow={actual === null ? undefined : Math.floor(actual)}
+        aria-valuemax={maximo === null ? undefined : enPorcentaje ? 100 : Math.floor(maximo)}
+        aria-valuenow={actual === null ? undefined : enPorcentaje ? porcentaje ?? undefined : Math.floor(actual)}
         aria-valuetext={textoAccesible}
       >
         <span style={porcentaje === null ? undefined : { width: `${porcentaje}%` }} />

@@ -404,6 +404,47 @@ def test_publicar_el_avance_no_espera_a_la_transaccion_del_resultado(entorno: En
     assert not corre.is_alive()
 
 
+def test_con_la_fila_bloqueada_el_analisis_avanza_antes_de_que_se_libere(entorno: Entorno) -> None:
+    """Motor de producción (`crear_motor` no fija `lock_timeout`): otra transacción sostiene la
+    fila del video y el análisis NO espera en cada publicación; los cuadros siguen pasando
+    mientras el bloqueo está puesto."""
+    e = entorno
+    encolar_video(e)
+    liberar = threading.Event()
+    bloqueada = threading.Event()
+    vistos: list[int] = []
+    todos = SEGUNDOS * 5  # cuadros muestreados (a 5 fps)
+
+    def sostener() -> None:
+        with e.motor.begin() as c:
+            c.execute(text("SELECT id FROM video WHERE id = 1 FOR UPDATE"))
+            bloqueada.set()
+            liberar.wait(timeout=60)
+
+    sostenedor = threading.Thread(target=sostener)
+
+    def antes(indice: int) -> None:
+        if indice == 0:
+            sostenedor.start()
+            assert bloqueada.wait(timeout=10)
+        vistos.append(indice)
+
+    corre = threading.Thread(target=e.fabricar(antes, cada_s=0).atender_uno)
+    corre.start()
+    try:
+        for _ in range(300):  # hasta 30 s, con el bloqueo puesto todo el tiempo
+            if len(vistos) >= todos or not corre.is_alive():
+                break
+            corre.join(timeout=0.1)
+        avanzo = len(vistos)
+    finally:
+        liberar.set()
+        corre.join(timeout=60)
+        sostenedor.join(timeout=10)
+    assert avanzo == todos, f"el análisis se detuvo en el cuadro {avanzo} de {todos}"
+    assert not corre.is_alive()
+
+
 def test_si_publicar_falla_el_analisis_sigue_y_lo_dice_por_stderr(
     entorno: Entorno, monkeypatch: pytest.MonkeyPatch, capsys: pytest.CaptureFixture[str]
 ) -> None:

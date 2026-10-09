@@ -12,7 +12,9 @@ ni un hallazgo.
   (que toma la misma fila). La final (`guardando`, avance = total) se hace ANTES de abrir la del
   resultado, no después del UPDATE de estado: si no, las dos se bloquearían entre sí.
 - **Fallas:** si publicar falla, se dice por stderr y el análisis sigue. El avance nunca detiene
-  el procesamiento.
+  el procesamiento. Tampoco lo espera: si otra transacción tiene la fila del video, la publicación
+  espera como mucho `ESPERA_BLOQUEO_MS` (`SET LOCAL lock_timeout`) y, si no la consigue, se salta;
+  la siguiente lo intenta de nuevo. El motor de producción no fija ningún `lock_timeout`.
 """
 
 from __future__ import annotations
@@ -24,10 +26,12 @@ from collections.abc import Callable, Iterable
 from gepp_bd.repositorios import videos
 from gepp_bd.sesion import transaccion
 from gepp_core import ClaseDetectada, Deteccion
-from sqlalchemy import Engine
+from sqlalchemy import Engine, text
 from sqlalchemy.orm import Session
 
 PERIODO_S = 2.0
+#: Lo máximo que una publicación espera la fila del video si otra transacción la tiene.
+ESPERA_BLOQUEO_MS = 500
 CLASES_DEL_AVANCE = (ClaseDetectada.PERSONA, ClaseDetectada.CASCO, ClaseDetectada.CHALECO)
 
 
@@ -98,6 +102,8 @@ class PublicadorDeAvance:
     def _intentar(self, accion: Callable[[Session], None]) -> None:
         try:
             with transaccion(self._motor) as s:
+                # Local a esta transacción: no cambia la espera de ninguna otra del trabajador.
+                s.execute(text(f"SET LOCAL lock_timeout = {ESPERA_BLOQUEO_MS}"))
                 accion(s)
         except Exception as e:
             print(f"[trabajador] no se pudo publicar el avance: {e!r}", file=sys.stderr)
