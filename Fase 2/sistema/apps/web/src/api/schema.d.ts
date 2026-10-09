@@ -739,6 +739,46 @@ export interface components {
              * @example 0.42
              */
             progreso?: number | null;
+            /** @description Avance del procesamiento, **solo** mientras `estado` es `procesando` y el trabajador ya publicó algo; en cualquier otro estado es `null` (o se omite), para no mostrar un avance viejo. `ultimo` es lo detectado en el cuadro más reciente, **no** un conteo acumulado de personas o EPP únicos: el detector no los identifica entre cuadros. */
+            avance?: {
+                /**
+                 * @description `analizando`: recorre el video. `guardando`: ya lo recorrió y escribe los resultados (los hallazgos aparecen al terminar, no en vivo).
+                 * @enum {string}
+                 */
+                fase: "analizando" | "guardando";
+                /**
+                 * Format: float
+                 * @description Segundos de video analizados hasta ahora.
+                 * @example 150
+                 */
+                segundos: number;
+                /**
+                 * Format: float
+                 * @description Duración del video en segundos; `null` si no se conoce.
+                 * @example 300
+                 */
+                total_segundos: number | null;
+                /**
+                 * Format: float
+                 * @description Segundos de video analizados por cada segundo de reloj (1,0 = tiempo real; 0,5 = la mitad de rápido); `null` si aún no se mide.
+                 * @example 0.8
+                 */
+                velocidad: number | null;
+                /** @description Lo detectado en el cuadro más reciente. */
+                ultimo: {
+                    /** @example 3 */
+                    persona: number;
+                    /** @example 2 */
+                    casco: number;
+                    /** @example 3 */
+                    chaleco: number;
+                } | null;
+                /**
+                 * Format: date-time
+                 * @description Cuándo publicó el trabajador este avance (la hora la pone la base).
+                 */
+                actualizado: string | null;
+            } | null;
             error_motivo?: string | null;
             /**
              * @description Intentos fallidos hasta ahora. Al llegar al máximo configurado en el trabajador (`GEPP_MAXIMO_INTENTOS`, 3 por defecto) el video pasa a `error`; reprocesarlo lo devuelve a 0.

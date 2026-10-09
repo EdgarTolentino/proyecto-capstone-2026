@@ -56,6 +56,8 @@ TIPOS_ZONA = ("interes", "privacidad")
 TIPOS_FUENTE = ("carpeta", "rtsp")
 ORIGENES_CAPTURE_TS = ("metadatos", "mtime", "manual", "ocr")
 ESTADOS_VIDEO = ("en_cola", "procesando", "reintentando", "listo", "error")
+#: Qué está haciendo el trabajador con un video `procesando` (columna `video.avance_fase`).
+FASES_AVANCE = ("analizando", "guardando")
 BASES_LICITUD = ("obligacion_legal", "interes_legitimo", "contrato")
 ESTADOS_HALLAZGO = ("por_revisar", "confirmado", "falso_positivo", "duplicado", "pospuesto")
 ESTADOS_ACCION = ("abierta", "en_curso", "cerrada", "vencida")
@@ -142,6 +144,7 @@ class Video(Base):
     __table_args__ = (
         CheckConstraint(en("origen_capture_ts", ORIGENES_CAPTURE_TS), name="origen_capture_ts"),
         CheckConstraint(en("estado", ESTADOS_VIDEO), name="estado"),
+        CheckConstraint(en("avance_fase", FASES_AVANCE), name="avance_fase"),
         Index("ix_video_estado_creado_en", "estado", "creado_en"),
     )
 
@@ -166,6 +169,19 @@ class Video(Base):
     cuadros_analizados: Mapped[int | None] = mapped_column(Integer)
     proceso_ms: Mapped[int | None] = mapped_column(BigInteger)
     creado_en: Mapped[datetime] = mapped_column(TSTZ, server_default=func.now())
+    #: Avance del análisis mientras el video está `procesando`. TELEMETRÍA del procesamiento
+    #: (ADR-005): nunca fecha una detección ni un hallazgo. Todo nulo si no se está analizando.
+    avance_fase: Mapped[str | None] = mapped_column(Text)
+    #: Segundos DE VIDEO ya analizados, por posición de captura (no por cuadros contados).
+    avance_s: Mapped[float | None] = mapped_column(REAL)
+    #: Duración del video; nulo si se desconoce o es 0.
+    avance_total_s: Mapped[float | None] = mapped_column(REAL)
+    #: Segundos de video por segundo de reloj del procesamiento (`time.monotonic`).
+    avance_velocidad: Mapped[float | None] = mapped_column(REAL)
+    #: Las detecciones del ÚLTIMO cuadro analizado: `{persona, casco, chaleco}`. No son conteos
+    #: acumulados: el detector no identifica objetos entre cuadros.
+    avance_ultimo: Mapped[dict[str, int] | None] = mapped_column(JSONB)
+    avance_actualizado: Mapped[datetime | None] = mapped_column(TSTZ)
 
 
 class Deteccion(Base):

@@ -5,6 +5,7 @@ from __future__ import annotations
 from typing import Any
 
 import pytest
+from sqlalchemy import text
 
 from .conftest import Cliente
 
@@ -346,3 +347,119 @@ def test_una_regla_que_la_camara_no_puede_ver_no_es_evaluable_ni_dispara(
         json={"desde": "2026-09-01", "hasta": "2026-09-01", "regla": _regla()},
     )
     assert sim["hallazgos_estimados"] == 0
+
+
+# ── Avance del procesamiento (`Video.avance`) ──────────────────────────────────────────────
+
+ULTIMO = '{"persona": 3, "casco": 2, "chaleco": 1}'
+
+
+def _publicar_avance(
+    bd: Any,
+    video_id: int = 1,
+    *,
+    estado: str = "procesando",
+    fase: str | None = "analizando",
+    segundos: float | None = 150.0,
+    total: float | None = 300.0,
+    velocidad: float | None = 4.5,
+    ultimo: str | None = ULTIMO,
+    actualizado: str | None = "2026-10-08 12:00:00+00",
+) -> None:
+    with bd.begin() as c:
+        c.execute(
+            text(
+                "UPDATE video SET estado = :estado, avance_fase = :fase, avance_s = :s,"
+                " avance_total_s = :total, avance_velocidad = :v,"
+                " avance_ultimo = CAST(:ultimo AS jsonb), avance_actualizado = :act"
+                " WHERE id = :id"
+            ),
+            {
+                "estado": estado,
+                "fase": fase,
+                "s": segundos,
+                "total": total,
+                "v": velocidad,
+                "ultimo": ultimo,
+                "act": actualizado,
+                "id": video_id,
+            },
+        )
+
+
+def _video(api: Cliente, video_id: int = 1) -> dict[str, Any]:
+    items = api.llamar("listarVideos", "GET", "/videos")["items"]
+    return next(v for v in items if v["id"] == video_id)
+
+
+@pytest.mark.parametrize("estado", ["en_cola", "reintentando", "listo", "error"])
+def test_fuera_de_procesando_el_avance_es_null_aunque_la_fila_guarde_uno_viejo(
+    api: Cliente, bd: Any, estado: str
+) -> None:
+    _publicar_avance(bd, estado=estado)
+    assert _video(api).get("avance") is None
+
+
+def test_procesando_con_avance_lo_entrega_completo_y_con_la_zona_de_la_faena(
+    api: Cliente, bd: Any
+) -> None:
+    _publicar_avance(bd)
+    assert _video(api)["avance"] == {
+        "fase": "analizando",
+        "segundos": 150.0,
+        "total_segundos": 300.0,
+        "velocidad": 4.5,
+        "ultimo": {"persona": 3, "casco": 2, "chaleco": 1},
+        # 12:00 UTC es 09:00 en Santiago en octubre (UTC-3): la hora de la faena, no la de la base
+        "actualizado": "2026-10-08T09:00:00-03:00",
+    }
+
+
+def test_la_fase_guardando_se_entrega_tal_cual(api: Cliente, bd: Any) -> None:
+    _publicar_avance(bd, fase="guardando", segundos=300.0)
+    avance = _video(api)["avance"]
+    assert avance["fase"] == "guardando" and avance["segundos"] == avance["total_segundos"]
+
+
+def test_procesando_sin_fase_publicada_no_tiene_avance(api: Cliente, bd: Any) -> None:
+    _publicar_avance(bd, fase=None)
+    assert _video(api).get("avance") is None
+
+
+def test_sin_duracion_conocida_el_total_es_null(api: Cliente, bd: Any) -> None:
+    _publicar_avance(bd, total=None)
+    avance = _video(api)["avance"]
+    assert avance["total_segundos"] is None and avance["segundos"] == 150.0
+
+
+def test_lo_que_aun_no_se_midio_va_null_sin_inventar(api: Cliente, bd: Any) -> None:
+    _publicar_avance(bd, segundos=None, velocidad=None, ultimo=None, actualizado=None)
+    assert _video(api)["avance"] == {
+        "fase": "analizando",
+        "segundos": 0.0,
+        "total_segundos": 300.0,
+        "velocidad": None,
+        "ultimo": None,
+        "actualizado": None,
+    }
+
+
+@pytest.mark.parametrize("ultimo", ["{}", '{"persona": 1}', '{"persona": 1, "casco": 0}', "[]"])
+def test_un_ultimo_incompleto_no_se_completa_con_ceros(api: Cliente, bd: Any, ultimo: str) -> None:
+    _publicar_avance(bd, ultimo=ultimo)
+    assert _video(api)["avance"]["ultimo"] is None
+
+
+def test_los_extremos_del_avance_son_validos(api: Cliente, bd: Any) -> None:
+    _publicar_avance(bd, segundos=0.0, ultimo='{"persona": 0, "casco": 0, "chaleco": 0}')
+    assert _video(api)["avance"]["segundos"] == 0.0
+    _publicar_avance(bd, segundos=300.0)  # el 100 %: igual al total
+    assert _video(api)["avance"]["segundos"] == 300.0
+
+
+def test_solo_el_video_que_procesa_muestra_avance(api: Cliente, bd: Any) -> None:
+    _publicar_avance(bd, video_id=2)
+    _publicar_avance(bd, video_id=1, estado="listo")
+    items = {v["id"]: v for v in api.llamar("listarVideos", "GET", "/videos")["items"]}
+    assert items[2]["avance"] is not None
+    assert items[1].get("avance") is None and items[3].get("avance") is None

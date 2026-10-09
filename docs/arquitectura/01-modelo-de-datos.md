@@ -109,7 +109,15 @@ CREATE TABLE video (
     intentos       INT NOT NULL DEFAULT 0,  -- fallidos; al 3.º pasa de 'reintentando' a 'error'
     cuadros_analizados INT,
     proceso_ms     BIGINT,
-    creado_en      TIMESTAMPTZ NOT NULL DEFAULT now()
+    creado_en      TIMESTAMPTZ NOT NULL DEFAULT now(),
+    -- Avance del análisis mientras el video está 'procesando'. Es TELEMETRÍA del procesamiento
+    -- (ADR-005): nunca fecha una detección ni un hallazgo. Todo nulo si no se está analizando.
+    avance_fase    TEXT CHECK (avance_fase IN ('analizando','guardando')),
+    avance_s       REAL,        -- segundos DE VIDEO ya analizados (posición de captura, no cuadros)
+    avance_total_s REAL,        -- duración; nulo si se desconoce o es 0
+    avance_velocidad REAL,      -- segundos de video por segundo de reloj (time.monotonic)
+    avance_ultimo  JSONB,       -- {persona, casco, chaleco} del ÚLTIMO cuadro analizado, no acumulado
+    avance_actualizado TIMESTAMPTZ  -- now() de la base al publicar
 );
 CREATE INDEX ON video (estado, creado_en);
 

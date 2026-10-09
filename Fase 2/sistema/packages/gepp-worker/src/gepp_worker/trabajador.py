@@ -40,12 +40,13 @@ from gepp_bd.sesion import transaccion
 from gepp_core import ClaseDetectada, Deteccion, Hallazgo, Regla
 from gepp_core.textos import sin_rutas
 from gepp_vision.evidencia import EvidenciaEscrita, escribir_evidencia
-from gepp_vision.pipeline import PipelineEtapa1
+from gepp_vision.pipeline import CuadroFechado, PipelineEtapa1, ResultadoCuadro
 from gepp_vision.privacidad import MascaraPrivacidad
 from gepp_vision.puertos import Detector, Seguidor
 from gepp_vision.seguimiento import SeguidorByteTrack
 from sqlalchemy import Engine, select
 
+from gepp_worker.avance import PERIODO_S, PublicadorDeAvance
 from gepp_worker.cola import ColaTrabajos, EstadoTrabajo, Trabajo
 from gepp_worker.fuente import Cuadro, PropiedadesFuente
 from gepp_worker.fuente_archivo import FuenteArchivo, reloj_de_respaldo
@@ -72,6 +73,8 @@ class Configuracion:
     aviso: Aviso | None = None
     #: Carpeta de los pedidos desde la web. Sin ella el trabajador no los atiende.
     carpeta_entrada: Path | None = None
+    #: Cada cuántos segundos (de reloj) se publica el avance de un video (`gepp_worker.avance`).
+    avance_cada_s: float = PERIODO_S
 
 
 @dataclass(frozen=True, slots=True)
@@ -136,6 +139,7 @@ class Trabajador:
         fabrica_detector: Callable[[], Detector],
         config: Configuracion,
         fabrica_seguidor: Callable[[], Seguidor] = SeguidorByteTrack,
+        reloj: Callable[[], float] = time.monotonic,
     ) -> None:
         self._motor = motor
         self._cola = cola
@@ -143,6 +147,8 @@ class Trabajador:
         self._fabrica_seguidor = fabrica_seguidor
         self._config = config
         self._inicio_fallido = False  # los pedidos no pudieron iniciarse: se reintenta
+        #: Reloj de duraciones (ritmo del avance). Se inyecta para probarlo; no fecha nada.
+        self._reloj = reloj
         self._pedidos = (
             AtencionDePedidos(motor, cola, config.carpeta_entrada)
             if config.carpeta_entrada is not None
@@ -333,6 +339,8 @@ class Trabajador:
                 ).scalars()
             )
             videos.cambiar_estado(s, video_id, "procesando")
+            # Cada intento parte de cero: sin esto se vería el avance del anterior (`reintentando`).
+            videos.reiniciar_avance(s, video_id)
             return _Contexto(video_id, fuente.id, fuente.area_id, activas, privacidad, aplicables)
 
     def _analizar(
@@ -350,6 +358,14 @@ class Trabajador:
             FuenteArchivo(ruta, inicio_captura=props.inicio_captura), self._config.fps_objetivo
         )
         muestreador.abrir()
+        duracion_s = props.cuadros_totales / props.fps if props.cuadros_totales else None
+        avance = PublicadorDeAvance(
+            self._motor,
+            ctx.video_id,
+            duracion_s,
+            reloj=self._reloj,
+            cada_s=self._config.avance_cada_s,
+        )
         try:
 
             def cuadros() -> Iterator[Cuadro]:
@@ -358,9 +374,16 @@ class Trabajador:
                     if cuadro is not None:
                         yield cuadro
 
-            resultado = pipeline.procesar_todo(cuadros())
+            def informar(cuadro: CuadroFechado, r: ResultadoCuadro) -> None:
+                # La posición en el video de origen, no el contador de cuadros muestreados.
+                posicion_s = (cuadro.capture_ts - props.inicio_captura).total_seconds()
+                avance.cuadro(posicion_s, r.detecciones)
+
+            resultado = pipeline.procesar_todo(cuadros(), por_cuadro=informar)
         finally:
             muestreador.cerrar()
+        # Antes de abrir la transacción del resultado (que toma la fila del video), no después.
+        avance.final()
 
         escritas = self._escribir_evidencias(
             ruta, props, ctx, mascara, resultado.hallazgos, resultado.detecciones

@@ -5,6 +5,7 @@ import { useEffect, useMemo, useRef, useState } from "react";
 import { ApiError, listarPedidos, listarVideos, pedirIngesta, reprocesarVideo } from "../api/client";
 import type { Catalogos, EstadoPedido, Pedido, PedidoNuevo, Video } from "../api/types";
 import { intervaloDePedidos, intervaloDeRefresco, mensajeDePedido, pedidoDejoListaVieja } from "../api/videos";
+import { AvanceVideo } from "./AvanceVideo";
 import { ProcesarVideoDialog, type FuenteElegible } from "./ProcesarVideoDialog";
 import "./VideosPage.css";
 
@@ -259,7 +260,10 @@ export function VideosPage({ puedeEditarReglas = false, catalogos, catalogosErro
                   <tr key={video.id}>
                     <th scope="row" className="mono video-file">{video.archivo}</th>
                     <td>{video.fuente?.nombre ?? "—"}</td>
-                    <td><EstadoVideo estado={video.estado} /></td>
+                    <td>
+                      <EstadoVideo estado={video.estado} />
+                      {video.estado === "procesando" && <AvanceVideo avance={video.avance} archivo={video.archivo} />}
+                    </td>
                     <td className="mono video-attempts">{video.intentos ?? 0}</td>
                     <td className="video-error">{(estadosConMotivo.has(video.estado) && video.error_motivo) || "—"}</td>
                     {puedeEditarReglas && (
