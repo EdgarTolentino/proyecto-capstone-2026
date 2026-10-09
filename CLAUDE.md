@@ -48,6 +48,8 @@ buscar la forma de esquivarlo.
    Lo cuida `tests/test_reloj.py`. Los umbrales se expresan en segundos, nunca en cuadros.
 4. **Sin identificación de personas:** `track_id` efímero, sin reconocimiento facial, sin
    inferir género, edad ni etnia, y el rostro se difumina antes de escribir el recorte (ADR-006).
+   Única excepción: la vista en vivo del procesamiento muestra caras sin tapar, en memoria y sin
+   guardarse (nota del 2026-10-09 en ADR-006).
 5. **Fronteras del monorepo:** `gepp-api` no importa `gepp-vision`; `gepp-bd` no importa visión,
    trabajador ni web (`tests/bd/test_frontera.py`) (ADR-007).
 6. **El dominio es configuración:** se evalúa en construcción; la minería es un perfil YAML
