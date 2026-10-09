@@ -150,7 +150,9 @@ def recuperar_tomados(sesion: Session) -> int:
 
 
 def recientes(sesion: Session, limite: int = LIMITE_RECIENTES) -> list[PedidoIngesta]:
-    """Los pedidos más nuevos primero, de cualquier estado."""
+    """Los pedidos más nuevos primero, de cualquier estado. Un `limite` negativo es un error."""
+    if limite < 0:
+        raise ValueError(f"limite no puede ser negativo: {limite}")
     return list(
         sesion.execute(
             select(PedidoIngesta).order_by(PedidoIngesta.id.desc()).limit(limite)

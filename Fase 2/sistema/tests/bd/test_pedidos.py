@@ -298,6 +298,33 @@ def test_cerrar_un_pedido_inexistente_devuelve_false(bd: Engine, fuente_id: int)
         assert pedidos.rechazar(s, 999, "x") is False
 
 
+@pytest.mark.parametrize("medido", [0, 1])
+def test_cerrar_guarda_lo_medido_aunque_sea_cero(bd: Engine, fuente_id: int, medido: int) -> None:
+    """0 es una medida, no «sin medida»: la guarda es `is not None`, no la verdad del valor."""
+    pedido_id = _crear(bd, "a.mp4", fuente_id)
+    _tomar(bd)
+    with Session(bd) as s, s.begin():
+        assert pedidos.rechazar(s, pedido_id, "x", bytes=medido, mtime_ns=medido)
+    with Session(bd) as s:
+        p = s.get(PedidoIngesta, pedido_id)
+        assert p is not None and (p.bytes, p.mtime_ns) == (medido, medido)
+
+
+def test_cerrar_sin_medidas_conserva_las_que_ya_tenia(bd: Engine, fuente_id: int) -> None:
+    pedido_id = _crear(bd, "a.mp4", fuente_id)
+    _tomar(bd)
+    with bd.begin() as c:
+        c.execute(
+            text("UPDATE pedido_ingesta SET bytes = 1234, mtime_ns = 99 WHERE id = :i"),
+            {"i": pedido_id},
+        )
+    with Session(bd) as s, s.begin():
+        assert pedidos.rechazar(s, pedido_id, "x")  # sin bytes ni mtime_ns
+    with Session(bd) as s:
+        p = s.get(PedidoIngesta, pedido_id)
+        assert p is not None and (p.bytes, p.mtime_ns) == (1234, 99)
+
+
 # ── Recuperar y listar ─────────────────────────────────────────────────────────────────────
 
 
@@ -326,3 +353,21 @@ def test_los_recientes_van_del_mas_nuevo_al_mas_viejo_y_respetan_el_limite(
         assert [p.id for p in pedidos.recientes(s)] == ids[::-1]
         assert [p.id for p in pedidos.recientes(s, 2)] == ids[:-3:-1]
         assert pedidos.recientes(s, 0) == []
+
+
+@pytest.mark.parametrize(("creados", "listados"), [(49, 49), (50, 50), (51, 50)])
+def test_el_limite_por_defecto_es_50(
+    bd: Engine, fuente_id: int, creados: int, listados: int
+) -> None:
+    assert pedidos.LIMITE_RECIENTES == 50
+    with Session(bd) as s, s.begin():
+        for i in range(creados):
+            pedidos.crear(s, archivo=f"v{i}.mp4", fuente_id=fuente_id)
+    with Session(bd) as s:
+        assert len(pedidos.recientes(s)) == listados
+
+
+def test_un_limite_negativo_es_un_error(bd: Engine, fuente_id: int) -> None:
+    del fuente_id
+    with Session(bd) as s, pytest.raises(ValueError, match="negativo"):
+        pedidos.recientes(s, -1)
