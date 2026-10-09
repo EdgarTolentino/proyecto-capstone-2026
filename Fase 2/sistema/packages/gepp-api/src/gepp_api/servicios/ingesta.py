@@ -20,6 +20,7 @@ from gepp_core.archivos import (
     NombreInvalido,
     validar_nombre_en_carpeta,
 )
+from gepp_core.textos import sin_rutas
 from sqlalchemy import select
 from sqlalchemy.orm import Session
 
@@ -80,7 +81,8 @@ def pedido_a_json(p: PedidoIngesta, fuente: Fuente | None, tz: ZoneInfo) -> dict
         "archivo": p.archivo,
         "fuente": {"id": fuente.id, "nombre": fuente.nombre} if fuente else None,
         "estado": p.estado,
-        "motivo": p.motivo,
+        # El trabajador ya lo escribe sin rutas; se sanea igual al exponer (como `GET /videos`).
+        "motivo": sin_rutas(p.motivo) if p.motivo else p.motivo,
         "video_id": p.video_id,
         "creado_en": iso(p.creado_en, tz),
     }

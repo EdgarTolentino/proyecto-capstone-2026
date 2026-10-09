@@ -30,7 +30,7 @@ from __future__ import annotations
 import sys
 import time
 from collections.abc import Callable, Iterator
-from dataclasses import dataclass
+from dataclasses import dataclass, replace
 from pathlib import Path
 
 from gepp_bd.modelos import Fuente, Zona
@@ -50,6 +50,7 @@ from gepp_worker.cola import ColaTrabajos, EstadoTrabajo, Trabajo
 from gepp_worker.fuente import Cuadro, PropiedadesFuente
 from gepp_worker.fuente_archivo import FuenteArchivo, reloj_de_respaldo
 from gepp_worker.muestreo import Muestreador
+from gepp_worker.pedidos import AtencionDePedidos, variantes_de
 
 
 class VideoIlegible(Exception):
@@ -69,6 +70,8 @@ class Configuracion:
     carpeta_evidencia: Path
     fps_objetivo: float = 5.0
     aviso: Aviso | None = None
+    #: Carpeta de los pedidos desde la web. Sin ella el trabajador no los atiende.
+    carpeta_entrada: Path | None = None
 
 
 @dataclass(frozen=True, slots=True)
@@ -117,16 +120,6 @@ def _sin_leer(trabajo: Trabajo) -> videos.NuevoVideo:
     )
 
 
-def _variantes_de(ruta: str) -> tuple[str, ...]:
-    """La ruta como vino y resuelta (los mensajes de `FuenteArchivo` traen la resuelta). Un
-    enlace circular hace fallar a `resolve()` en Python 3.12 (`RuntimeError`): sin la resuelta
-    se sanea igual con la regla general, pero el trabajador no puede caerse por esto."""
-    try:
-        return (ruta, str(Path(ruta).resolve()))
-    except (OSError, RuntimeError):
-        return (ruta,)
-
-
 def _cuadro_de_evidencia(h: Hallazgo) -> int:
     """El cuadro del medio de los que registró el agregador: ni el primero (la persona
     puede estar entrando) ni el último (puede estar saliendo)."""
@@ -149,6 +142,11 @@ class Trabajador:
         self._fabrica_detector = fabrica_detector
         self._fabrica_seguidor = fabrica_seguidor
         self._config = config
+        self._pedidos = (
+            AtencionDePedidos(motor, cola, config.carpeta_entrada)
+            if config.carpeta_entrada is not None
+            else None
+        )
 
     # ── Cola ───────────────────────────────────────────────────────────────────
 
@@ -162,7 +160,8 @@ class Trabajador:
         except Exception as e:
             completo = str(e) if isinstance(e, VideoIlegible) else f"{type(e).__name__}: {e}"
             # A la base y a Redis va sin rutas; la salida local conserva la completa para depurar.
-            motivo = sin_rutas(completo, *_variantes_de(trabajo.ruta))
+            rutas = (*variantes_de(trabajo.ruta), *self._rutas_de_la_fila(trabajo))
+            motivo = sin_rutas(completo, *rutas)
             print(f"[trabajador] {trabajo.ruta}: {completo}", file=sys.stderr)
             definitivo: bool | None = None
             try:
@@ -178,6 +177,16 @@ class Trabajador:
             return None
         self._cola.confirmar(trabajo)
         return resultado
+
+    def _rutas_de_la_fila(self, trabajo: Trabajo) -> tuple[str, ...]:
+        """La ruta de la fila `video`, que `procesar` usa en vez de la del trabajo y puede
+        salir en el mensaje de un fallo. Si la base no responde, se sanea sin ella."""
+        try:
+            with transaccion(self._motor) as s:
+                fila = videos.por_hash(s, trabajo.hash_sha256)
+            return variantes_de(fila.ruta) if fila is not None else ()
+        except Exception:
+            return ()
 
     def _anotar_fallo(self, trabajo: Trabajo, motivo: str) -> bool:
         """Que el fallo se vea en `GET /videos`, y no solo en Redis (#29). Devuelve si ya
@@ -212,16 +221,37 @@ class Trabajador:
                 n += 1
         return n
 
+    def atender_pedido(self) -> bool:
+        """Un pedido de procesar un video desde la web, si hay y este trabajador los atiende."""
+        if self._pedidos is None or not self._pedidos.activa:
+            return False
+        return self._pedidos.atender_uno()
+
     def correr(self, seguir: Callable[[], bool] = lambda: True, espera_s: float = 2.0) -> None:
         self._cola.recuperar_huerfanos()
-        while seguir():
+        if self._pedidos is None:
+            print("[trabajador] sin GEPP_CARPETA_ENTRADA: no atiende pedidos de la web", flush=True)
+        else:
             try:
-                self.reencolar_pedidos()
+                self._pedidos.iniciar()
             except Exception as e:
-                # Un corte de la base no puede detener la ingesta: se reintenta en la vuelta
-                # siguiente, y mientras tanto la cola de Redis sigue avanzando.
-                print(f"[trabajador] no se pudieron leer los reintentos: {e!r}", file=sys.stderr)
-            self.atender_uno(espera_s)
+                print(f"[trabajador] no se pudo iniciar los pedidos: {e!r}", file=sys.stderr)
+        try:
+            while seguir():
+                try:
+                    self.reencolar_pedidos()
+                except Exception as e:
+                    # Un corte de la base no puede detener la ingesta: se reintenta en la vuelta
+                    # siguiente, y mientras tanto la cola de Redis sigue avanzando.
+                    print(f"[trabajador] no se leyeron los reintentos: {e!r}", file=sys.stderr)
+                try:
+                    self.atender_pedido()
+                except Exception as e:
+                    print(f"[trabajador] no se pudo atender un pedido: {e!r}", file=sys.stderr)
+                self.atender_uno(espera_s)
+        finally:
+            if self._pedidos is not None:
+                self._pedidos.cerrar()
 
     # ── Proceso de un video ────────────────────────────────────────────────────
 
@@ -231,6 +261,10 @@ class Trabajador:
             # `error` también se salta: agotó sus intentos y solo vuelve si alguien lo pide.
             if previo is not None and previo.estado in ("listo", "error"):
                 return Resultado(video_id=previo.id, omitido=True)
+            if previo is not None:
+                # La base manda: si Redis tenía el hash por otro camino (el vigilante), el archivo
+                # es el de la fila. La cámara también (`_registrar` usa `video.fuente_id`).
+                trabajo = replace(trabajo, ruta=previo.ruta, fuente_id=previo.fuente_id)
         inicio = time.monotonic()
         ruta = Path(trabajo.ruta)
         props = _propiedades(ruta)
