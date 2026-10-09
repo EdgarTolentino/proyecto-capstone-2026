@@ -136,9 +136,11 @@ cara de cada persona detectada.
 Qué se muestra: la imagen **nítida**, reducida a 640 px de ancho, con las cajas de persona, casco y
 chaleco, y **ningún rostro tapado**.
 
-Se muestran **todos los cuadros del video**, también los que el modelo no analizó (el modelo ve
-unos 5 por segundo; la vista, hasta 25). **En esos cuadros las cajas vienen del análisis
-anterior**, hasta 0,2 s atrás a 5 fps. A todos los cuadros, analizados o no, se les aplican los
+La vista muestra los cuadros del video muestreados a `GEPP_VIVO_FPS` cuadros por segundo de video
+(25 por defecto), también los que el modelo no analizó (el modelo ve unos 5 por segundo). **En
+esos cuadros las cajas vienen del análisis anterior**, hasta 0,2 s atrás a 5 fps. La API entrega
+hasta 30 cuadros por pedido (`MAXIMO_POR_RESPUESTA`): si el navegador se atrasa, se salta los más
+viejos. A todos los cuadros, analizados o no, se les aplican los
 polígonos de privacidad.
 
 > **Riesgo aceptado por Edgar Tolentino el 2026-10-09: en la vista en vivo todas las caras quedan
@@ -152,7 +154,7 @@ Condiciones (todas, no una a elección):
 | 1 | **El sistema no guarda los cuadros de la vista**: viven solo en el anillo en memoria (condiciones 4 a 6). La evidencia persistida sigue siendo el recorte con el rostro difuminado |
 | 2 | **Solo los roles con `ver_evidencia`** y, dentro de ellos, solo el área del supervisor. El administrador no la ve |
 | 3 | **Apagada por defecto**: `GEPP_VISTA_EN_VIVO=1` en el trabajador (y en la API). Apagada no se escribe nada y el endpoint responde 404 |
-| 4 | **Un anillo de hasta 60 cuadros por video, en memoria** (`/dev/shm/gepp-vivo/<video_id>/<seq>_<pos_ms>.jpg`, subcarpeta 0700), cada cuadro escrito atómico y los más viejos borrados. Hasta 25 cuadros por segundo de video (`GEPP_VIVO_FPS`) |
+| 4 | **Un anillo de hasta 60 cuadros por video, en memoria**: `<GEPP_CARPETA_VIVO>/<video_id>/<seq>_<pos_ms>.jpg`, por defecto en `/dev/shm/gepp-vivo`, subcarpeta 0700, cada cuadro escrito atómico y los más viejos borrados. `GEPP_CARPETA_VIVO` tiene que estar en memoria (tmpfs): el sistema **no lo comprueba**, y apuntarla a un disco rompe esta condición |
 | 5 | **Borrado al terminar** el intento (la subcarpeta entera, sea listo, error o reintento) y vaciado de todo, subcarpetas incluidas, al arrancar el trabajador |
 | 6 | **10 s de vigencia**: un cuadro más viejo que eso no se sirve |
 | 7 | **Solo clientes dentro de la infraestructura controlada** (ADR-010). Con cómputo en la nube el video de obra saldría de ella; la vista no se habilita en ese despliegue |
@@ -160,8 +162,8 @@ Condiciones (todas, no una a elección):
 Límites que se aceptan y se declaran:
 
 - **`/dev/shm` puede ir a swap.** «Memoria» no garantiza que nunca toque disco, y los cuadros ya
-  **no están pixelados**: lo que llegue a swap puede contener rostros. Con el anillo hay hasta 60 cuadros por video en
-  memoria a la vez.
+  **no están pixelados**: lo que llegue a swap puede contener rostros. Con el anillo hay hasta 60
+  cuadros por video en memoria a la vez.
 - La vista parte de la imagen **con los polígonos de privacidad aplicados**, la misma que vio el
   detector: lo que se ennegrece antes de inferir no reaparece en la vista.
 - La evidencia persistida no cambia: sigue siendo el recorte con el rostro difuminado.

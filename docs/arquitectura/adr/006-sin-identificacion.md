@@ -59,8 +59,9 @@ persona, casco y chaleco y **sin tapar ningún rostro**. Lo decide Edgar Tolenti
 sabiendo que todas las caras quedan visibles. Antes se probaron, y se descartaron, un pixelado del
 cuadro entero (no se distinguía nada) y un punto negro sobre la cara de cada persona detectada.
 
-Lo que esta excepción **no** cambia: no se identifica a nadie, no se guardan rostros en disco y la
-evidencia persistida sigue siendo el recorte con el rostro difuminado. Lo que **sí** cambia: dentro
+Lo que esta excepción **no** cambia: no se identifica a nadie, el sistema no escribe los cuadros de
+la vista en disco (salvo lo que el sistema operativo lleve a swap, límite declarado) y la evidencia
+persistida sigue siendo el recorte con el rostro difuminado. Lo que **sí** cambia: dentro
 de la vista se suspende la garantía de «rostro anonimizado antes de salir». Por eso la vista está
 apagada por defecto, la ven solo los roles con `ver_evidencia` y los cuadros viven en un anillo en
 memoria que se borra al terminar el procesamiento. Condiciones y límites en
