@@ -14,6 +14,8 @@ from sqlalchemy import Select, func, select
 
 from gepp_api.auth import Bd, Sesion, SesionActual
 from gepp_api.errores import ErrorApi, no_encontrado
+from gepp_api.esquemas import PedidoNuevo
+from gepp_api.servicios import ingesta
 from gepp_api.servicios.hallazgos import cursor_de, desplazamiento_de, iso
 from gepp_api.servicios.recalculo import recalcular_video
 
@@ -100,6 +102,31 @@ def listar_videos(
         "items": [video_a_json(bd, v, tz) for v in filas[:limite]],
         "siguiente_cursor": cursor_de(desplazamiento + limite) if len(filas) > limite else None,
     }
+
+
+@router.get("/videos/entrada", operation_id="listarEntradaVideos")
+def listar_entrada_videos(request: Request, bd: Bd, sesion: Sesion) -> dict[str, Any]:
+    """Los videos de la carpeta de entrada que se pueden pedir. Solo nombres, nunca rutas."""
+    sesion.exigir("editar_reglas")
+    config = request.app.state.config
+    carpeta = ingesta.carpeta_de_entrada(config.carpeta_entrada)
+    return {"items": ingesta.listar_entrada(bd, carpeta, config.zona_horaria)}
+
+
+@router.get("/videos/pedidos", operation_id="listarPedidos")
+def listar_pedidos(request: Request, bd: Bd, sesion: Sesion) -> dict[str, Any]:
+    sesion.exigir("editar_reglas")
+    return {"items": ingesta.listar_pedidos(bd, request.app.state.config.zona_horaria)}
+
+
+@router.post("/videos", operation_id="pedirIngesta", status_code=202)
+def pedir_ingesta(request: Request, cuerpo: PedidoNuevo, bd: Bd, sesion: Sesion) -> dict[str, Any]:
+    """Deja un pedido para que el trabajador procese un archivo de la carpeta de entrada.
+    No sube nada ni habla con Redis; el hash y el registro del video son del trabajador."""
+    sesion.exigir("editar_reglas")
+    config = request.app.state.config
+    carpeta = ingesta.carpeta_de_entrada(config.carpeta_entrada)
+    return ingesta.pedir(bd, sesion, carpeta, cuerpo.archivo, cuerpo.fuente_id, config.zona_horaria)
 
 
 @router.post("/videos/{id}/reprocesar", operation_id="reprocesarVideo", status_code=202)

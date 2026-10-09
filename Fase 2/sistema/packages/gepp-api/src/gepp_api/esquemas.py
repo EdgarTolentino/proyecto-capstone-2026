@@ -20,6 +20,15 @@ class DecisionTriage(BaseModel):
     posponer_hasta: AwareDatetime | None = None
 
 
+class PedidoNuevo(BaseModel):
+    """Pedir que se procese un archivo de la carpeta de entrada: su NOMBRE, no una ruta."""
+
+    model_config = ConfigDict(extra="forbid")
+
+    archivo: str
+    fuente_id: int
+
+
 class TriageLote(BaseModel):
     ids: list[int] = Field(min_length=1, max_length=200)
     decision: DecisionTriage

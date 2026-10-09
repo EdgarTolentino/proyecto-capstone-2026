@@ -134,6 +134,73 @@ export interface paths {
         /** Cola de ingesta */
         get: operations["listarVideos"];
         put?: never;
+        /**
+         * Pedir que se procese un video de la carpeta de entrada
+         * @description Deja un pedido `pendiente` para un archivo de la carpeta de entrada del servidor; el
+         *     trabajador lo atiende después (calcula el hash, registra el video y lo encola). **No se
+         *     sube ningún archivo**: el video ya está en la máquina y no sale de ella (ADR-010). El
+         *     cuerpo lleva solo el NOMBRE, nunca una ruta. Requiere `editar_reglas`.
+         *
+         *     Errores:
+         *
+         *     - `422 peticion_invalida`: nombre mal formado (vacío, más de 255 bytes, con `/`, `\`,
+         *       NUL o punto inicial, o extensión que no es de video) o cuerpo con campos de más.
+         *     - `404 archivo_no_encontrado`: no hay un archivo de video utilizable con ese nombre
+         *       (no existe, es un enlace, un directorio o está vacío).
+         *     - `404 fuente_no_encontrada`: la cámara no existe.
+         *     - `409 fuente_inactiva`: la cámara está desactivada.
+         *     - `409 pedido_existente`: ese archivo ya tiene un pedido `pendiente` o `tomado`.
+         *     - `409 entrada_no_configurada`: el servidor no tiene carpeta de entrada.
+         *
+         *     Que el contenido ya esté registrado (mismo hash) NO se decide aquí: lo decide el
+         *     trabajador, y el pedido queda `rechazado` con su motivo.
+         */
+        post: operations["pedirIngesta"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/videos/entrada": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /**
+         * Videos de la carpeta de entrada que se pueden pedir
+         * @description Lista plana, del más reciente al más antiguo por `modificado`. Omite enlaces simbólicos,
+         *     archivos ocultos, los que no son de video y los vacíos. Nunca devuelve rutas del
+         *     servidor, solo nombres. `posible_duplicado` avisa cuando el nombre y el tamaño coinciden
+         *     con un video ya registrado: **solo informa**, la decisión es del hash en el trabajador.
+         *     Requiere `editar_reglas`. Sin carpeta de entrada configurada: `409 entrada_no_configurada`.
+         */
+        get: operations["listarEntradaVideos"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/videos/pedidos": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /**
+         * Pedidos de ingesta recientes
+         * @description Los últimos 50 pedidos, del más nuevo al más antiguo. Mientras uno esté `pendiente` o
+         *     `tomado` conviene volver a preguntar; al pasar a `registrado`, el video aparece en
+         *     `GET /videos`. Requiere `editar_reglas`.
+         */
+        get: operations["listarPedidos"];
+        put?: never;
         post?: never;
         delete?: never;
         options?: never;
@@ -692,6 +759,55 @@ export interface components {
             proceso_ms?: number | null;
             /** @example 6 */
             hallazgos_generados?: number;
+        };
+        EntradaVideo: {
+            /** @example CAM-01_2026-09-03_08-00.mp4 */
+            archivo: string;
+            /**
+             * Format: int64
+             * @example 734003200
+             */
+            bytes: number;
+            /**
+             * Format: date-time
+             * @description Última modificación del archivo, con zona horaria.
+             */
+            modificado: string;
+            /** @description El nombre y el tamaño coinciden con un video ya registrado. Solo informa; el hash decide, en el trabajador. */
+            posible_duplicado: boolean;
+        };
+        PedidoNuevo: {
+            /**
+             * @description Solo el nombre del archivo de la carpeta de entrada, nunca una ruta.
+             * @example CAM-01_2026-09-03_08-00.mp4
+             */
+            archivo: string;
+            /**
+             * Format: int64
+             * @example 1
+             */
+            fuente_id: number;
+        };
+        Pedido: {
+            /**
+             * Format: int64
+             * @example 12
+             */
+            id: number;
+            /** @example CAM-01_2026-09-03_08-00.mp4 */
+            archivo: string;
+            fuente: components["schemas"]["Referencia"];
+            /**
+             * @description `pendiente`: aceptado, sin atender. `tomado`: el trabajador lo está validando y calculando el hash. `registrado`: ya existe el video (`video_id`) y manda su estado. `rechazado`: no se registró; `motivo` dice por qué.
+             * @enum {string}
+             */
+            estado: "pendiente" | "tomado" | "registrado" | "rechazado";
+            /** @description Por qué se rechazó. Sin rutas del servidor. */
+            motivo: string | null;
+            /** Format: int64 */
+            video_id: number | null;
+            /** Format: date-time */
+            creado_en: string;
         };
         Panel: {
             /** @description Las cinco tarjetas, en orden de presentación. */
@@ -1737,6 +1853,77 @@ export interface operations {
                     "application/json": {
                         items: components["schemas"]["Video"][];
                         siguiente_cursor?: string | null;
+                    };
+                };
+            };
+            "4XX": components["responses"]["Error"];
+        };
+    };
+    pedirIngesta: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["PedidoNuevo"];
+            };
+        };
+        responses: {
+            /** @description Pedido aceptado, todavía sin atender */
+            202: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["Pedido"];
+                };
+            };
+            "4XX": components["responses"]["Error"];
+        };
+    };
+    listarEntradaVideos: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Archivos disponibles */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": {
+                        items: components["schemas"]["EntradaVideo"][];
+                    };
+                };
+            };
+            "4XX": components["responses"]["Error"];
+        };
+    };
+    listarPedidos: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Pedidos recientes */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": {
+                        items: components["schemas"]["Pedido"][];
                     };
                 };
             };
