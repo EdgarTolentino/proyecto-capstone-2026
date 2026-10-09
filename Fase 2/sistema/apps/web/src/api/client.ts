@@ -19,6 +19,7 @@ import type {
   Sesion,
   Video,
 } from "./types";
+import type { operations } from "./schema";
 import { esFechaValida, inicioDelDiaEnFaena, sumarDias } from "./fechas";
 
 // En desarrollo usamos el mock. En producción esta URL se cambia con VITE_API_URL.
@@ -204,18 +205,10 @@ export async function obtenerEvidencia(ruta: string, signal?: AbortSignal): Prom
   return respuesta.blob();
 }
 
-// Los últimos cuadros que analiza el modelo (fondo pixelado y rostros tapados desde el servidor),
-// con su posición en el video (prototipo local). El tipo vive aquí hasta que el contrato lo traiga.
-export interface CuadroVivo {
-  seq: number;
-  posicion_s: number;
-  jpeg: string; // base64
-}
-
-export interface CuadrosVivo {
-  cuadros: CuadroVivo[];
-  ultimo_seq: number;
-}
+// Los últimos cuadros que analiza el modelo, con su posición en el video. Nítidos y sin tapar
+// rostros (excepción de ADR-006; decisión de Edgar del 2026-10-09). El tipo sale del contrato.
+export type CuadrosVivo = operations["listarCuadrosVivo"]["responses"][200]["content"]["application/json"];
+export type CuadroVivo = CuadrosVivo["cuadros"][number];
 
 // Solo los cuadros con `seq > desde`, de más viejo a más nuevo. Con el Bearer en la cabecera, como
 // la evidencia: nunca un <img src> directo ni el token en la URL.

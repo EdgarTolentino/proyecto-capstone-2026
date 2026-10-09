@@ -50,9 +50,11 @@ export interface paths {
             cookie?: never;
         };
         /**
-         * Último cuadro anonimizado de un video que se está procesando
+         * Último cuadro de un video que se está procesando, sin tapar rostros
          * @description Requiere `ver_evidencia`; el supervisor, solo el área de la cámara del video. El
-         *     administrador no la ve. Devuelve el cuadro ya anonimizado (ADR-006), nunca rutas.
+         *     administrador no la ve. Devuelve el cuadro nítido con las cajas del detector y **sin tapar
+         *     rostros** (excepción de ADR-006; decisión de Edgar del 2026-10-09): solo se ennegrecen los
+         *     polígonos de privacidad. La evidencia persistida sigue difuminada. Nunca rutas.
          *     `404` si la vista en vivo está apagada en el servidor, si el video no existe o no está
          *     `procesando`, si no hay cuadro o si el último tiene más de 10 s. Se pide por sondeo y la
          *     respuesta no se guarda (`Cache-Control: no-store`).
@@ -80,8 +82,8 @@ export interface paths {
          *     existe o no está `procesando`, no hay cuadros o el más reciente tiene más de 10 s.
          *
          *     Devuelve los cuadros con `seq > desde`, de más viejo a más nuevo, como máximo 30. Si hay
-         *     más, entrega los 30 MÁS NUEVOS: saltar es mejor que quedarse atrás. Cada JPEG ya está
-         *     anonimizado (ADR-006). `ultimo_seq` es el del cuadro más reciente aunque `cuadros` venga
+         *     más, entrega los 30 MÁS NUEVOS: saltar es mejor que quedarse atrás. Cada JPEG es nítido y
+         *     **no tapa rostros** (excepción de ADR-006). `ultimo_seq` es el del cuadro más reciente aunque `cuadros` venga
          *     vacío. `seq` vuelve a empezar en 1 en cada intento de procesamiento: si `ultimo_seq` es
          *     menor que el `desde` enviado, el cliente debe reiniciar su cursor. Nunca trae rutas.
          */
@@ -1796,7 +1798,7 @@ export interface operations {
         };
         requestBody?: never;
         responses: {
-            /** @description JPEG anonimizado del cuadro más reciente */
+            /** @description JPEG nítido, sin tapar rostros, del cuadro más reciente */
             200: {
                 headers: {
                     /** @description Siempre `no-store` */
@@ -1842,7 +1844,7 @@ export interface operations {
                             posicion_s: number;
                             /**
                              * Format: byte
-                             * @description JPEG anonimizado en base64
+                             * @description JPEG nítido en base64, sin tapar rostros
                              */
                             jpeg: string;
                         }[];

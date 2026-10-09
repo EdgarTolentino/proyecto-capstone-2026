@@ -82,7 +82,7 @@ def _vista_en_vivo_desde_entorno() -> bool:
 
 
 def _carpeta_vivo_desde_entorno() -> Path:
-    """Donde el trabajador deja el último cuadro ya anonimizado (memoria compartida)."""
+    """Donde el trabajador deja los últimos cuadros de la vista en vivo (memoria compartida)."""
     return Path(os.environ.get("GEPP_CARPETA_VIVO", "").strip() or "/dev/shm/gepp-vivo")
 
 

@@ -500,3 +500,18 @@ def test_el_desde_es_un_entero_no_negativo(web: Cliente, vivo: Path) -> None:
         assert _pedir(web, VISTAS[1], 422, consulta=f"?desde={malo}")["codigo"] == (
             "peticion_invalida"
         )
+
+
+@pytest.mark.parametrize(
+    ("edad_viejo_s", "esperado"),
+    [(100.0, [2]), (11.0, [2]), (9.0, [1, 2]), (0.0, [1, 2]), (-100.0, [2])],
+)
+def test_cada_cuadro_se_filtra_por_su_propia_edad(
+    web: Cliente, vivo: Path, edad_viejo_s: float, esperado: list[int]
+) -> None:
+    """La vigencia no es solo la del más nuevo: un cuadro viejo del anillo no se sirve (H2)."""
+    _cuadro(vivo, 1, datos=_jpeg(1), edad_s=edad_viejo_s)
+    _cuadro(vivo, 2, datos=_jpeg(2))
+    cuerpo = _cuadros(web)
+    assert _seqs(cuerpo) == esperado
+    assert cuerpo["ultimo_seq"] == 2  # el seq devuelto sigue siendo el del más nuevo

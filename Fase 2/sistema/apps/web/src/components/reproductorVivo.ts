@@ -1,4 +1,4 @@
-// Política de reproducción de la vista en vivo (prototipo local). No toca el DOM: recibe cuadros ya
+// Política de reproducción de la vista en vivo. No toca el DOM: recibe cuadros ya
 // decodificados, un reloj que avanza con cada tick de animación y una función para dibujar.
 //
 // El modelo analiza a ráfagas, así que los cuadros llegan a un ritmo irregular, pero cada uno trae

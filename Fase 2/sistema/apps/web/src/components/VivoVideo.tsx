@@ -19,8 +19,8 @@ async function decodificar(cuadro: CuadroVivo): Promise<CuadroListo> {
   return { seq: cuadro.seq, posicion_s: cuadro.posicion_s, imagen };
 }
 
-// Ventana «en vivo» de un video que se está procesando (prototipo local). El servidor entrega los
-// últimos cuadros ya anonimizados, cada uno con su posición en el video; aquí se guardan en un
+// Ventana «en vivo» de un video que se está procesando El servidor entrega los
+// últimos cuadros, sin tapar rostros, cada uno con su posición en el video; aquí se guardan en un
 // buffer y se reproducen por esa posición, con ~1 s de atraso (ver `ReproductorVivo`). Se pide
 // en cadena con autorización, solo con la pestaña visible; cada bitmap se cierra al dejar de usarse.
 export function VivoVideo({ videoId, archivo }: { videoId: number; archivo: string }) {

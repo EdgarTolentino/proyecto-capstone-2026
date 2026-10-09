@@ -217,7 +217,7 @@ def _sin_cuadro(id: int) -> ErrorApi:
 
 @router.get("/videos/{id}/vivo", operation_id="obtenerVivoVideo", response_class=Response)
 def obtener_vivo(id: int, request: Request, bd: Bd, sesion: Sesion) -> Response:
-    """El cuadro más reciente, ya anonimizado, de un video que se está procesando. Sin rutas."""
+    """El cuadro más reciente, sin tapar rostros, de un video que se está procesando. Sin rutas."""
     v = _video_visible_en_vivo(request, bd, sesion, id)
     datos = vivo.ultimo_cuadro(request.app.state.config.carpeta_vivo, v.id)
     if datos is None:
@@ -235,7 +235,7 @@ def listar_cuadros_vivo(
     desde: Annotated[int, Query(ge=0)] = 0,
 ) -> dict[str, Any]:
     """Los cuadros nuevos (`seq > desde`) para reproducir con fluidez: como mucho los 30 más
-    recientes, de viejo a nuevo, cada JPEG ya anonimizado en base64. Sin rutas."""
+    recientes, de viejo a nuevo, cada JPEG sin tapar rostros, en base64. Sin rutas."""
     v = _video_visible_en_vivo(request, bd, sesion, id)
     visto = vivo.cuadros_desde(request.app.state.config.carpeta_vivo, v.id, desde)
     if visto is None:
