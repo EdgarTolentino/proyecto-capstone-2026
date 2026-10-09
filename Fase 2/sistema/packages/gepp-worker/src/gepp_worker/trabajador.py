@@ -142,6 +142,7 @@ class Trabajador:
         self._fabrica_detector = fabrica_detector
         self._fabrica_seguidor = fabrica_seguidor
         self._config = config
+        self._inicio_fallido = False  # los pedidos no pudieron iniciarse: se reintenta
         self._pedidos = (
             AtencionDePedidos(motor, cola, config.carpeta_entrada)
             if config.carpeta_entrada is not None
@@ -221,6 +222,17 @@ class Trabajador:
                 n += 1
         return n
 
+    def _iniciar_pedidos(self) -> None:
+        """Toma el candado de los pedidos. Si la base falla, lo recuerda y se reintenta en las
+        vueltas siguientes (si no, los pedidos web no se atenderían hasta reiniciar)."""
+        assert self._pedidos is not None
+        try:
+            self._pedidos.iniciar()
+            self._inicio_fallido = False
+        except Exception as e:
+            self._inicio_fallido = True
+            print(f"[trabajador] no se pudo iniciar los pedidos: {e!r}", file=sys.stderr)
+
     def atender_pedido(self) -> bool:
         """Un pedido de procesar un video desde la web, si hay y este trabajador los atiende."""
         if self._pedidos is None or not self._pedidos.activa:
@@ -232,10 +244,7 @@ class Trabajador:
         if self._pedidos is None:
             print("[trabajador] sin GEPP_CARPETA_ENTRADA: no atiende pedidos de la web", flush=True)
         else:
-            try:
-                self._pedidos.iniciar()
-            except Exception as e:
-                print(f"[trabajador] no se pudo iniciar los pedidos: {e!r}", file=sys.stderr)
+            self._iniciar_pedidos()
         try:
             while seguir():
                 try:
@@ -244,6 +253,8 @@ class Trabajador:
                     # Un corte de la base no puede detener la ingesta: se reintenta en la vuelta
                     # siguiente, y mientras tanto la cola de Redis sigue avanzando.
                     print(f"[trabajador] no se leyeron los reintentos: {e!r}", file=sys.stderr)
+                if self._inicio_fallido:  # Postgres cayó al arrancar: se reintenta cada vuelta
+                    self._iniciar_pedidos()
                 try:
                     self.atender_pedido()
                 except Exception as e:

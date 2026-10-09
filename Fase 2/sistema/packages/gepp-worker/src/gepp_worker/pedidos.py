@@ -21,12 +21,14 @@ tenga. Los motivos que se guardan (y que la API devuelve) nunca llevan rutas del
 **Un solo trabajador atiende pedidos**: lo asegura un candado consultivo de PostgreSQL
 (`pg_try_advisory_lock`) que vive mientras viva la conexión. Si otro proceso lo tiene, este no
 atiende pedidos y lo dice; no muere. Quien tiene el candado recupera, al arrancar, los pedidos que
-un trabajador anterior dejó `tomado`.
+un trabajador anterior dejó `tomado`. Si cerrar un pedido falla (la base cayó), el cierre se
+reintenta en la vuelta siguiente.
 """
 
 from __future__ import annotations
 
 import errno
+import fcntl
 import hashlib
 import os
 import stat
@@ -35,12 +37,12 @@ from dataclasses import dataclass
 from datetime import UTC, datetime
 from pathlib import Path
 
-from gepp_bd.modelos import Fuente
+from gepp_bd.modelos import Fuente, PedidoIngesta
 from gepp_bd.repositorios import pedidos, videos
 from gepp_bd.sesion import transaccion
 from gepp_core.archivos import ErrorArchivo, validar_nombre_en_carpeta
 from gepp_core.textos import sin_rutas
-from sqlalchemy import Connection, Engine, text
+from sqlalchemy import Connection, Engine, select, text
 
 from gepp_worker.cola import ColaTrabajos, Trabajo
 from gepp_worker.fuente_archivo import OrigenReloj, validar_ruta
@@ -51,6 +53,7 @@ CLAVE_CANDADO = 0x4745505001
 
 CAMBIO = "el archivo cambió mientras se leía; vuelve a pedirlo cuando termine de copiarse"
 REEMPLAZADO = "el archivo fue reemplazado o es un enlace; vuelve a pedirlo"
+VACIO = "el archivo está vacío: espera a que termine de copiarse"
 
 
 def variantes_de(ruta: str) -> tuple[str, ...]:
@@ -117,6 +120,9 @@ class AtencionDePedidos:
         self._cola = cola
         self._carpeta = carpeta
         self._conexion: Connection | None = None
+        #: Cierres que fallaron (la base cayó): pedido → (video_id | None, motivo, medida). Se
+        #: reintentan al inicio de cada vuelta; un pedido no puede quedar `tomado` por un corte.
+        self._por_cerrar: dict[int, tuple[int | None, str | None, _Medida | None]] = {}
 
     @property
     def activa(self) -> bool:
@@ -127,17 +133,25 @@ class AtencionDePedidos:
 
         Devuelve False (sin lanzar) si otro proceso ya atiende pedidos."""
         conexion = self._motor.connect()
-        libre = conexion.execute(
-            text("SELECT pg_try_advisory_lock(:clave)"), {"clave": CLAVE_CANDADO}
-        ).scalar_one()
-        conexion.commit()
+        try:
+            libre = conexion.execute(
+                text("SELECT pg_try_advisory_lock(:clave)"), {"clave": CLAVE_CANDADO}
+            ).scalar_one()
+            conexion.commit()
+        except BaseException:
+            conexion.close()
+            raise
         if not libre:
             conexion.close()
             print("[trabajador] otro proceso atiende los pedidos: este no los atiende", flush=True)
             return False
         self._conexion = conexion  # el candado vive con esta conexión: no se devuelve al pool
-        with transaccion(self._motor) as s:
-            recuperados = pedidos.recuperar_tomados(s)
+        try:
+            with transaccion(self._motor) as s:
+                recuperados = pedidos.recuperar_tomados(s)
+        except BaseException:
+            self.cerrar()  # sin recuperar no se atiende: suelta el candado y que se reintente
+            raise
         if recuperados:
             print(f"[trabajador] {recuperados} pedido(s) volvieron a pendiente", flush=True)
         return True
@@ -156,6 +170,7 @@ class AtencionDePedidos:
 
     def atender_uno(self) -> bool:
         """Atiende el pedido más antiguo. Devuelve False si no había ninguno."""
+        self._cerrar_los_que_quedaron()
         with transaccion(self._motor) as s:
             pedido = pedidos.tomar_siguiente(s)
             if pedido is None:
@@ -165,27 +180,53 @@ class AtencionDePedidos:
         try:
             video_id, medida = self._registrar(archivo, fuente_id)
         except _Rechazo as r:
-            self._cerrar_rechazado(pedido_id, str(r), r.medida)
+            self._cerrar(pedido_id, None, str(r), r.medida)
             return True
         except Exception as e:
             rutas = (*variantes_de(str(self._carpeta / archivo)), *variantes_de(str(self._carpeta)))
             motivo = sin_rutas(f"{type(e).__name__}: {e}", *rutas)
             print(f"[trabajador] pedido {pedido_id}: {type(e).__name__}: {e}", file=sys.stderr)
-            self._cerrar_rechazado(pedido_id, motivo, medida)
+            self._cerrar(pedido_id, None, motivo, medida)
             return True
-        with transaccion(self._motor) as s:
-            pedidos.registrar(s, pedido_id, video_id, bytes=medida.bytes, mtime_ns=medida.mtime_ns)
+        self._cerrar(pedido_id, video_id, None, medida)
         return True
 
-    def _cerrar_rechazado(self, pedido_id: int, motivo: str, medida: _Medida | None) -> None:
-        with transaccion(self._motor) as s:
-            pedidos.rechazar(
-                s,
-                pedido_id,
-                motivo,
-                bytes=medida.bytes if medida else None,
-                mtime_ns=medida.mtime_ns if medida else None,
+    def _cerrar(
+        self, pedido_id: int, video_id: int | None, motivo: str | None, medida: _Medida | None
+    ) -> None:
+        """Cierra el pedido (`registrado` con `video_id`, o `rechazado` con `motivo`). Si la base
+        falla, lo anota y se reintenta en la vuelta siguiente: el video ya existe y está en la
+        cola, y un pedido `tomado` bloquea volver a pedir ese archivo."""
+        try:
+            with transaccion(self._motor) as s:
+                if video_id is not None:
+                    pedidos.registrar(
+                        s,
+                        pedido_id,
+                        video_id,
+                        bytes=medida.bytes if medida else None,
+                        mtime_ns=medida.mtime_ns if medida else None,
+                    )
+                else:
+                    pedidos.rechazar(
+                        s,
+                        pedido_id,
+                        motivo or "",
+                        bytes=medida.bytes if medida else None,
+                        mtime_ns=medida.mtime_ns if medida else None,
+                    )
+        except Exception as e:
+            self._por_cerrar[pedido_id] = (video_id, motivo, medida)
+            print(
+                f"[trabajador] pedido {pedido_id}: no se pudo cerrar, se reintenta: {e!r}",
+                file=sys.stderr,
             )
+        else:
+            self._por_cerrar.pop(pedido_id, None)
+
+    def _cerrar_los_que_quedaron(self) -> None:
+        for pedido_id, (video_id, motivo, medida) in list(self._por_cerrar.items()):
+            self._cerrar(pedido_id, video_id, motivo, medida)
 
     def _registrar(self, archivo: str, fuente_id: int) -> tuple[int, _Medida]:
         """Valida, mide y hashea el archivo y crea (o reconoce) su fila `video`. Devuelve el
@@ -201,10 +242,16 @@ class AtencionDePedidos:
             if existente is not None:
                 # Un pedido que se cayó a medias vuelve a `pendiente` y encuentra su propia
                 # fila: misma ruta, misma cámara y todavía en cola. Es el mismo pedido.
+                # Y solo si ningún pedido ya lo tiene: un segundo pedido del mismo archivo y cámara,
+                # con el primero registrado, es un contenido ya registrado (contrato).
+                de_otro_pedido = s.scalar(
+                    select(PedidoIngesta.id).where(PedidoIngesta.video_id == existente.id).limit(1)
+                )
                 if (
                     existente.ruta == str(ruta)
                     and existente.fuente_id == fuente_id
                     and existente.estado == "en_cola"
+                    and de_otro_pedido is None
                 ):
                     return existente.id, medida
                 camara = s.get(Fuente, existente.fuente_id)
@@ -241,7 +288,8 @@ class AtencionDePedidos:
         except OSError:
             raise _Rechazo("no hay un archivo con ese nombre en la carpeta") from None
         try:
-            fd = os.open(ruta, os.O_RDONLY | os.O_NOFOLLOW)
+            # O_NONBLOCK: abrir una FIFO que alguien puso en el lugar del archivo no bloquea.
+            fd = os.open(ruta, os.O_RDONLY | os.O_NOFOLLOW | os.O_NONBLOCK)
         except OSError as e:
             if e.errno == errno.ELOOP:  # se volvió un enlace después de validarlo
                 raise _Rechazo(REEMPLAZADO) from None
@@ -252,6 +300,9 @@ class AtencionDePedidos:
                 abierto.st_mode
             ):
                 raise _Rechazo(REEMPLAZADO)
+            if abierto.st_size == 0:  # truncado después de validar: no se registra el hash vacío
+                raise _Rechazo(VACIO)
+            fcntl.fcntl(fd, fcntl.F_SETFL, fcntl.fcntl(fd, fcntl.F_GETFL) & ~os.O_NONBLOCK)
             antes = _Medida(abierto.st_size, abierto.st_mtime_ns)
             digest = _hash_del_descriptor(fd)
             try:

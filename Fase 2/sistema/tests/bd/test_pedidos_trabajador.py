@@ -659,3 +659,187 @@ def test_la_entrada_inexistente_o_que_es_un_archivo_se_rechaza(tmp_path: Path) -
     archivo.write_text("x")
     with pytest.raises(ValueError, match="no es una carpeta"):
         validar_carpeta_entrada(archivo, tmp_path / "otra")
+
+
+# ── Correcciones de la revisión de Codex ────────────────────────────────────────────────
+
+
+class _RedisQueFallaEnLpush(fakeredis.FakeRedis):
+    """Falla el LPUSH tantas veces como se le diga; lo demás es Redis."""
+
+    fallos = 0
+
+    def lpush(self, *args: Any, **kwargs: Any) -> Any:
+        if self.fallos > 0:
+            self.fallos -= 1
+            raise ConnectionError("redis cayó entre el estado y la lista")
+        return super().lpush(*args, **kwargs)
+
+
+def test_p1_si_el_lpush_falla_el_hash_no_queda_pendiente_sin_estar_en_la_lista(
+    entorno: Entorno,
+) -> None:
+    e = entorno
+    ruta = _en("clip.mp4", e)
+    redis = _RedisQueFallaEnLpush()
+    redis.fallos = 1
+    cola = ColaTrabajos(redis)
+    atencion = AtencionDePedidos(e.motor, cola, e.entrada)
+    trabajador = Trabajador(
+        e.motor,
+        cola,
+        e.trabajador._fabrica_detector,
+        Configuracion(carpeta_evidencia=e.tmp / "evidencia", carpeta_entrada=e.entrada),
+    )
+    hash_ = sha256_de_archivo(ruta)
+    pedido_id = _pedir(e, "clip.mp4")
+
+    try:
+        assert atencion.iniciar()
+        assert atencion.atender_uno()
+    finally:
+        atencion.cerrar()
+
+    assert _pedido(e, pedido_id).estado == "registrado"
+    assert cola.estado(hash_) is None and cola.pendientes() == 0  # sin estado huérfano
+    assert trabajador.reencolar_pedidos() == 1  # la base lo recupera
+    assert cola.estado(hash_) is EstadoTrabajo.PENDIENTE and cola.pendientes() == 1
+
+
+def test_p1_encolar_con_exito_deja_estado_y_lista_juntos() -> None:
+    cola = ColaTrabajos(fakeredis.FakeRedis())
+    assert cola.encolar(Trabajo("/x/a.mp4", "h" * 64, 10, 1))
+    assert cola.estado("h" * 64) is EstadoTrabajo.PENDIENTE and cola.pendientes() == 1
+    assert not cola.encolar(Trabajo("/x/a.mp4", "h" * 64, 10, 1))  # el segundo no duplica
+    assert cola.pendientes() == 1
+
+
+def _cae_una_vez(real: Any) -> Any:
+    fallos = [1]
+
+    def envuelta(*args: Any, **kwargs: Any) -> Any:
+        if fallos[0]:
+            fallos[0] -= 1
+            raise ConnectionError("la base cayó")
+        return real(*args, **kwargs)
+
+    return envuelta
+
+
+def test_p2_si_falla_el_cierre_el_pedido_se_cierra_en_la_vuelta_siguiente(
+    entorno: Entorno, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    e = entorno
+    _en("clip.mp4", e)
+    pedido_id = _pedir(e, "clip.mp4")
+    monkeypatch.setattr(pedidos, "registrar", _cae_una_vez(pedidos.registrar))
+    assert e.atencion.iniciar()
+    assert e.atencion.atender_uno()  # no lanza
+    assert _pedido(e, pedido_id).estado == "tomado"  # el cierre cayó...
+    assert e.atencion.atender_uno() is False  # ...no hay otro pedido, pero reintenta el cierre
+    (video,) = _filas_video(e)
+    cerrado = _pedido(e, pedido_id)
+    assert (cerrado.estado, cerrado.video_id) == ("registrado", video.id)
+
+
+def test_p2_si_falla_el_cierre_de_un_rechazo_tambien_se_reintenta(
+    entorno: Entorno, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    e = entorno
+    pedido_id = _pedir(e, "clip.txt")
+    monkeypatch.setattr(pedidos, "rechazar", _cae_una_vez(pedidos.rechazar))
+    assert e.atencion.iniciar()
+    assert e.atencion.atender_uno()
+    assert _pedido(e, pedido_id).estado == "tomado"
+    e.atencion.atender_uno()
+    assert _pedido(e, pedido_id).estado == "rechazado"
+
+
+def test_p3_si_falla_el_inicio_se_reintenta_en_las_vueltas_siguientes(
+    entorno: Entorno, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    e = entorno
+    _en("clip.mp4", e)
+    pedido_id = _pedir(e, "clip.mp4")
+    # Postgres no responde al pedir la conexión del candado: `_conexion` nunca llega a existir.
+    monkeypatch.setattr(e.motor, "connect", _cae_una_vez(e.motor.connect))
+
+    e.trabajador.correr(seguir=_vueltas(2), espera_s=0)
+
+    assert _pedido(e, pedido_id).estado == "registrado"
+
+
+def test_p3_un_inicio_fallido_no_deja_el_candado_tomado(
+    entorno: Entorno, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    e = entorno
+    monkeypatch.setattr(pedidos, "recuperar_tomados", _cae_una_vez(pedidos.recuperar_tomados))
+    with pytest.raises(ConnectionError):
+        e.atencion.iniciar()
+    assert not e.atencion.activa
+    otra = AtencionDePedidos(e.motor, e.cola, e.entrada)
+    try:
+        assert otra.iniciar()  # el candado quedó libre
+    finally:
+        otra.cerrar()
+
+
+def test_p4_una_fifo_puesta_entre_la_validacion_y_la_apertura_no_bloquea(
+    entorno: Entorno, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    import threading
+
+    e = entorno
+    ruta = _en("clip.mp4", e)
+    pedido_id = _pedir(e, "clip.mp4")
+
+    def cambiar() -> None:
+        ruta.unlink()
+        os.mkfifo(ruta)
+
+    monkeypatch.setattr(modulo, "os", _OsConAccion(cambiar))
+    hilo = threading.Thread(target=lambda: _atender(e), daemon=True)
+    hilo.start()
+    hilo.join(timeout=5)
+    bloqueado = hilo.is_alive()
+    if bloqueado:  # soltar el open bloqueado para no dejar el hilo colgado
+        fd = os.open(ruta, os.O_WRONLY)
+        os.close(fd)
+        hilo.join(timeout=5)
+    assert not bloqueado, "abrir una FIFO bloqueó al trabajador"
+    assert _rechazado(e, pedido_id) == REEMPLAZADO
+
+
+def test_p5_un_archivo_truncado_a_cero_despues_de_validar_se_rechaza(
+    entorno: Entorno, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    e = entorno
+    ruta = _en("clip.mp4", e)
+    pedido_id = _pedir(e, "clip.mp4")
+    monkeypatch.setattr(modulo, "os", _OsConAccion(lambda: os.truncate(ruta, 0)))
+    _atender(e)
+    assert "vacío" in _rechazado(e, pedido_id)
+
+
+def test_p5_un_archivo_de_un_byte_si_se_registra(entorno: Entorno) -> None:
+    """El extremo válido del umbral: 1 byte pasa el chequeo de tamaño."""
+    e = entorno
+    (e.entrada / "uno.mp4").write_bytes(b"x")
+    pedido_id = _pedir(e, "uno.mp4")
+    _atender(e)
+    assert _pedido(e, pedido_id).estado == "registrado"
+
+
+def test_p6_un_segundo_pedido_del_mismo_archivo_y_camara_se_rechaza(entorno: Entorno) -> None:
+    e = entorno
+    _en("clip.mp4", e)
+    primero = _pedir(e, "clip.mp4", CAMARA_2)
+    _atender(e)
+    assert _pedido(e, primero).estado == "registrado"
+    segundo = _pedir(e, "clip.mp4", CAMARA_2)  # el primero ya cerró: se puede volver a pedir
+
+    assert e.atencion.atender_uno()
+
+    assert "ya registrado como cámara" in _rechazado_con_fila(e, segundo)
+    (video,) = _filas_video(e)
+    assert _pedido(e, primero).video_id == video.id  # la fila sigue siendo del primero
