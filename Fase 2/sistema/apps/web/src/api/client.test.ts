@@ -195,4 +195,44 @@ describe("cliente API", () => {
       ["http://127.0.0.1:4010/reglas/12/simular", "POST", JSON.stringify({ desde: "2026-08-29", hasta: "2026-09-28", regla: entrada })],
     ]);
   });
+
+  it("pide la entrada y los pedidos, y envía el pedido de ingesta con su cuerpo", async () => {
+    const fetchMock = vi.spyOn(globalThis, "fetch").mockImplementation(
+      async () => new Response(JSON.stringify({ items: [] }), { status: 200, headers: { "Content-Type": "application/json" } }),
+    );
+    const { listarEntradaVideos, listarPedidos, pedirIngesta } = await import("./client");
+
+    await listarEntradaVideos();
+    await listarPedidos();
+    await pedirIngesta({ archivo: "CAM-03 ñ.mp4", fuente_id: 3 });
+
+    expect(fetchMock.mock.calls.map(([url, options]) => [String(url), options?.method ?? "GET", options?.body])).toEqual([
+      ["http://127.0.0.1:4010/videos/entrada", "GET", undefined],
+      ["http://127.0.0.1:4010/videos/pedidos", "GET", undefined],
+      ["http://127.0.0.1:4010/videos", "POST", JSON.stringify({ archivo: "CAM-03 ñ.mp4", fuente_id: 3 })],
+    ]);
+  });
+
+  it("expone el código del error para distinguir los 409", async () => {
+    vi.spyOn(globalThis, "fetch").mockResolvedValue(
+      new Response(JSON.stringify({ codigo: "pedido_existente", mensaje: "Ya hay un pedido" }), { status: 409, headers: { "Content-Type": "application/json" } }),
+    );
+    const { ApiError, pedirIngesta } = await import("./client");
+
+    const error = await pedirIngesta({ archivo: "a.mp4", fuente_id: 1 }).catch((e: unknown) => e);
+
+    expect(error).toBeInstanceOf(ApiError);
+    expect(error).toMatchObject({ status: 409, codigo: "pedido_existente", message: "Ya hay un pedido" });
+  });
+
+  it("sin cuerpo JSON o con un código que no es texto, el error queda sin código", async () => {
+    const respuestas = [new Response("no es json", { status: 502 }), new Response(JSON.stringify({ codigo: 7, mensaje: "x" }), { status: 409 })];
+    vi.spyOn(globalThis, "fetch").mockImplementation(async () => respuestas.shift() as Response);
+    const { listarPedidos } = await import("./client");
+
+    for (const status of [502, 409]) {
+      const error = await listarPedidos().catch((e: unknown) => e);
+      expect(error).toMatchObject({ status, codigo: undefined });
+    }
+  });
 });

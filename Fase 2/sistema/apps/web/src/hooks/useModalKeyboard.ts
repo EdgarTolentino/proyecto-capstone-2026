@@ -15,6 +15,14 @@ export function useModalKeyboard(ref: RefObject<HTMLElement | null>, onClose: ()
       if (!elements?.length) return;
       const first = elements[0];
       const last = elements[elements.length - 1];
+      // El foco recién puesto en el propio diálogo (o fuera de él) no es ni el primer ni el último
+      // control: sin esto, Shift+Tab al abrir se escapa a la página.
+      const activo = document.activeElement;
+      if (!(activo instanceof Node) || activo === ref.current || !ref.current?.contains(activo)) {
+        event.preventDefault();
+        (event.shiftKey ? last : first).focus();
+        return;
+      }
       if (event.shiftKey && document.activeElement === first) {
         event.preventDefault();
         last.focus();

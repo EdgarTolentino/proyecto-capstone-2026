@@ -21,6 +21,20 @@ export interface PaginaVideos {
   siguiente_cursor?: string | null;
 }
 
+export type EntradaVideo = components["schemas"]["EntradaVideo"];
+export type Pedido = components["schemas"]["Pedido"];
+export type PedidoNuevo = components["schemas"]["PedidoNuevo"];
+export type EstadoPedido = Pedido["estado"];
+
+// El contrato define estas listas dentro de la respuesta y no les da un nombre propio.
+export interface ListaEntrada {
+  items: EntradaVideo[];
+}
+
+export interface ListaPedidos {
+  items: Pedido[];
+}
+
 export interface FiltrosPanel {
   desde?: string;
   hasta?: string;

@@ -11,6 +11,11 @@ vi.mock("./api/client", () => ({
   listarHallazgos: vi.fn(async () => ({ items: [{ id: 1 }, { id: 2 }], contadores: {} })),
   listarVideos: vi.fn(async () => ({ items: [] })),
   reprocesarVideo: vi.fn(async () => ({ estado: "listo" })),
+  listarPedidos: vi.fn(async () => ({ items: [] })),
+  listarEntradaVideos: vi.fn(async () => ({
+    items: [{ archivo: "CAM-03_08-00.mp4", bytes: 1048576, modificado: "2026-10-02T08:00:00Z", posible_duplicado: false }],
+  })),
+  pedirIngesta: vi.fn(),
   obtenerSesion: vi.fn(async () => ({ permisos: ["ver_hallazgos", "ver_evidencia", "triar_hallazgos"] })),
   obtenerCatalogos: vi.fn(async () => ({
     obras: [{ id: 7, nombre: "Edificio Norte" }, { id: 8, nombre: "Edificio Sur" }],
@@ -235,4 +240,41 @@ it("con el permiso editar_reglas, la cola ofrece reprocesar", async () => {
   render(<QueryClientProvider client={client}><App /></QueryClientProvider>);
 
   expect(await screen.findByRole("button", { name: "Reprocesar video.mp4" })).toBeVisible();
+});
+
+it("con editar_reglas, «Procesar video» ofrece las cámaras de los catálogos de la aplicación", async () => {
+  window.history.replaceState({}, "", "/videos");
+  vi.mocked(api.obtenerSesion).mockResolvedValueOnce({ permisos: ["ver_hallazgos", "editar_reglas"] } as Awaited<ReturnType<typeof api.obtenerSesion>>);
+  vi.mocked(api.obtenerCatalogos).mockResolvedValueOnce({ fuentes: [{ id: 3, nombre: "CAM-03" }] } as Awaited<ReturnType<typeof api.obtenerCatalogos>>);
+  const client = new QueryClient({ defaultOptions: { queries: { retry: false, staleTime: Infinity } } });
+  render(<QueryClientProvider client={client}><App /></QueryClientProvider>);
+
+  fireEvent.click(await screen.findByRole("button", { name: "Procesar video" }));
+
+  const dialogo = await screen.findByRole("dialog", { name: "Procesar video" });
+  expect(await within(dialogo).findByRole("option", { name: "CAM-03" })).toBeInTheDocument();
+  expect(await within(dialogo).findByRole("radio", { name: /CAM-03_08-00\.mp4/ })).toBeVisible();
+});
+
+it("si los catálogos fallan, el diálogo de procesar lo dice", async () => {
+  window.history.replaceState({}, "", "/videos");
+  vi.mocked(api.obtenerSesion).mockResolvedValueOnce({ permisos: ["ver_hallazgos", "editar_reglas"] } as Awaited<ReturnType<typeof api.obtenerSesion>>);
+  vi.mocked(api.obtenerCatalogos).mockRejectedValueOnce(new api.ApiError("fallo", 500));
+  const client = new QueryClient({ defaultOptions: { queries: { retry: false, staleTime: Infinity } } });
+  render(<QueryClientProvider client={client}><App /></QueryClientProvider>);
+
+  fireEvent.click(await screen.findByRole("button", { name: "Procesar video" }));
+
+  const dialogo = await screen.findByRole("dialog", { name: "Procesar video" });
+  expect(await within(dialogo).findByText(/No fue posible cargar las cámaras/)).toBeVisible();
+});
+
+it("un prevencionista (sin editar_reglas) no ve «Procesar video»", async () => {
+  window.history.replaceState({}, "", "/videos");
+  const client = new QueryClient({ defaultOptions: { queries: { retry: false, staleTime: Infinity } } });
+  render(<QueryClientProvider client={client}><App /></QueryClientProvider>);
+
+  await screen.findByRole("heading", { name: "Cola de videos" });
+  expect(screen.queryByRole("button", { name: "Procesar video" })).not.toBeInTheDocument();
+  expect(api.listarPedidos).not.toHaveBeenCalled();
 });
