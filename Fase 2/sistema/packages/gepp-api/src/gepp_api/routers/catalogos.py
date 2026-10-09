@@ -10,6 +10,7 @@ from sqlalchemy import func, select
 
 from gepp_api.auth import Bd, Sesion
 from gepp_api.config import TURNOS
+from gepp_api.routers.videos import videos_de_su_area
 from gepp_api.servicios.cobertura import cobertura
 
 router = APIRouter(tags=["Catálogos"])
@@ -38,9 +39,8 @@ def obtener_catalogos(bd: Bd, sesion: Sesion) -> dict[str, Any]:
 @router.get("/estado", operation_id="obtenerEstado")
 def obtener_estado(request: Request, bd: Bd, sesion: Sesion) -> dict[str, Any]:
     """Barata: la cabecera la consulta cada pocos segundos."""
-    por_estado = dict(
-        bd.execute(select(Video.estado, func.count()).group_by(Video.estado)).tuples().all()
-    )
+    conteo = videos_de_su_area(select(Video.estado, func.count()), sesion)
+    por_estado = dict(bd.execute(conteo.group_by(Video.estado)).tuples().all())
     pendientes = select(func.count()).where(Hallazgo.estado == "por_revisar")
     if sesion.rol == "supervisor":
         pendientes = pendientes.where(Hallazgo.area_id == sesion.area_id)
