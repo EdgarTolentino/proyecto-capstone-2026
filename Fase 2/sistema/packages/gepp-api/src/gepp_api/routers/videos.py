@@ -10,14 +10,24 @@ from fastapi import APIRouter, Query, Request
 from gepp_bd.modelos import Fuente, Hallazgo, Video
 from gepp_bd.repositorios import auditoria, videos
 from gepp_core.textos import sin_rutas
-from sqlalchemy import func, select
+from sqlalchemy import Select, func, select
 
-from gepp_api.auth import Bd, Sesion
+from gepp_api.auth import Bd, Sesion, SesionActual
 from gepp_api.errores import ErrorApi, no_encontrado
 from gepp_api.servicios.hallazgos import cursor_de, desplazamiento_de, iso
 from gepp_api.servicios.recalculo import recalcular_video
 
 router = APIRouter(tags=["Videos"])
+
+
+def videos_de_su_area(consulta: Select[Any], sesion: SesionActual) -> Select[Any]:
+    """El supervisor solo ve los videos de las cámaras de su área; los demás roles, todos.
+    Igual que `hallazgos`: el área del video es la de su fuente."""
+    if sesion.rol != "supervisor":
+        return consulta
+    return consulta.where(
+        Video.fuente_id.in_(select(Fuente.id).where(Fuente.area_id == sesion.area_id))
+    )
 
 
 def _motivo_publico(v: Video) -> str | None:
@@ -72,7 +82,7 @@ def listar_videos(
     cursor: str | None = None,
 ) -> dict[str, Any]:
     sesion.exigir("ver_hallazgos")
-    consulta = select(Video)
+    consulta = videos_de_su_area(select(Video), sesion)
     if estado:
         consulta = consulta.where(Video.estado == estado)
     if fuente_id is not None:
