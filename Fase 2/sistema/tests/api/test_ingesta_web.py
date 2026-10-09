@@ -374,10 +374,15 @@ def test_los_pedidos_se_listan_sin_carpeta_de_entrada(sin_carpeta: Cliente) -> N
     }
 
 
-def test_se_listan_a_lo_mas_50_pedidos(web: Cliente, bd: Engine) -> None:
+@pytest.mark.parametrize(("creados", "listados"), [(0, 0), (49, 49), (50, 50), (51, 50), (55, 50)])
+def test_se_listan_a_lo_mas_50_pedidos(
+    web: Cliente, bd: Engine, creados: int, listados: int
+) -> None:
+    """El tope de 50, justo en el umbral y a cada lado."""
     with Session(bd) as s, s.begin():
-        for i in range(55):
+        for i in range(creados):
             pedidos.crear(s, archivo=f"v{i}.mp4", fuente_id=1)
     r = web.llamar("listarPedidos", "GET", "/videos/pedidos", headers=ADMIN)
-    assert len(r["items"]) == 50
-    assert r["items"][0]["archivo"] == "v54.mp4"
+    assert len(r["items"]) == listados
+    if creados:
+        assert r["items"][0]["archivo"] == f"v{creados - 1}.mp4"
