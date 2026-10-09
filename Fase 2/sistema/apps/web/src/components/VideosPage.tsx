@@ -75,14 +75,14 @@ function fuentesElegibles(catalogos: Catalogos | undefined): FuenteElegible[] | 
 }
 
 interface VideosPageProps {
-  puedeEditarReglas?: boolean;
+  puedeProcesar?: boolean;
   // Solo los roles con `ver_evidencia` ven la vista del modelo; quien configura (administrador) no.
   puedeVerEvidencia?: boolean;
   catalogos?: Catalogos;
   catalogosError?: boolean;
 }
 
-export function VideosPage({ puedeEditarReglas = false, puedeVerEvidencia = false, catalogos, catalogosError = false }: VideosPageProps) {
+export function VideosPage({ puedeProcesar = false, puedeVerEvidencia = false, catalogos, catalogosError = false }: VideosPageProps) {
   const queryClient = useQueryClient();
   const [mensaje, setMensaje] = useState("");
   const [dialogoAbierto, setDialogoAbierto] = useState(false);
@@ -99,7 +99,7 @@ export function VideosPage({ puedeEditarReglas = false, puedeVerEvidencia = fals
   const pedidos = useQuery({
     queryKey: ["videos-pedidos"],
     queryFn: listarPedidos,
-    enabled: puedeEditarReglas,
+    enabled: puedeProcesar,
     refetchInterval: (query) => (query.state.status === "error" ? false : intervaloDePedidos(query.state.data?.items)),
   });
   const estadosVistos = useRef<Map<number, EstadoPedido> | null>(null);
@@ -210,7 +210,7 @@ export function VideosPage({ puedeEditarReglas = false, puedeVerEvidencia = fals
         </div>
         <div className="videos-heading-actions">
           {consulta.data && <span className="result-summary">{videos.length === 1 ? "1 video cargado" : `${videos.length} videos cargados`}</span>}
-          {puedeEditarReglas && (
+          {puedeProcesar && (
             <button type="button" className="primary-button" onClick={abrirDialogo}>
               <Plus size={14} aria-hidden="true" />
               Procesar video
@@ -219,16 +219,16 @@ export function VideosPage({ puedeEditarReglas = false, puedeVerEvidencia = fals
         </div>
       </div>
 
-      {puedeEditarReglas && pedidos.isError && esSinPermiso(pedidos.error) && (
+      {puedeProcesar && pedidos.isError && esSinPermiso(pedidos.error) && (
         <div className="state-message" role="status">No tienes permiso para ver los pedidos de procesamiento.</div>
       )}
-      {puedeEditarReglas && pedidos.isError && !esSinPermiso(pedidos.error) && (
+      {puedeProcesar && pedidos.isError && !esSinPermiso(pedidos.error) && (
         <div className="state-message" role="status">
           No fue posible cargar los pedidos de procesamiento.
           <button type="button" onClick={() => void pedidos.refetch()}>Reintentar</button>
         </div>
       )}
-      {puedeEditarReglas && <PanelPedidos pedidos={pedidos.data?.items ?? []} />}
+      {puedeProcesar && <PanelPedidos pedidos={pedidos.data?.items ?? []} />}
 
       {consulta.isLoading && (
         <div className="state-message" role="status" aria-live="polite">
@@ -262,7 +262,7 @@ export function VideosPage({ puedeEditarReglas = false, puedeVerEvidencia = fals
                   <th scope="col">Estado</th>
                   <th scope="col">Intentos</th>
                   <th scope="col">Motivo del error</th>
-                  {puedeEditarReglas && <th scope="col">Acciones</th>}
+                  {puedeProcesar && <th scope="col">Acciones</th>}
                 </tr>
               </thead>
               <tbody>
@@ -277,7 +277,7 @@ export function VideosPage({ puedeEditarReglas = false, puedeVerEvidencia = fals
                     </td>
                     <td className="mono video-attempts">{video.intentos ?? 0}</td>
                     <td className="video-error">{(estadosConMotivo.has(video.estado) && video.error_motivo) || "—"}</td>
-                    {puedeEditarReglas && (
+                    {puedeProcesar && (
                       <td>
                         {estadosReprocesables.has(video.estado) ? (
                           <button
@@ -296,7 +296,7 @@ export function VideosPage({ puedeEditarReglas = false, puedeVerEvidencia = fals
                   </tr>
                   {puedeVerEvidencia && video.estado === "procesando" && (
                     <tr className="video-live-row">
-                      <td colSpan={puedeEditarReglas ? 6 : 5}>
+                      <td colSpan={puedeProcesar ? 6 : 5}>
                         <VivoVideo videoId={video.id} archivo={video.archivo} />
                       </td>
                     </tr>

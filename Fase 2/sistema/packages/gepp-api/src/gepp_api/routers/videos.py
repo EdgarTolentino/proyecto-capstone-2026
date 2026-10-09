@@ -127,7 +127,7 @@ def listar_videos(
 @router.get("/videos/entrada", operation_id="listarEntradaVideos")
 def listar_entrada_videos(request: Request, bd: Bd, sesion: Sesion) -> dict[str, Any]:
     """Los videos de la carpeta de entrada que se pueden pedir. Solo nombres, nunca rutas."""
-    sesion.exigir("editar_reglas")
+    sesion.exigir("procesar_videos")
     config = request.app.state.config
     carpeta = ingesta.carpeta_de_entrada(config.carpeta_entrada)
     return {"items": ingesta.listar_entrada(bd, carpeta, config.zona_horaria)}
@@ -135,7 +135,7 @@ def listar_entrada_videos(request: Request, bd: Bd, sesion: Sesion) -> dict[str,
 
 @router.get("/videos/pedidos", operation_id="listarPedidos")
 def listar_pedidos(request: Request, bd: Bd, sesion: Sesion) -> dict[str, Any]:
-    sesion.exigir("editar_reglas")
+    sesion.exigir("procesar_videos")
     return {"items": ingesta.listar_pedidos(bd, request.app.state.config.zona_horaria)}
 
 
@@ -143,7 +143,7 @@ def listar_pedidos(request: Request, bd: Bd, sesion: Sesion) -> dict[str, Any]:
 def pedir_ingesta(request: Request, cuerpo: PedidoNuevo, bd: Bd, sesion: Sesion) -> dict[str, Any]:
     """Deja un pedido para que el trabajador procese un archivo de la carpeta de entrada.
     No sube nada ni habla con Redis; el hash y el registro del video son del trabajador."""
-    sesion.exigir("editar_reglas")
+    sesion.exigir("procesar_videos")
     config = request.app.state.config
     carpeta = ingesta.carpeta_de_entrada(config.carpeta_entrada)
     return ingesta.pedir(bd, sesion, carpeta, cuerpo.archivo, cuerpo.fuente_id, config.zona_horaria)
@@ -154,7 +154,7 @@ def reprocesar_video(id: int, request: Request, bd: Bd, sesion: Sesion) -> dict[
     """Un video `listo` se recalcula con las reglas vigentes sobre las detecciones guardadas,
     sin GPU ni video. Uno que falló (`error` o `reintentando`) vuelve a la cola con los
     intentos en cero: el trabajador lo encola en su próxima vuelta (#74)."""
-    sesion.exigir("editar_reglas")
+    sesion.exigir("procesar_videos")
     v = bd.get(Video, id)
     if v is None:
         raise no_encontrado("video", id)

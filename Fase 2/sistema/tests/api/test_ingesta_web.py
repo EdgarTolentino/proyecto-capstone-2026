@@ -21,7 +21,11 @@ from .conftest import Cliente
 pytestmark = pytest.mark.integration
 
 ADMIN = {"Authorization": "Bearer admin"}
-DEMO = {"Authorization": "Bearer demo"}  # prevencionista: no tiene `editar_reglas`
+DEMO = {"Authorization": "Bearer demo"}  # prevencionista: tiene `procesar_videos`
+SIN_PERMISO = {  # ninguno de los dos tiene `procesar_videos`
+    "supervisor": {"Authorization": "Bearer sup"},
+    "auditor": {"Authorization": "Bearer aud"},
+}
 OPERACIONES = [
     ("listarEntradaVideos", "GET", "/videos/entrada"),
     ("listarPedidos", "GET", "/videos/pedidos"),
@@ -32,7 +36,9 @@ OPERACIONES = [
 @pytest.fixture(autouse=True)
 def _tokens(monkeypatch: pytest.MonkeyPatch) -> None:
     monkeypatch.setenv(
-        "GEPP_API_TOKENS", "demo=prevencionista@obra.invalid,admin=administrador@obra.invalid"
+        "GEPP_API_TOKENS",
+        "demo=prevencionista@obra.invalid,admin=administrador@obra.invalid,"
+        "sup=supervisor.acceso@obra.invalid,aud=auditor@obra.invalid",
     )
     monkeypatch.delenv("GEPP_CARPETA_ENTRADA", raising=False)
 
@@ -104,18 +110,38 @@ def test_sin_sesion_es_401(web: Cliente, operacion: str, metodo: str, ruta: str)
     web.llamar(operacion, metodo, ruta, esperado=401, headers={}, json={})
 
 
+@pytest.mark.parametrize("rol", sorted(SIN_PERMISO))
 @pytest.mark.parametrize(("operacion", "metodo", "ruta"), OPERACIONES)
-def test_el_prevencionista_no_puede_lanzar_ni_ver_la_entrada(
-    web: Cliente, operacion: str, metodo: str, ruta: str
+def test_sin_procesar_videos_no_se_puede_lanzar_ni_ver_la_entrada(
+    web: Cliente, operacion: str, metodo: str, ruta: str, rol: str
 ) -> None:
     cuerpo = {"archivo": "a.mp4", "fuente_id": 1}
-    r = web.llamar(operacion, metodo, ruta, esperado=403, headers=DEMO, json=cuerpo)
+    r = web.llamar(operacion, metodo, ruta, esperado=403, headers=SIN_PERMISO[rol], json=cuerpo)
     assert r["codigo"] == "sin_permiso"
+
+
+def test_el_prevencionista_procesa_videos_desde_la_web(web: Cliente, entrada: Path) -> None:
+    """El prevencionista ve la entrada, pide y lista pedidos: procesa y mira la vista en vivo
+    en la misma web (decisión de Edgar Tolentino del 2026-10-09)."""
+    _video(entrada, "a.mp4", b"1234")
+    entrada_vista = web.llamar("listarEntradaVideos", "GET", "/videos/entrada", headers=DEMO)
+    assert [a["archivo"] for a in entrada_vista["items"]] == ["a.mp4"]
+    cuerpo = {"archivo": "a.mp4", "fuente_id": 1}
+    pedido = web.llamar("pedirIngesta", "POST", "/videos", esperado=202, headers=DEMO, json=cuerpo)
+    assert pedido["estado"] == "pendiente"
+    listados = web.llamar("listarPedidos", "GET", "/videos/pedidos", headers=DEMO)["items"]
+    assert [p["archivo"] for p in listados] == ["a.mp4"]
 
 
 def test_el_permiso_se_exige_antes_que_la_configuracion(sin_carpeta: Cliente) -> None:
     """Sin carpeta Y sin permiso: 403, no 409 (no se cuenta cómo está el servidor)."""
-    sin_carpeta.llamar("listarEntradaVideos", "GET", "/videos/entrada", esperado=403, headers=DEMO)
+    sin_carpeta.llamar(
+        "listarEntradaVideos",
+        "GET",
+        "/videos/entrada",
+        esperado=403,
+        headers=SIN_PERMISO["auditor"],
+    )
 
 
 # ── GET /videos/entrada ────────────────────────────────────────────────────────────────────

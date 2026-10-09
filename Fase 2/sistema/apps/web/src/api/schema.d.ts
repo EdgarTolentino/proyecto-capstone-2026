@@ -193,7 +193,7 @@ export interface paths {
          * @description Deja un pedido `pendiente` para un archivo de la carpeta de entrada del servidor; el
          *     trabajador lo atiende después (calcula el hash, registra el video y lo encola). **No se
          *     sube ningún archivo**: el video ya está en la máquina y no sale de ella (ADR-010). El
-         *     cuerpo lleva solo el NOMBRE, nunca una ruta. Requiere `editar_reglas`.
+         *     cuerpo lleva solo el NOMBRE, nunca una ruta. Requiere `procesar_videos`.
          *
          *     Errores:
          *
@@ -229,7 +229,7 @@ export interface paths {
          *     archivos ocultos, los que no son de video y los vacíos. Nunca devuelve rutas del
          *     servidor, solo nombres. `posible_duplicado` avisa cuando el nombre y el tamaño coinciden
          *     con un video ya registrado: **solo informa**, la decisión es del hash en el trabajador.
-         *     Requiere `editar_reglas`. Sin carpeta de entrada configurada: `409 entrada_no_configurada`.
+         *     Requiere `procesar_videos`. Sin carpeta de entrada configurada: `409 entrada_no_configurada`.
          */
         get: operations["listarEntradaVideos"];
         put?: never;
@@ -251,7 +251,7 @@ export interface paths {
          * Pedidos de ingesta recientes
          * @description Los últimos 50 pedidos, del más nuevo al más antiguo. Mientras uno esté `pendiente` o
          *     `tomado` conviene volver a preguntar; al pasar a `registrado`, el video aparece en
-         *     `GET /videos`. Requiere `editar_reglas`.
+         *     `GET /videos`. Requiere `procesar_videos`.
          */
         get: operations["listarPedidos"];
         put?: never;
@@ -1143,7 +1143,8 @@ export interface components {
             area_id?: number | null;
             /**
              * @description El frontend se pinta contra esta lista, no contra el rol. `ver_evidencia` no lo tiene
-             *     el administrador: quien configura no observa.
+             *     el administrador: quien configura no observa. `procesar_videos` (pedir, listar la
+             *     entrada y reprocesar videos) lo tienen el administrador y el prevencionista.
              *     No existe ningún permiso de descarga masiva de recortes.
              * @example [
              *       "ver_hallazgos",
@@ -1153,7 +1154,7 @@ export interface components {
              *       "asignar_acciones"
              *     ]
              */
-            permisos: ("ver_hallazgos" | "triar_hallazgos" | "ver_evidencia" | "editar_reglas" | "ver_reportes" | "ver_auditoria" | "asignar_acciones")[];
+            permisos: ("ver_hallazgos" | "triar_hallazgos" | "ver_evidencia" | "editar_reglas" | "procesar_videos" | "ver_reportes" | "ver_auditoria" | "asignar_acciones")[];
         };
         /** @description Identificador y nombre para pintar. Nunca datos de una persona trabajadora. */
         Referencia: {
