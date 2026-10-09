@@ -123,6 +123,19 @@ class Regla:
     #: Franja horaria (turno u horario). `None` = siempre.
     ventana: Ventana | None = None
 
+    def __post_init__(self) -> None:
+        # Un umbral inválido no puede construir una regla: `cierre_segundos=0` terminaba sin
+        # hallazgos y sin error (la API ya lo rechazaba). `not (x > 0)` también atrapa NaN.
+        if not (self.cierre_segundos > 0) or not math.isfinite(self.cierre_segundos):
+            raise ValueError(
+                f"cierre_segundos debe ser positivo y finito, no {self.cierre_segundos!r}"
+            )
+        if not (self.confirmacion_segundos >= 0) or not math.isfinite(self.confirmacion_segundos):
+            raise ValueError(
+                f"confirmacion_segundos debe ser mayor o igual a 0 y finito, "
+                f"no {self.confirmacion_segundos!r}"
+            )
+
     def evalua(self, persona: Deteccion) -> bool:
         """¿Esta regla mira a esta persona, en este lugar y a esta hora?"""
         if self.ventana is not None and not self.ventana.contiene(persona.capture_ts):

@@ -8,7 +8,8 @@ Reprocesar **reemplaza** hallazgos sin duplicar ni pisar decisiones humanas:
 
 - los ya triados (confirmado, falso positivo, duplicado, pospuesto) no se tocan;
 - un `por_revisar` que coincide con uno recalculado (misma persona, regla e inicio) se
-  actualiza en su lugar y conserva su evidencia;
+  actualiza en su lugar y conserva su evidencia, salvo la que ya no cae en [ts_inicio, ts_fin]
+  (si el hallazgo se acortó, el recorte de la otra racha se descarta);
 - un `por_revisar` que la regla vigente ya no produce se elimina, salvo que tenga una acción
   correctiva;
 - lo nuevo se inserta.
@@ -22,7 +23,7 @@ import time
 from collections.abc import Iterable, Sequence
 from dataclasses import dataclass
 
-from gepp_bd.modelos import AccionCorrectiva, Fuente, Notificacion, Video
+from gepp_bd.modelos import AccionCorrectiva, Evidencia, Fuente, Notificacion, Video
 from gepp_bd.modelos import Hallazgo as FilaHallazgo
 from gepp_bd.repositorios import detecciones, hallazgos, reglas
 from gepp_core import Hallazgo, Regla, agregar
@@ -82,6 +83,7 @@ def recalcular_video(bd: Session, video: Video) -> Resultado:
             fila.confianza_media = h.confianza_media
             fila.epp_faltante = sorted(e.value for e in h.epp_faltante)
             fila.severidad = int(h.severidad)
+            _descartar_evidencia_fuera_del_intervalo(bd, fila)
             actualizados += 1
         else:
             conservados += 1
@@ -101,6 +103,21 @@ def recalcular_video(bd: Session, video: Video) -> Resultado:
     bd.flush()
     ms = round((time.monotonic() - inicio) * 1000)
     return Resultado(insertados, actualizados, len(obsoletos), conservados, ms)
+
+
+def _descartar_evidencia_fuera_del_intervalo(bd: Session, fila: FilaHallazgo) -> None:
+    """Un hallazgo que se acortó (la regla o el agregador partieron su racha) conserva su
+    identidad pero no el recorte de la otra racha: la evidencia se queda solo si su `capture_ts`
+    cae en [ts_inicio, ts_fin]. Se borra la fila de `evidencia`, igual que cuando desaparece el
+    hallazgo entero (`_eliminar`, por cascada); el archivo ya difuminado no se toca aquí."""
+    if fila.ts_fin is None:
+        return
+    bd.execute(
+        delete(Evidencia).where(
+            Evidencia.hallazgo_id == fila.id,
+            (Evidencia.capture_ts < fila.ts_inicio) | (Evidencia.capture_ts > fila.ts_fin),
+        )
+    )
 
 
 def _eliminar(bd: Session, ids: Iterable[int]) -> None:
