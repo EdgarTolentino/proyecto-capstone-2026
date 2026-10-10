@@ -87,7 +87,9 @@ class AgregadorDeHallazgos:
                 persona, detecciones, self._regla.epp_exigido, self._regla.confianza_minima
             )
             if faltante:
-                self._acumular(persona, faltante)
+                hallazgo = self._acumular(persona, faltante)
+                if hallazgo is not None:
+                    cerrados.append(hallazgo)
             else:
                 hallazgo = self._quizas_cerrar(persona.track_id, persona.capture_ts)
                 if hallazgo is not None:
@@ -115,8 +117,12 @@ class AgregadorDeHallazgos:
 
     # ── Interno ────────────────────────────────────────────────────────────────
 
-    def _acumular(self, persona: Deteccion, faltante: set[TipoEPP]) -> None:
+    def _acumular(self, persona: Deteccion, faltante: set[TipoEPP]) -> Hallazgo | None:
+        """Suma el cuadro a la racha de la persona. Devuelve el hallazgo de la racha anterior si
+        este cuadro llega después de un silencio de al menos `cierre_segundos`: esa racha se
+        cierra (se emite si estaba confirmada) y este cuadro abre una nueva."""
         assert persona.track_id is not None
+        cerrado = self._quizas_cerrar(persona.track_id, persona.capture_ts)  # una sola regla
         racha = self._rachas.get(persona.track_id)
         if racha is None:
             racha = _Racha(
@@ -137,6 +143,7 @@ class AgregadorDeHallazgos:
 
         if not racha.confirmado and racha.duracion >= self._regla.confirmacion_segundos:
             racha.confirmado = True
+        return cerrado
 
     def _quizas_cerrar(self, track_id: int, ahora: datetime) -> Hallazgo | None:
         racha = self._rachas.get(track_id)

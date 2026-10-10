@@ -2,10 +2,13 @@
 
 from __future__ import annotations
 
+import random
+from itertools import pairwise
+
 import pytest
 from gepp_core import AgregadorDeHallazgos, Caja, Regla, Severidad, TipoEPP, agregar
 
-from .conftest import cuadro
+from .conftest import cuadro, en
 
 
 def secuencia(*, sin_casco_desde: float, sin_casco_hasta: float, total: float, fps: float):
@@ -113,3 +116,104 @@ def test_cerrar_emite_lo_que_quedaba_vivo(regla: Regla) -> None:
     pendientes = agregador.cerrar()
     assert len(pendientes) == 1
     assert pendientes[0].epp_faltante == {TipoEPP.CASCO}
+
+
+# ── Un silencio de al menos `cierre_segundos` cierra la racha, también si reincide ───────
+#
+# Antes, `_acumular` sumaba el cuadro a la racha sin mirar el silencio: dos cuadros con
+# incumplimiento separados por 3,0 s (= cierre_segundos) quedaban en UN hallazgo confirmado solo
+# por el span (#163, caso B). Los tiempos son múltiplos de 0,25 s (diádicos): el borde es exacto.
+
+PASO_DIADICO = 0.25  # 4 fps
+
+
+def _con_incumplimientos(incumple: set[float], hasta: float) -> list[list]:
+    """Un cuadro cada 0,25 s de 0 a `hasta`, con casco salvo en los instantes de `incumple`."""
+    n = round(hasta / PASO_DIADICO) + 1
+    return [
+        cuadro(t=i * PASO_DIADICO, idx=i, con_casco=(i * PASO_DIADICO) not in incumple)
+        for i in range(n)
+    ]
+
+
+def _tramo(desde: float, hasta: float) -> set[float]:
+    n = round((hasta - desde) / PASO_DIADICO) + 1
+    return {desde + i * PASO_DIADICO for i in range(n)}
+
+
+def test_silencio_exacto_de_cierre_no_fusiona_dos_incumplimientos(regla: Regla) -> None:
+    """t=0 y t=3,0 con EPP en medio: dos rachas de 1 cuadro, ninguna llega a 2,0 s."""
+    assert regla.cierre_segundos == 3.0
+    assert list(agregar(regla, _con_incumplimientos({0.0, 3.0}, hasta=3.0))) == []
+
+
+def test_silencio_justo_menor_que_el_cierre_si_fusiona(regla: Regla) -> None:
+    """t=0 y t=2,75: la oclusión breve se tolera, como siempre (2 cuadros, 2,75 s)."""
+    (h,) = agregar(regla, _con_incumplimientos({0.0, 2.75}, hasta=2.75))
+    assert (h.cuadros_confirmados, h.duracion_segundos) == (2, 2.75)
+
+
+def test_silencio_mayor_que_el_cierre_no_fusiona(regla: Regla) -> None:
+    assert list(agregar(regla, _con_incumplimientos({0.0, 3.25}, hasta=3.25))) == []
+
+
+def test_cuadros_contiguos_son_una_sola_racha(regla: Regla) -> None:
+    """Extremo bajo: cuadros contiguos (silencio de un paso) son una sola racha."""
+    (h,) = agregar(regla, _con_incumplimientos(_tramo(0.0, 2.0), hasta=2.0))
+    assert (h.cuadros_confirmados, h.duracion_segundos) == (9, 2.0)  # 9 cuadros, 8 pasos
+
+
+def test_racha_confirmada_que_reincide_tras_el_cierre_se_emite_y_abre_otra(regla: Regla) -> None:
+    """0 a 2,5 s continuo (confirmada), EPP, y vuelve a incumplir 3,0 s después del último."""
+    incumple = _tramo(0.0, 2.5) | {5.5}
+    (h,) = agregar(regla, _con_incumplimientos(incumple, hasta=5.5))
+    assert (h.cuadros_confirmados, h.duracion_segundos) == (11, 2.5)  # solo la primera
+
+
+@pytest.mark.parametrize(
+    ("hasta_segunda", "hallazgos"),
+    [(7.25, 1), (7.5, 2)],  # la segunda dura 1,75 s (no se confirma) o 2,0 s (justo en el umbral)
+)
+def test_la_segunda_racha_solo_se_confirma_al_llegar_a_la_confirmacion(
+    regla: Regla, hasta_segunda: float, hallazgos: int
+) -> None:
+    incumple = _tramo(0.0, 2.5) | _tramo(5.5, hasta_segunda)
+    hs = sorted(
+        agregar(regla, _con_incumplimientos(incumple, hasta=hasta_segunda)),
+        key=lambda h: h.ts_inicio,
+    )
+    assert len(hs) == hallazgos
+    assert hs[0].duracion_segundos == 2.5
+    if hallazgos == 2:
+        assert (hs[1].cuadros_confirmados, hs[1].duracion_segundos) == (9, 2.0)
+
+
+@pytest.mark.parametrize("semilla", range(40))
+def test_ningun_hallazgo_tiene_un_hueco_de_cierre_segundos_ni_pasa_la_cota(
+    regla: Regla, semilla: int
+) -> None:
+    """Propiedad sobre patrones al azar (reproducibles): dentro de un hallazgo, dos cuadros con
+    incumplimiento consecutivos distan menos de `cierre_segundos`; y los cuadros nunca pasan de
+    round(duracion_s · fps) + 1 (N cuadros abarcan N-1 pasos)."""
+    azar = random.Random(semilla)
+    total = 60.0
+    # Ráfagas de 1 a 12 cuadros con incumplimiento separadas por 1 a 16 cuadros con EPP: los
+    # huecos de exactamente 12 cuadros (3,0 s = cierre_segundos) salen seguido.
+    instantes: list[float] = []
+    paso = 0
+    while paso * PASO_DIADICO < total:
+        for _ in range(azar.randint(1, 12)):
+            instantes.append(paso * PASO_DIADICO)
+            paso += 1
+        paso += azar.randint(1, 16)
+    instantes = [t for t in instantes if t <= total]
+    incumple = set(instantes)
+    fps = 1 / PASO_DIADICO
+    for h in agregar(regla, _con_incumplimientos(incumple, hasta=total)):
+        t0 = (h.ts_inicio - en(0)).total_seconds()
+        t1 = (h.ts_fin - en(0)).total_seconds()
+        dentro = [t for t in instantes if t0 <= t <= t1]
+        assert h.cuadros_confirmados == len(dentro)
+        assert all(b - a < regla.cierre_segundos for a, b in pairwise(dentro))
+        assert h.cuadros_confirmados <= round(h.duracion_segundos * fps) + 1
+        assert h.duracion_segundos >= regla.confirmacion_segundos
