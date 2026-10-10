@@ -1108,9 +1108,13 @@ components:
             la razón del umbral ("4 de 5 en 2,0 s") pertenece al visor, en `por_que_se_disparo`.
             Mostrarla en la bandeja reintroduce el pensamiento en cuadros que el ADR-005 prohíbe.
 
-            **Coherencia obligatoria con `duracion_s`:** el sistema muestrea a 5 fps, así que este
-            valor ronda `duracion_s × 5`. Un hallazgo de 192 s tiene del orden de 900 cuadros
-            confirmados, no 47. Si la razón entre ambos no da ~5, uno de los dos está mal.
+            **Coherencia obligatoria con `duracion_s`:** el sistema muestrea a `fps` cuadros por
+            segundo (`GEPP_FPS_OBJETIVO`, 5 por defecto) y cuenta solo los cuadros con
+            incumplimiento; siempre se cumple `1 ≤ cuadros_confirmados < fps × duracion_s + 2`.
+            Con un origen múltiplo exacto de `fps` y sin huecos,
+            `cuadros_confirmados = fps × duracion_s + 1`. Los huecos menores que `cierre_segundos`
+            (oclusiones breves) suman duración pero no cuadros. Un valor fuera de la cota indica
+            un error.
           example: 912
         confianza_media:
           type: number

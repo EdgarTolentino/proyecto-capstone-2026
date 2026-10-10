@@ -46,8 +46,8 @@ def test_la_bandeja_lista_con_contadores_y_aviso_legal(api: Cliente, datos: dict
     assert h["aviso_legal"] == "Indicio automatizado. Requiere validación humana."
     assert h["miniatura_url"].startswith("/api/v1/evidencias/")
     assert h["epp_faltante"] == ["casco"]
-    # coherencia del contrato: cuadros_confirmados ~ duracion_s * 5
-    assert abs(h["cuadros_confirmados"] - h["duracion_s"] * 5) <= 5
+    # coherencia del contrato: a 5 fps, N cuadros abarcan N - 1 intervalos (#163)
+    assert 1 <= h["cuadros_confirmados"] <= round(h["duracion_s"] * 5) + 1
     assert h["ts_inicio"].endswith("-03:00") or h["ts_inicio"].endswith("-04:00")
 
 
