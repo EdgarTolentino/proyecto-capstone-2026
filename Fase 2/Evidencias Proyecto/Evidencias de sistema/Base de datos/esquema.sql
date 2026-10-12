@@ -304,5 +304,48 @@ ALTER TABLE video ADD CONSTRAINT ck_video_estado CHECK (estado IN ('en_cola','pr
 
 UPDATE alembic_version SET version_num='0004' WHERE alembic_version.version_num = '0003';
 
+-- Running upgrade 0004 -> 0005
+
+CREATE TABLE pedido_ingesta (
+    id BIGSERIAL NOT NULL, 
+    archivo TEXT NOT NULL, 
+    fuente_id BIGINT NOT NULL, 
+    usuario_id BIGINT, 
+    estado TEXT DEFAULT 'pendiente' NOT NULL, 
+    motivo TEXT, 
+    video_id BIGINT, 
+    bytes BIGINT, 
+    mtime_ns BIGINT, 
+    creado_en TIMESTAMP WITH TIME ZONE DEFAULT now() NOT NULL, 
+    actualizado_en TIMESTAMP WITH TIME ZONE DEFAULT now() NOT NULL, 
+    CONSTRAINT pk_pedido_ingesta PRIMARY KEY (id), 
+    CONSTRAINT ck_pedido_ingesta_estado CHECK (estado IN ('pendiente','tomado','registrado','rechazado')), 
+    CONSTRAINT fk_pedido_ingesta_fuente_id_fuente FOREIGN KEY(fuente_id) REFERENCES fuente (id), 
+    CONSTRAINT fk_pedido_ingesta_usuario_id_usuario FOREIGN KEY(usuario_id) REFERENCES usuario (id), 
+    CONSTRAINT fk_pedido_ingesta_video_id_video FOREIGN KEY(video_id) REFERENCES video (id) ON DELETE SET NULL
+);
+
+CREATE UNIQUE INDEX uq_pedido_ingesta_archivo_abierto ON pedido_ingesta (archivo) WHERE estado IN ('pendiente','tomado');
+
+UPDATE alembic_version SET version_num='0005' WHERE alembic_version.version_num = '0004';
+
+-- Running upgrade 0005 -> 0006
+
+ALTER TABLE video ADD COLUMN avance_fase TEXT;
+
+ALTER TABLE video ADD COLUMN avance_s REAL;
+
+ALTER TABLE video ADD COLUMN avance_total_s REAL;
+
+ALTER TABLE video ADD COLUMN avance_velocidad REAL;
+
+ALTER TABLE video ADD COLUMN avance_ultimo JSONB;
+
+ALTER TABLE video ADD COLUMN avance_actualizado TIMESTAMP WITH TIME ZONE;
+
+ALTER TABLE video ADD CONSTRAINT ck_video_avance_fase CHECK (avance_fase IN ('analizando','guardando'));
+
+UPDATE alembic_version SET version_num='0006' WHERE alembic_version.version_num = '0005';
+
 COMMIT;
 

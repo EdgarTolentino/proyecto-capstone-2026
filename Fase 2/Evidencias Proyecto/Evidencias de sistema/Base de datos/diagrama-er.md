@@ -72,6 +72,12 @@ erDiagram
         INTEGER cuadros_analizados
         BIGINT proceso_ms
         DATETIME creado_en
+        TEXT avance_fase
+        REAL avance_s
+        REAL avance_total_s
+        REAL avance_velocidad
+        JSONB avance_ultimo
+        DATETIME avance_actualizado
     }
     zona {
         BIGINT id PK
@@ -95,6 +101,19 @@ erDiagram
         ARRAY bbox
         BIGINT zona_id FK
         TEXT modelo_version
+    }
+    pedido_ingesta {
+        BIGINT id PK
+        TEXT archivo
+        BIGINT fuente_id FK
+        BIGINT usuario_id FK
+        TEXT estado
+        TEXT motivo
+        BIGINT video_id FK
+        BIGINT bytes
+        BIGINT mtime_ns
+        DATETIME creado_en
+        DATETIME actualizado_en
     }
     regla {
         BIGINT id PK
@@ -191,6 +210,9 @@ erDiagram
     fuente ||--o{ zona : "fuente_id"
     video ||--o{ deteccion : "video_id"
     zona |o--o{ deteccion : "zona_id"
+    fuente ||--o{ pedido_ingesta : "fuente_id"
+    usuario |o--o{ pedido_ingesta : "usuario_id"
+    video |o--o{ pedido_ingesta : "video_id"
     area ||--o{ regla : "area_id"
     zona |o--o{ regla : "zona_id"
     usuario |o--o{ regla : "creada_por"
