@@ -32,7 +32,9 @@ de §2.bis. Lo que sale de esta decisión:
 - La métrica de prueba se mide en una escena que el modelo no vio. Es más débil que una
   grabación propia, porque es una sola escena y una sola cámara, y así se declara en el informe.
 - El video no tiene licencia de reutilización declarada. Queda fuera del repositorio y se
-  registra en el lote 3 con su URL y esa salvedad.
+  registra en el lote 3 con su URL y esa salvedad. La única excepción son dos cuadros de la
+  vista en vivo, citados con su fuente en `Evidencias de sistema/Aplicacion` como evidencia del
+  avance (decisión de Edgar, 2026-10-13), con los rostros tapados.
 - Ya no aplican la autorización de la empresa ni el consentimiento de §3: no se graba a nadie.
   Sigue aplicando el ADR-006 (rostro difuminado en todo recorte, sin identificación).
 
