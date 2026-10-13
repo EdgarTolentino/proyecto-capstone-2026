@@ -1,13 +1,15 @@
 # Evidencias de documentación
 
-| Documento | Origen |
+| Documento | Dónde está |
 |---|---|
-| Especificación de arquitectura | [`docs/arquitectura/`](../../../docs/arquitectura/) |
-| Diseño de interfaz (GUI) | **Depositado** — ver abajo |
-| Modelo de datos | [`docs/arquitectura/`](../../../docs/arquitectura/) |
-| Plan de pruebas y resultados | `docs/operacion/` |
-| Manual de usuario | Se redacta en la Fase 3 |
-| Manual técnico / despliegue | `docs/operacion/` |
+| Especificación de arquitectura | [`docs/arquitectura/00-arquitectura.md`](../../../docs/arquitectura/00-arquitectura.md) y las decisiones en [`docs/arquitectura/adr/`](../../../docs/arquitectura/adr/) |
+| Diseño de interfaz (GUI) | **Depositado** aquí: `GUI-01` a `GUI-05` — ver abajo |
+| Modelo de datos | [`docs/arquitectura/01-modelo-de-datos.md`](../../../docs/arquitectura/01-modelo-de-datos.md); esquema y diagrama en [`Evidencias de sistema/Base de datos`](../Evidencias%20de%20sistema/Base%20de%20datos/) |
+| Plan de evaluación y aseguramiento de calidad | [`docs/arquitectura/02-plan-de-evaluacion.md`](../../../docs/arquitectura/02-plan-de-evaluacion.md) |
+| Informe de pruebas manuales de la web | **Depositado** aquí: `Pruebas/Reporte_Pruebas_Guardian_EPP_05_10_2026` (`.docx` y `.pdf`, #96 y #132) |
+| Manual de usuario | **Depositado** aquí: `Manual de Usuario` (`.docx` y `.pdf`, #91) |
+| Guía de etiquetado | [`docs/datos/guia-etiquetado.md`](../../../docs/datos/guia-etiquetado.md) |
+| Manual técnico / despliegue | [`docs/operacion/`](../../../docs/operacion/): recorrido del video a la bandeja, modelo ONNX en CPU y alertas |
 
 Los documentos vivos se versionan en `docs/`. Aquí se depositan las **versiones congeladas**
 que se entregan al docente, en PDF y con número de versión.
