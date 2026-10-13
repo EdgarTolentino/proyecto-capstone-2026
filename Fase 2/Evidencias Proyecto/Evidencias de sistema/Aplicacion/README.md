@@ -4,7 +4,7 @@ El código fuente **no se duplica aquí**. Vive en [`Fase 2/sistema/`](../../../
 
 | Entrega | Etiqueta de git | Fecha | Nota |
 |---|---|---|---|
-| Avance S10 | `v0.1.0-avance` | _pendiente_ | |
+| Avance S10 | `v0.1.0-avance` | 2026-10-13 | Evaluación de avance de la Fase 2; apunta a `54a8993` (#167) |
 | Final S15 | `v1.0.0` | _pendiente_ | |
 
 Para reproducir una entrega exacta:
@@ -28,6 +28,8 @@ git checkout v1.0.0
 | `2026-10-01-navegacion-a-hallazgos.png` | Bandeja abierta desde un indicador; conserva fecha y turno, y no arrastra el filtro de obra que la bandeja no admite |
 | `2026-10-06-cola-videos.png` | Cola de videos (#117) contra el mock del contrato: archivo, cámara, estado, intentos y motivo del error (solo en `error` y `reintentando`), con «Cargar más videos». El único video viene del ejemplo genérico de Prism |
 | `2026-10-06-reprocesar-video.png` | Cola de videos (#118) con el permiso `editar_reglas`: columna «Acciones» y botón «Reprocesar» solo en el video en `error`; el `en_cola` muestra «—». Para la captura, un proxy local delante de Prism agregó `editar_reglas` a `/yo` (el ejemplo del contrato no lo trae) y una copia del video de ejemplo en estado `error`; el resto es Prism |
+| `2026-10-12-pedido-procesando-con-avance.png` | Cola de videos contra la **API real** y el modelo entrenado: un video pedido desde la web (#154-#162) en estado «Procesando», con barra de avance, velocidad, conteo del cuadro actual y la vista en vivo del modelo (en esta captura se ve pixelada) |
+| `2026-10-12-vista-en-vivo-modelo.png` | La vista en vivo del modelo: cajas de persona (amarillo) y casco (verde) sobre el video de prueba. Los rostros están tapados y el nombre de la empresa en el chaleco se pixeló para esta captura |
 
 ### Nota sobre los datos del mock de Prism
 
@@ -52,6 +54,12 @@ La referencia a video sintético aplica únicamente a `2026-09-22-api-real-bande
 del video sintético CAM 03, con detector simulado. Las capturas del 28 de septiembre usan el mock
 del contrato y las del panel del 1 de octubre usan Prism; estas últimas no provienen de ese video.
 El detalle del dataset está en `docs/producto/07-datasets.md`.
+
+Las dos capturas del 12 de octubre muestran el **video de prueba** (lote 3 de
+`07-datasets.md`), publicado en YouTube el 2018-09-18 por el canal de un vendedor de cámaras de
+seguridad: <https://www.youtube.com/watch?v=GPCHfE_-XQE>. El video no declara licencia de reutilización:
+no está en el repositorio y estos dos cuadros se citan con fines académicos, como evidencia del
+procesamiento. No se usa para entrenar.
 
 ## Validación del panel general · 2 de octubre de 2026
 
