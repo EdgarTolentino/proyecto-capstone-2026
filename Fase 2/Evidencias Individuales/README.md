@@ -10,7 +10,7 @@ Apellido_Nombre_2.1_APT122_DiarioReflexionFase2.docx
 | Integrante | Archivo | Estado |
 |---|---|---|
 | Ortega, Miguel | `Ortega_Miguel_2.1_APT122_DiarioReflexionFase2.docx` | Subido |
-| Tolentino, Edgar | `Tolentino_Edgar_2.1_APT122_DiarioReflexionFase2.docx` | Pendiente |
+| Tolentino, Edgar | `Tolentino_Edgar_2.1_APT122_DiarioReflexionFase2.docx` | Subido |
 | Grandón, Lian | `Grandon_Lian_2.1_APT122_DiarioReflexionFase2.docx` | Subido |
 
 > ⚠️ **Este repositorio es público.** Ningún archivo con RUT, dirección, teléfono, correo
