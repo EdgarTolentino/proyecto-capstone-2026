@@ -18,7 +18,7 @@ construye contra las variables — ni copiando el maquetado, ni sacando colores 
 
 ## Las capturas que se entregan al docente
 
-Están en `Fase 2/Evidencias Proyecto/Evidencias de documentacion/`, junto con lo que se verificó
+Están en `Fase 2/Evidencias Proyecto/Evidencias de documentación/`, junto con lo que se verificó
 sobre ellas: prueba de daltonismo, coherencia con el contrato y reglas de privacidad.
 
 ## Historial

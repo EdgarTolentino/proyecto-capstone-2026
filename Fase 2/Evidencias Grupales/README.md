@@ -1,9 +1,11 @@
 # Evidencias Grupales — Fase 2
 
-Entregables del **equipo completo** para esta fase. Nombra los archivos así:
+Entregables del **equipo completo** para esta fase. Nombre exigido por la asignatura:
 
 ```
-F2-EG-<nombre-corto>-vX.Y.<ext>
+2.4_GuiaEstudiante_Fase 2_DesarrolloProyecto APT (Español).docx
 ```
 
-Ejemplo: `F2-EG-definicion-proyecto-v1.0.pdf`
+| Archivo | Qué es | Estado |
+|---|---|---|
+| `2.4_GuiaEstudiante_Fase 2_DesarrolloProyecto APT (Español).docx` | Informe de avance (S10) | Pendiente de subir |

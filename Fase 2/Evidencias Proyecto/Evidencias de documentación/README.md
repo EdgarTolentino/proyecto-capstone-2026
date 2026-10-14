@@ -11,8 +11,10 @@
 | Guía de etiquetado | [`docs/datos/guia-etiquetado.md`](../../../docs/datos/guia-etiquetado.md) |
 | Manual técnico / despliegue | [`docs/operacion/`](../../../docs/operacion/): recorrido del video a la bandeja, modelo ONNX en CPU y alertas |
 
-Los documentos vivos se versionan en `docs/`. Aquí se depositan las **versiones congeladas**
-que se entregan al docente, en PDF y con número de versión.
+Los documentos vivos se versionan en `docs/`. Aquí se depositan los documentos que se entregan
+al docente: el Manual de Usuario y el informe de pruebas, en `.docx` y `.pdf`, y las capturas del
+diseño de interfaz. El Manual de Usuario se subió el 28-sep (#91); las pantallas de Panel, Videos y Reglas se
+entregaron después (ver [Aplicación](../Evidencias%20de%20sistema/Aplicaci%C3%B3n/)).
 
 ## Diseño de interfaz — depositado el 2026-09-04
 

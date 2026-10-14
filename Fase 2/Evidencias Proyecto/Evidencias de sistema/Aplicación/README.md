@@ -4,16 +4,18 @@ El código fuente **no se duplica aquí**. Vive en [`Fase 2/sistema/`](../../../
 
 | Entrega | Etiqueta de git | Fecha | Nota |
 |---|---|---|---|
-| Avance S10 | `v0.1.0-avance` | 2026-10-13 | Evaluación de avance de la Fase 2; apunta a `54a8993` (#167) |
+| Avance S10 | `v0.1.0-avance` | 2026-10-13 | Evaluación de avance de la Fase 2: presentación, diario, capturas y datos de ejemplo |
 | Final S15 | `v1.0.0` | _pendiente_ | |
 
-Para reproducir una entrega exacta:
+Para reproducir la entrega de avance:
 
 ```bash
 git clone https://github.com/EdgarTolentino/proyecto-capstone-2026.git
 cd proyecto-capstone-2026
-git checkout v1.0.0
+git checkout v0.1.0-avance
 ```
+
+`v1.0.0` es la etiqueta de la entrega final de la S15; todavía no existe.
 
 ## Capturas
 
@@ -73,10 +75,10 @@ obra real ni de la API productiva.
 | Filtrar por obra, desde, hasta y turno A | Correcta; controles seleccionados y URL con `obra_id`, `desde`, `hasta` y `turno` |
 | Navegar desde «Hallazgos abiertos» a la bandeja | Correcta; conserva `desde`, `hasta` y `turno`, y omite `obra_id` |
 | Volver al panel desde la navegación principal | Correcta; el selector de obra, las fechas y el turno vuelven a mostrar sus valores, y `/panel` se consulta con los mismos filtros. Comprobado por `usa la raíz como panel general y permite volver a la bandeja` en `src/App.test.tsx` |
-| Vitest (`npm test`) | 16 archivos y 71 pruebas aprobados |
+| Vitest (`npm test`) | 16 archivos y 71 pruebas aprobados al 2-oct; al 13-oct: 23 archivos y 337 pruebas |
 | TypeScript (`npm run typecheck`) | Aprobado |
 | ESLint (`npm run lint`) | Aprobado sin advertencias |
-| Build de producción (`npm run build`) | Aprobado; Vite transformó 1958 módulos |
+| Build de producción (`npm run build`) | Aprobado; Vite transformó 1958 módulos al 2-oct; al 13-oct: 1969 módulos |
 | Pruebas por mutación | Se inyectaron defectos temporales en navegación, fechas inválidas, límite exclusivo, rango por defecto, permisos 403, conservación de datos, roles accesibles y variación cero; cada test correspondiente falló. Se restauró el código y la corrida focalizada final aprobó 8 archivos y 40 pruebas |
 
 La consola del navegador registró únicamente `404` para `/favicon.ico`; no impidió cargar ni

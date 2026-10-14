@@ -240,5 +240,5 @@ REGLAS QUE SIGUEN VIGENTES
 3. **Prueba de daltonismo:** desatura una captura de la bandeja. Si no se distinguen los niveles
    de severidad, hay que corregir antes de implementar.
 4. Exporta las pantallas a PNG y guárdalas en
-   `Fase 2/Evidencias Proyecto/Evidencias de documentacion/` — el diseño de interfaz es una
+   `Fase 2/Evidencias Proyecto/Evidencias de documentación/` — el diseño de interfaz es una
    evidencia exigida por la asignatura.

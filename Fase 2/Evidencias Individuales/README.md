@@ -1,10 +1,17 @@
 # Evidencias Individuales — Fase 2
 
-Entregables **personales** de cada integrante. Una subcarpeta por persona:
+Entregables **personales** de cada integrante, todos en esta carpeta, sin subcarpetas. Nombre
+exigido por la asignatura:
 
 ```
-Fase 2/Evidencias Individuales/<apellido>/F2-EI-<nombre-corto>-vX.Y.<ext>
+Apellido_Nombre_2.1_APT122_DiarioReflexionFase2.docx
 ```
+
+| Integrante | Archivo | Estado |
+|---|---|---|
+| Ortega, Miguel | `Ortega_Miguel_2.1_APT122_DiarioReflexionFase2.docx` | Subido |
+| Tolentino, Edgar | `Tolentino_Edgar_2.1_APT122_DiarioReflexionFase2.docx` | Pendiente |
+| Grandón, Lian | `Grandon_Lian_2.1_APT122_DiarioReflexionFase2.docx` | Subido |
 
 > ⚠️ **Este repositorio es público.** Ningún archivo con RUT, dirección, teléfono, correo
 > personal o firma escaneada se sube aquí. Ese material se entrega por el canal oficial de
