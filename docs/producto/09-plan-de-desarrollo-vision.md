@@ -267,7 +267,7 @@ Manual técnico de instalación para el portátil sin GPU y la máquina con GPU.
 restauración probados. Accesibilidad de la web revisada con Miguel y Lian.
 
 **PT-18 · v1.0.0.** Etiqueta `v1.0.0`. `Evidencias de sistema/Base de datos/` con `esquema.sql`,
-diagrama ER, `datos-ejemplo.sql` sintético y `respaldo.dump`. `Evidencias de documentacion/` con
+diagrama ER, `datos-ejemplo.sql` sintético y `respaldo.dump`. `Evidencias de documentación/` con
 las versiones congeladas en PDF. Licencia del repositorio decidida. Informe final.
 
 ## 6. Dependencias y ruta crítica
