@@ -8,4 +8,4 @@ Entregables del **equipo completo** para esta fase. Nombre exigido por la asigna
 
 | Archivo | Qué es | Estado |
 |---|---|---|
-| `2.4_GuiaEstudiante_Fase 2_DesarrolloProyecto APT (Español).docx` | Informe de avance (S10) | Pendiente de subir |
+| `2.4_GuiaEstudiante_Fase 2_DesarrolloProyecto APT (Español).docx` | Informe de avance (S10) | Subido |
