@@ -16,6 +16,7 @@ from gepp_core import Caja, ClaseDetectada, Deteccion
 from gepp_vision.dataset import UMBRAL_DUPLICADO, Particion
 from gepp_vision.entrenamiento import (
     CLASES_V1,
+    Anotada,
     CategoriaDesconocida,
     Fuente,
     _asignar,
@@ -24,6 +25,7 @@ from gepp_vision.entrenamiento import (
     acuerdo_de_clases,
     cargar_fuentes,
     completar,
+    completar_clases,
     desde_coco,
     desde_voc,
     emparejar,
@@ -168,6 +170,46 @@ def test_completar_sin_nada_previo_agrega_todo() -> None:
     assert completar([], propuestas) == propuestas
 
 
+# --- completar por clase: personas con el detector COCO, casco y chaleco con el EPP ------
+
+
+CASCO_EXISTENTE = Caja(0.125, 0.0, 0.375, 0.25)
+
+
+def _img_con(*cajas: tuple[ClaseDetectada, Caja]) -> Anotada:
+    return Anotada("a.jpg", 200, 100, list(cajas))
+
+
+def test_completar_clases_agrega_el_casco_que_falta_en_una_fuente_de_chalecos() -> None:
+    img = _img_con((V, Caja(0.1, 0.3, 0.4, 0.6)))
+    casco = Caja(0.125, 0.0, 0.375, 0.25)
+    assert completar_clases(img, [(C, casco)], frozenset({V})) == [(C, casco)]
+
+
+def test_completar_clases_no_toca_una_clase_exhaustiva() -> None:
+    img = _img_con()
+    propuestas = [(V, Caja(0.1, 0.3, 0.4, 0.6)), (C, CASCO_EXISTENTE)]
+    assert completar_clases(img, propuestas, frozenset({V})) == [(C, CASCO_EXISTENTE)]
+
+
+def test_completar_clases_compara_solo_con_las_cajas_de_la_misma_clase() -> None:
+    # Persona lejana: su chaleco etiquetado le cubre tres cuartos del cuerpo (IoU 0,75, valor
+    # diádico). Si se comparara con todas las clases, la persona propuesta se perdería.
+    chaleco = Caja(0.0, 0.0, 0.5, 0.75)
+    img = _img_con((V, chaleco), (C, CASCO_EXISTENTE))
+    persona = Caja(0.0, 0.0, 0.5, 1.0)
+    assert persona.iou(chaleco) == 0.75
+    casco_repetido = Caja(0.125, 0.0, 0.375, 0.25)
+    casco_nuevo = Caja(0.625, 0.0, 0.875, 0.25)
+    propuestas = [(P, persona), (C, casco_repetido), (C, casco_nuevo)]
+    assert completar_clases(img, propuestas, frozenset()) == [(P, persona), (C, casco_nuevo)]
+
+
+def test_completar_clases_ignora_una_clase_fuera_de_la_v1() -> None:
+    arnes = (ClaseDetectada.ARNES, Caja(0.1, 0.1, 0.4, 0.9))
+    assert completar_clases(_img_con(), [arnes], frozenset()) == []
+
+
 # --- fugas entre particiones ----------------------------------------------------------
 
 
@@ -215,9 +257,12 @@ def test_la_particion_estable_no_depende_del_orden_ni_de_la_corrida() -> None:
 
 def test_a_coco_usa_las_tres_clases_v1_y_marca_lo_automatico() -> None:
     [img] = desde_coco(_coco((1, [20, 10, 40, 30])), FUENTE)
-    coco = a_coco([(img, "css__a.jpg", [Caja(0.5, 0.5, 1.0, 1.0)])])
+    automaticas = [(P, Caja(0.5, 0.5, 1.0, 1.0)), (V, Caja(0.0, 0.5, 0.25, 1.0))]
+    coco = a_coco([(img, "css__a.jpg", automaticas)])
     assert [c["name"] for c in coco["categories"]] == ["persona", "casco", "chaleco"]
-    casco, persona = coco["annotations"]
+    casco, persona, chaleco = coco["annotations"]
+    assert chaleco["category_id"] == CLASES_V1[V]
+    assert chaleco["automatica"] is True
     assert casco["bbox"] == pytest.approx([20, 10, 40, 30])
     assert casco["category_id"] == CLASES_V1[C]
     assert casco["automatica"] is False

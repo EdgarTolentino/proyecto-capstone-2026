@@ -61,3 +61,16 @@ fuentes:
       head: null
       person: persona
     exhaustivas: [casco]
+
+  # Refuerzo de chaleco para la segunda ronda (#37). Versión 1: la única sin aumento ni
+  # redimensionado (verificado el 2026-10-15: 3.897 imágenes, licencia en README.dataset.txt).
+  # La ficha web dice `safety_vest`; la descarga de la v1 trae estos nombres.
+  - nombre: safety-vests
+    licencia: CC BY 4.0  # exige atribución en el README y el informe final
+    origen: {tipo: roboflow, proyecto: roboflow-universe-projects/safety-vests, version: 1}
+    clases:
+      Safety Vest: chaleco
+      NO-Safety Vest: null  # la ausencia la deciden las reglas (ADR-001)
+    exhaustivas: [chaleco]  # los cascos no tienen caja: los completa el modelo EPP
+    # Hay overoles marcados como chaleco. No se filtran por forma: en una muestra de 24 cajas
+    # con alto/ancho > 2,5, dos tercios eran chalecos de perfil o tapados (07-datasets).
