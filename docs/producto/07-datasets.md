@@ -151,15 +151,15 @@ el autor **no cuenta**.
 | [Hard Hat Workers](https://public.roboflow.com/object-detection/hard-hat-workers) (Roboflow) | **CC0 1.0**, en la página oficial | ~7.041 | casco, cabeza, persona | COCO / YOLO / VOC | **Núcleo** de casco + persona |
 | [Construction Site Safety](https://universe.roboflow.com/roboflow-universe-projects/construction-site-safety) (Roboflow Universe Projects) | **CC BY 4.0**, en Roboflow y en la [copia de Kaggle](https://www.kaggle.com/datasets/snehilsanyal/construction-site-safety-image-dataset-roboflow) | 717 | casco / sin casco, **chaleco / sin chaleco**, persona | COCO / YOLO | El único aceptado con chaleco explícito. Exige atribución |
 | [SHWD](https://github.com/njvisionpower/Safety-Helmet-Wearing-Dataset) | **MIT**, archivo `LICENSE` del repositorio | 7.581 | casco, cabeza | Pascal VOC | Imágenes de buscadores; las negativas vienen en parte de SCUT-HEAD (aulas): **submuestrear** esa parte |
-| [Safety Vests](https://universe.roboflow.com/roboflow-universe-projects/safety-vests) (Roboflow Universe Projects) | **CC BY 4.0**, en Roboflow | sin confirmar | chaleco / sin chaleco | COCO / YOLO | Refuerzo de chaleco |
+| [Safety Vests](https://universe.roboflow.com/roboflow-universe-projects/safety-vests) (Roboflow Universe Projects) | **CC BY 4.0**, en el `README.dataset.txt` de la versión 1 (2026-10-15) | 3.897 | chaleco / sin chaleco | COCO / YOLO | Refuerzo de chaleco. Exige atribución. Ver «Uso real» |
 | [Hard Hat Detection](https://www.kaggle.com/datasets/andrewmvd/hard-hat-detection) (Kaggle) | **CC0 1.0**, en la ficha de Kaggle | 5.001 | casco, cabeza, persona | Pascal VOC | Refuerzo |
 | [Helmet Detection](https://www.kaggle.com/datasets/andrewmvd/helmet-detection) (Kaggle) | **CC0**, en la ficha de Kaggle | 764 | con / sin casco | Pascal VOC | Aporte menor |
 
 > **Confirmación al descargar:** las páginas de Roboflow Universe respondieron 403 a la consulta
 > automática, así que la licencia se confirma con lo que trae la descarga. *Construction Site
 > Safety* quedó confirmada el 2026-10-01: CC BY 4.0 en el `README.dataset.txt` de la versión 30
-> (ver «Uso real»). *Safety Vests* sigue sin confirmar porque no se ha descargado; quien lo
-> descargue anota aquí la licencia que trae.
+> (ver «Uso real»). *Safety Vests* quedó confirmada el 2026-10-15: CC BY 4.0 en el
+> `README.dataset.txt` de la versión 1.
 
 ### Rechazados
 
@@ -184,6 +184,7 @@ con la versión y el sha256.
 |---|---|---|
 | Hard Hat Detection (Kaggle) | Descargado el 2026-10-01 | 5000 imágenes `hard_hat_workers*.png`: son las de **Hard Hat Workers**, que por eso no se baja aparte. Categorías `helmet` (18.966), `head` (5.785) y `person` (751, en solo 158 imágenes) |
 | Construction Site Safety (Roboflow) | Descargado el 2026-10-01, **versión 30** (fijada en `fuentes.yaml`) | 717 imágenes, licencia CC BY 4.0 en su `README.dataset.txt`. Trae 25 categorías: entran `Hardhat`, `Safety Vest` y `Person`; las otras 22 se descartan a propósito |
+| Safety Vests (Roboflow) | Descargado el 2026-10-15, **versión 1**, sha256 del zip `fd553b25cb6d…`, fijada en `fuentes.yaml` | 3.897 imágenes (2.728 / 779 / 390), sin aumento y sin redimensionar; las versiones 2, 3, 5, 8, 9, 13 y 14 traen 9.353 o 14.809 imágenes aumentadas, y la 6 y la 7 están redimensionadas o con clases renombradas. Licencia CC BY 4.0 en su `README.dataset.txt`. Categorías de la v1: `Safety Vest` (6.448 cajas), `NO-Safety Vest` (2.024) y la supercategoría `vest-ppe`; la ficha web muestra otros nombres (`safety_vest`, `no_safety_vest`), y manda lo descargado |
 
 **Personas completadas automáticamente.** Una persona sin caja le enseña al modelo que es
 fondo. En las fuentes que no marcan a todas las personas, el RF-DETR Medium preentrenado en
@@ -200,9 +201,22 @@ partición. Las 192 `youtube-N` no dicen de qué video vienen y van como un solo
 La validación y la prueba públicas sirven para elegir el checkpoint; la medición que se
 reporta es sobre el video de prueba.
 
-**Limitación conocida del chaleco.** Solo Construction Site Safety marca chaleco. En las demás
-fuentes, un chaleco visible sin caja también cuenta como fondo. La v1 lo acepta; la segunda
-ronda (#37) puede completar chalecos con el primer modelo, como se hizo con las personas.
+**Limitación conocida del chaleco.** En la v1, solo Construction Site Safety marcaba chaleco, y en
+las demás fuentes un chaleco visible sin caja contaba como fondo. Desde el #37, el modelo EPP
+completa casco y chaleco en las fuentes que no los marcan siempre, con `"automatica": true`.
+
+**Safety Vests, revisado el 2026-10-15.** La caja de `Safety Vest` va sobre la prenda, como pide
+la guía de etiquetado: la proporción alto/ancho mediana es 1,32, igual que el chaleco de
+Construction Site Safety (1,27) y lejos de la persona (1,79); se confirmó a ojo en una muestra de
+16 imágenes. Trae dos problemas:
+
+| Problema | Tamaño | Qué se hace |
+|---|---|---|
+| Overoles y trajes completos marcados como `Safety Vest` | En una muestra de 24 de las 403 cajas con alto/ancho > 2,5, un tercio; el resto eran chalecos de perfil o tapados. También aparecen entre 2,0 y 2,5 | **Nada.** Un corte por forma bota chalecos de perfil, que son los que ve una cámara de obra, y deja pasar overoles. Queda como ruido de etiqueta, del orden del 2 % de las cajas |
+| Los cascos no tienen caja: un casco visible enseñaría que es fondo | Todo el dataset | El modelo EPP (`--pesos-epp` de `preparar_dataset.py`) completa casco y chaleco donde la fuente no los marca siempre, como el detector COCO con las personas (#37) |
+
+También trae fotos de catálogo con maniquí; se dejan, porque enseñan la prenda. Los nombres de
+archivo no muestran cuadros de video (uno solo dice `mp4`), así que no se declaran `grupos`.
 
 **Lo que se usó en la v1:** **Hard Hat Detection + Construction Site Safety**, como dice la tabla
 de arriba. Reemplaza a la decisión propuesta del 2026-09-22 (Hard Hat Workers + Construction Site

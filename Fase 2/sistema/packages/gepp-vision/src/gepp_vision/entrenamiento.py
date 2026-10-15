@@ -8,8 +8,9 @@ entrenamiento corre igual y nadie se entera:
    como `null`. Así un "person" que en SHWD significa *cabeza sin casco* no entra callado
    como persona.
 2. **Una clase que la fuente no etiqueta en todas sus imágenes deja falsos negativos:** una
-   persona sin caja es, para el modelo, fondo. `completar` agrega las personas que propone
-   un detector COCO, marcadas como `automatica` para poder auditarlas.
+   persona o un casco sin caja es, para el modelo, fondo. `completar_clases` agrega lo que
+   proponen los detectores (COCO para personas, el modelo EPP para casco y chaleco), marcado
+   como `automatica` para poder auditarlo.
 3. **Los cuadros de un mismo video no se reparten entre particiones.** Roboflow parte por
    cuadro; `grupo` reconoce el video en el nombre del archivo (patrones de `fuentes.yaml`) y
    todo el grupo va a una sola partición. Las casi copias que quedan sin grupo las saca
@@ -175,6 +176,26 @@ def completar(
     return [p for p in propuestas if all(p.iou(e) < umbral for e in existentes)]
 
 
+def completar_clases(
+    img: Anotada,
+    propuestas: Iterable[tuple[ClaseDetectada, Caja]],
+    exhaustivas: frozenset[ClaseDetectada],
+) -> list[tuple[ClaseDetectada, Caja]]:
+    """Las propuestas de las clases que la fuente no marca siempre, sin las ya etiquetadas.
+
+    Se compara con las cajas de la misma clase: un casco no tapa a la persona que lo lleva.
+    """
+    por_clase: dict[ClaseDetectada, list[Caja]] = {}
+    for clase, caja in propuestas:
+        if clase in CLASES_V1 and clase not in exhaustivas:
+            por_clase.setdefault(clase, []).append(caja)
+    nuevas = []
+    for clase, cajas in por_clase.items():
+        existentes = [k for c, k in img.cajas if c is clase]
+        nuevas += [(clase, k) for k in completar(existentes, cajas)]
+    return nuevas
+
+
 #: Cuál cede cuando dos particiones comparten escena: la de menor rango pierde la imagen.
 _RANGO = {Particion.ENTRENAMIENTO: 0, Particion.VALIDACION: 1, Particion.PRUEBA: 2}
 
@@ -212,8 +233,10 @@ def particion_estable(nombre: str) -> Particion:
     return Particion.ENTRENAMIENTO
 
 
-def a_coco(imagenes: Iterable[tuple[Anotada, str, Sequence[Caja]]]) -> dict[str, Any]:
-    """COCO de salida. Cada tupla: (imagen, nombre de archivo nuevo, personas automáticas)."""
+def a_coco(
+    imagenes: Iterable[tuple[Anotada, str, Sequence[tuple[ClaseDetectada, Caja]]]],
+) -> dict[str, Any]:
+    """COCO de salida. Cada tupla: (imagen, nombre de archivo nuevo, cajas automáticas)."""
     salida: dict[str, Any] = {
         "categories": [{"id": i, "name": str(c)} for c, i in CLASES_V1.items()],
         "images": [],
@@ -224,7 +247,7 @@ def a_coco(imagenes: Iterable[tuple[Anotada, str, Sequence[Caja]]]) -> dict[str,
             {"id": img_id, "file_name": archivo, "width": img.ancho, "height": img.alto}
         )
         cajas = [(c, k, False) for c, k in img.cajas]
-        cajas += [(ClaseDetectada.PERSONA, k, True) for k in automaticas]
+        cajas += [(c, k, True) for c, k in automaticas]
         for clase, caja, automatica in cajas:
             w, h = caja.ancho * img.ancho, caja.alto * img.alto
             salida["annotations"].append(
