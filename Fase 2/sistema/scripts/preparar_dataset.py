@@ -9,7 +9,8 @@
    categorías a persona / casco / chaleco. Una categoría no declarada detiene todo.
 2. Si la fuente no marca todas las personas, el detector COCO propone las que faltan; si no
    marca todos los cascos o chalecos, los propone el modelo EPP (`--pesos-epp`). Las dos
-   con umbral alto, y se agregan como `automatica`. `--sin-completar` lo omite.
+   con umbral alto, y se agregan como `automatica`. `--sin-completar` omite los dos;
+   `--sin-epp` solo el EPP, para la primera ronda, cuando todavía no hay modelo.
 3. Respeta la partición de la fuente (train/valid/test), salvo para las imágenes que vienen
    de un video (`grupos` en fuentes.yaml): ese video entero va a una sola partición. Si la
    fuente no trae partición, reparte 80/10/10 por hash del nombre. Quita de entrenamiento lo
@@ -118,6 +119,7 @@ def main(argv: list[str] | None = None) -> int:
     p.add_argument("--pesos-epp", type=Path, help="modelo EPP que completa casco y chaleco")
     p.add_argument("--clases-epp", type=Path, help="por defecto, el de junto a los pesos")
     p.add_argument("--variante-epp", default="nano")
+    p.add_argument("--sin-epp", action="store_true", help="primera ronda: no hay modelo EPP")
     p.add_argument("--sin-completar", action="store_true")
     p.add_argument("--limite", type=int, help="máximo de imágenes por fuente (pruebas rápidas)")
     args = p.parse_args(argv)
@@ -137,9 +139,12 @@ def main(argv: list[str] | None = None) -> int:
         sys.exit(f"faltan fuentes en {crudos}: {faltan} (corre descargar_datasets.py)")
     epp = None
     sin_epp = [f.nombre for f in fuentes if not {CASCO, CHALECO} <= f.exhaustivas]
-    if not args.sin_completar and sin_epp:
+    if not (args.sin_completar or args.sin_epp) and sin_epp:
         if args.pesos_epp is None:
-            sys.exit(f"falta --pesos-epp: {sin_epp} no marcan todos los cascos o chalecos")
+            sys.exit(
+                f"falta --pesos-epp: {sin_epp} no marcan todos los cascos o chalecos "
+                "(o --sin-epp en la primera ronda, cuando todavía no hay modelo)"
+            )
         pesos_epp = args.pesos_epp.expanduser()
         clases_epp = (args.clases_epp or MapaDeClases.junto_a(pesos_epp)).expanduser()
         epp = detector_epp(pesos_epp, clases_epp, args.variante_epp)

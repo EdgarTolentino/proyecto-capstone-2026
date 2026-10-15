@@ -186,6 +186,13 @@ def test_completar_clases_agrega_el_casco_que_falta_en_una_fuente_de_chalecos() 
     assert completar_clases(img, [(C, casco)], frozenset({V})) == [(C, casco)]
 
 
+def test_completar_clases_agrega_el_chaleco_que_falta_en_una_fuente_de_cascos() -> None:
+    # Hard Hat Detection marca todos los cascos y ningún chaleco.
+    img = _img_con((C, CASCO_EXISTENTE))
+    chaleco = Caja(0.125, 0.25, 0.375, 0.625)
+    assert completar_clases(img, [(V, chaleco)], frozenset({C})) == [(V, chaleco)]
+
+
 def test_completar_clases_no_toca_una_clase_exhaustiva() -> None:
     img = _img_con()
     propuestas = [(V, Caja(0.1, 0.3, 0.4, 0.6)), (C, CASCO_EXISTENTE)]

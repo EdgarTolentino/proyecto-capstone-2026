@@ -185,6 +185,19 @@ El corpus de video y el dataset etiquetado viven **fuera del repositorio**, en i
 controlada. No es una precaución retórica: subir un solo lote de CCTV de faena a un servicio
 público es un incidente de datos personales.
 
+### Datasets públicos con que se entrena el detector
+
+El detector se entrena solo con datasets públicos; el video de prueba nunca entra a
+entrenamiento. Licencias verificadas en
+[`07-datasets.md`](docs/producto/07-datasets.md) y fuentes fijadas en
+[`fuentes.yaml`](Fase%202/sistema/scripts/fuentes.yaml).
+
+| Dataset | Autor | Licencia |
+|---|---|---|
+| [Hard Hat Detection](https://www.kaggle.com/datasets/andrewmvd/hard-hat-detection) | andrewmvd (Kaggle), imágenes de Hard Hat Workers (Roboflow) | CC0 1.0 |
+| [Construction Site Safety](https://universe.roboflow.com/roboflow-universe-projects/construction-site-safety), versión 30 | Roboflow Universe Projects | [CC BY 4.0](https://creativecommons.org/licenses/by/4.0/) |
+| [Safety Vests](https://universe.roboflow.com/roboflow-universe-projects/safety-vests), versión 1 | Roboflow Universe Projects | [CC BY 4.0](https://creativecommons.org/licenses/by/4.0/) |
+
 ## Licencia
 
 Pendiente de decisión del equipo. La elección está condicionada por las licencias de los modelos

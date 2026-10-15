@@ -66,11 +66,17 @@ devuelve a la cola.
 ```
 make setup-gpu
 uv run python scripts/descargar_datasets.py ~/datos/gepp/crudos
-uv run python scripts/preparar_dataset.py ~/datos/gepp/crudos ~/datos/gepp/epp-v1 \
-    --pesos-coco ~/.roboflow/models/rf-detr-medium.pth --variante medium
-uv run python scripts/entrenar.py ~/datos/gepp/epp-v1 ~/modelos/rfdetr-n-epp-v1
-uv run python scripts/exportar_onnx.py ~/modelos/rfdetr-n-epp-v1 ~/datos/gepp/epp-v1
+uv run python scripts/preparar_dataset.py ~/datos/gepp/crudos ~/datos/gepp/epp-v2 \
+    --pesos-coco ~/.roboflow/models/rf-detr-medium.pth --variante medium \
+    --pesos-epp ~/modelos/rfdetr-n-epp-v1/checkpoint_best_total.pth \
+    --clases-epp ~/modelos/rfdetr-n-epp-v1/rfdetr-n-epp-v1.clases.json
+uv run python scripts/entrenar.py ~/datos/gepp/epp-v2 ~/modelos/rfdetr-n-epp-v2
+uv run python scripts/exportar_onnx.py ~/modelos/rfdetr-n-epp-v2 ~/datos/gepp/epp-v2
 ```
+
+`--pesos-epp` es el modelo anterior: completa los cascos y chalecos que una fuente no marca
+(#37). En la primera ronda todavía no hay modelo EPP, así que se usa `--sin-epp`: los cascos y
+chalecos sin caja quedan como fondo, como en la v1.
 
 `exportar_onnx.py` deja junto al modelo el `.onnx`, el `.clases.json` y `verificacion.json`
 con el acierto del mapa y la comparación ONNX contra PyTorch. Mientras se entrena no se corre la
