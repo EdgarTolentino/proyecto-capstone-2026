@@ -12,6 +12,11 @@ parámetros y versión de rfdetr. Sin eso, una métrica no se puede reproducir (
 
 Los valores por defecto caben en una RTX 4070 Laptop (8 GB): lote 4 con acumulación 4 da un
 lote efectivo de 16, el que usa rfdetr como referencia.
+
+Si la corrida se corta, `--reanudar` la retoma desde `last.ckpt` (pesos, optimizador, época y
+estado del early stopping) con los parámetros que guardó su `procedencia.json`:
+
+    uv run python scripts/entrenar.py ~/datos/gepp/epp-v1 ~/modelos/rfdetr-n-epp-v1 --reanudar
 """
 
 from __future__ import annotations
@@ -24,6 +29,7 @@ import sys
 from datetime import UTC, datetime
 from importlib.metadata import version
 from pathlib import Path
+from typing import Any
 
 from gepp_vision.detectores.rfdetr import VARIANTES
 from gepp_vision.entrenamiento import CLASES_V1
@@ -37,14 +43,14 @@ def _git(*args: str) -> str:
     ).stdout.strip()
 
 
-def commit_actual(salida: Path) -> str:
+def commit_actual(salida: Path, archivo: str = "cambios_sin_commit.diff") -> str:
     """El commit, y si hay cambios sin confirmar, su diff junto a los pesos: sin él la corrida
     no se puede reproducir."""
     commit = _git("rev-parse", "HEAD")
     if not _git("status", "--porcelain"):
         return commit
-    (salida / "cambios_sin_commit.diff").write_text(_git("diff", "HEAD"), encoding="utf-8")
-    return f"{commit}-con-cambios (ver cambios_sin_commit.diff)"
+    (salida / archivo).write_text(_git("diff", "HEAD"), encoding="utf-8")
+    return f"{commit}-con-cambios (ver {archivo})"
 
 
 def huella_anotaciones(dataset: Path) -> dict[str, str]:
@@ -82,6 +88,38 @@ def verificar_dataset(dataset: Path) -> dict[str, object]:
     return datos
 
 
+# Ni la ruta del dataset ni la de salida se comparan: el dataset se compara por su huella y la
+# salida es de donde se leyó la procedencia.
+_NO_SE_COMPARAN = frozenset({"dataset", "salida", "reanudar"})
+
+
+def corrida_a_reanudar(salida: Path, dataset: Path) -> dict[str, Any]:
+    """La procedencia de la corrida cortada en `salida`. Falla si no hay qué retomar, si ya
+    terminó o si el dataset cambió desde que empezó: eso sería mezclar corridas."""
+    if not (salida / "last.ckpt").exists():
+        sys.exit(f"{salida} no tiene last.ckpt: no hay corrida que reanudar")
+    archivo = salida / "procedencia.json"
+    if not archivo.exists():
+        sys.exit(f"{salida} no tiene procedencia.json: no se sabe con qué se entrenó")
+    procedencia: dict[str, Any] = json.loads(archivo.read_text(encoding="utf-8"))
+    if "fin" in procedencia:
+        sys.exit(f"{salida} es una corrida terminada ({procedencia['fin']}): no se reanuda")
+    if procedencia["dataset_sha256"] != huella_anotaciones(dataset):
+        sys.exit(f"las anotaciones de {dataset} cambiaron desde que empezó la corrida")
+    return procedencia
+
+
+def parametros_distintos(
+    guardados: dict[str, Any], actuales: dict[str, Any]
+) -> dict[str, tuple[Any, Any]]:
+    """Los parámetros que cambiarían al reanudar, como `{nombre: (guardado, pedido)}`."""
+    return {
+        k: (guardados.get(k), v)
+        for k, v in actuales.items()
+        if k not in _NO_SE_COMPARAN and guardados.get(k) != v
+    }
+
+
 def main(argv: list[str] | None = None) -> int:
     p = argparse.ArgumentParser(description=__doc__, formatter_class=argparse.RawTextHelpFormatter)
     p.add_argument("dataset", type=Path)
@@ -93,12 +131,25 @@ def main(argv: list[str] | None = None) -> int:
     p.add_argument("--lr", type=float, default=1e-4)
     p.add_argument("--paciencia", type=int, default=10, help="épocas sin mejora antes de parar")
     p.add_argument("--trabajadores", type=int, default=2, help="procesos que cargan imágenes")
+    p.add_argument(
+        "--reanudar", action="store_true", help="retoma la corrida cortada en SALIDA (last.ckpt)"
+    )
     args = p.parse_args(argv)
     dataset, salida = args.dataset.expanduser(), args.salida.expanduser()
 
     resumen = verificar_dataset(dataset)
-    if salida.exists() and any(salida.iterdir()):
-        sys.exit(f"{salida} no está vacía: no se mezclan corridas")
+    if args.reanudar:
+        procedencia = corrida_a_reanudar(salida, dataset)
+        guardados = procedencia["parametros"]
+        # Lo guardado pasa a ser el valor por defecto: basta con `--reanudar`. Un parámetro
+        # pedido explícitamente que difiera detiene todo.
+        p.set_defaults(**{k: v for k, v in guardados.items() if k not in _NO_SE_COMPARAN})
+        args = p.parse_args(argv)
+        distintos = parametros_distintos(guardados, vars(args))
+        if distintos:
+            sys.exit(f"reanudar no cambia parámetros (guardado, pedido): {distintos}")
+    elif salida.exists() and any(salida.iterdir()):
+        sys.exit(f"{salida} no está vacía: no se mezclan corridas (¿--reanudar?)")
 
     import rfdetr  # extra `gpu`
     import torch
@@ -106,18 +157,33 @@ def main(argv: list[str] | None = None) -> int:
     if not torch.cuda.is_available():
         sys.exit("no hay GPU CUDA: este script es para la máquina con GPU (ADR-010)")
 
-    salida.mkdir(parents=True)
-    procedencia = {
-        "commit": commit_actual(salida),
-        "inicio": datetime.now(UTC).isoformat(timespec="seconds"),
-        "dataset": str(dataset),
-        "dataset_resumen": resumen,
-        "dataset_sha256": huella_anotaciones(dataset),
-        "parametros": {k: (str(v) if isinstance(v, Path) else v) for k, v in vars(args).items()},
-        "rfdetr": version("rfdetr"),
-        "torch": torch.__version__,
-        "gpu": torch.cuda.get_device_name(0),
-    }
+    if args.reanudar:
+        reanudaciones = procedencia.setdefault("reanudaciones", [])
+        n = len(reanudaciones) + 1
+        reanudaciones.append(
+            {
+                "commit": commit_actual(salida, f"cambios_sin_commit-reanudacion-{n}.diff"),
+                "inicio": datetime.now(UTC).isoformat(timespec="seconds"),
+                "desde": "last.ckpt",
+                "rfdetr": version("rfdetr"),
+                "torch": torch.__version__,
+            }
+        )
+    else:
+        salida.mkdir(parents=True)
+        procedencia = {
+            "commit": commit_actual(salida),
+            "inicio": datetime.now(UTC).isoformat(timespec="seconds"),
+            "dataset": str(dataset),
+            "dataset_resumen": resumen,
+            "dataset_sha256": huella_anotaciones(dataset),
+            "parametros": {
+                k: (str(v) if isinstance(v, Path) else v) for k, v in vars(args).items()
+            },
+            "rfdetr": version("rfdetr"),
+            "torch": torch.__version__,
+            "gpu": torch.cuda.get_device_name(0),
+        }
     (salida / "procedencia.json").write_text(json.dumps(procedencia, indent=2, ensure_ascii=False))
 
     modelo = getattr(rfdetr, VARIANTES[args.variante])()
@@ -134,6 +200,7 @@ def main(argv: list[str] | None = None) -> int:
         tensorboard=False,
         progress_bar="tqdm",
         notes={"commit": procedencia["commit"], "dataset": str(dataset)},
+        resume=str(salida / "last.ckpt") if args.reanudar else None,
     )
 
     procedencia["fin"] = datetime.now(UTC).isoformat(timespec="seconds")
