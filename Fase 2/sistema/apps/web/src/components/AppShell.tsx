@@ -13,6 +13,7 @@ import type { ReactNode } from "react";
 
 import type { Catalogos, EstadoSistema, Sesion } from "../api/types";
 import type { SeccionApp } from "../hooks/useAppNavigation";
+import { UserMenu } from "./UserMenu";
 
 interface AppShellProps {
   children: ReactNode;
@@ -36,7 +37,6 @@ const navegacion = [
 export function AppShell({ children, catalogos, estado, sesion, sesionError = false, seccion, onNavigate }: AppShellProps) {
   const obra = catalogos?.obras?.[0]?.nombre ?? "Sin obra seleccionada";
   const ingestaActiva = estado?.ingesta?.activa ?? false;
-  const nombre = sesion?.nombre ?? (sesionError ? "Sesión no disponible" : "Cargando sesión…");
 
   return (
     <div className="app-shell">
@@ -46,10 +46,7 @@ export function AppShell({ children, catalogos, estado, sesion, sesionError = fa
           <div><strong>Guardián<span> EPP</span></strong><small>SEGURIDAD OPERACIONAL</small></div>
         </div>
         <div className="site-header__context"><HardHat size={18} /><span>Centro de control <strong>Operaciones</strong></span></div>
-        <div className="user-profile">
-          <span className="user-avatar" aria-hidden="true">{sesion?.nombre?.slice(0, 1).toUpperCase() ?? "—"}</span>
-          <div><small>Sesión de trabajo</small><span>{nombre}</span></div>
-        </div>
+        <UserMenu sesion={sesion} sesionError={sesionError} />
       </header>
       <nav className="operations-nav" aria-label="Navegación principal">
         {navegacion.map(({ texto, icono: Icono, seccion: destino }) => {
