@@ -39,7 +39,10 @@ export function UserMenu({ sesion, sesionError = false }: UserMenuProps) {
   }} onBlur={(event) => {
     if (!event.currentTarget.contains(event.relatedTarget)) setAbierto(false);
   }}>
-    <button ref={boton} type="button" className="user-menu__trigger" aria-expanded={abierto} aria-controls={panelId} aria-label={`Menú de usuario: ${nombre}`} onClick={() => setAbierto(!abierto)}>
+    <button ref={boton} type="button" className="user-menu__trigger" aria-expanded={abierto} aria-controls={panelId} aria-label={`Menú de usuario: ${nombre}`} onClick={(event) => {
+      event.currentTarget.focus();
+      setAbierto(!abierto);
+    }}>
       <span className="user-avatar" aria-hidden="true">{nombre.slice(0, 1).toUpperCase()}</span>
       <span className="user-menu__summary"><small>Sesión de trabajo</small><span>{nombre}</span></span>
       <ChevronDown size={16} aria-hidden="true" />

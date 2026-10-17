@@ -9,6 +9,20 @@ const sesion: Sesion = { id: 0, nombre: "Miguel Ortega", rol: "administrador", p
 afterEach(cleanup);
 
 describe("Menú de usuario", () => {
+  it("enfoca el botón al abrir con clic aunque el navegador no lo enfoque automáticamente", async () => {
+    const user = userEvent.setup();
+    render(<UserMenu sesion={sesion} />);
+    const boton = screen.getByRole("button", { name: /Menú de usuario/ });
+    // fireEvent reproduce un clic que no mueve el foco por defecto.
+    fireEvent.click(boton);
+    expect(screen.getByRole("region")).toBeVisible();
+    expect(boton).toHaveFocus();
+    await user.keyboard("{Escape}");
+    expect(screen.queryByRole("region")).not.toBeInTheDocument();
+    await user.keyboard("{Enter}");
+    expect(screen.getByRole("region")).toBeVisible();
+  });
+
   it("abre con Enter, muestra los datos recibidos y cierra con Escape devolviendo el foco", async () => {
     const user = userEvent.setup();
     render(<UserMenu sesion={sesion} />);
