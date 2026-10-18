@@ -2,10 +2,12 @@
 
 from __future__ import annotations
 
+from pathlib import Path
 from typing import Any
 
 import pytest
 
+import scripts.inventario_video as inventario  # type: ignore[import-not-found]
 from scripts.inventario_video import (  # type: ignore[import-not-found]
     Ficha,
     dimensiones_de_cuadro,
@@ -62,9 +64,19 @@ def test_rotacion_se_normaliza_a_0_90_180_270() -> None:
     ]
 
 
-@pytest.mark.parametrize("basura", ["abc", "", [], {"x": 1}, 45, "30"])
+@pytest.mark.parametrize("basura", ["abc", "", [], {"x": 1}, 45, "30", "89.75", "90.25", "0.25"])
 def test_una_rotacion_invalida_falla_en_vez_de_ignorarse(basura: Any) -> None:
     with pytest.raises(ValueError, match="rotación"):
         dimensiones_de_cuadro(_stream(**_matriz(basura)))
     with pytest.raises(ValueError, match="rotación"):
         dimensiones_de_cuadro(_stream(tags={"rotate": basura}))
+
+
+def test_fichar_usa_las_dimensiones_rotadas(monkeypatch: pytest.MonkeyPatch) -> None:
+    """La ficha entera, no solo la función: así salía el celular en vertical antes."""
+    stream = {**_stream(**_matriz(-90)), "avg_frame_rate": "30/1", "codec_name": "h264"}
+    formato = {"duration": "128.9", "size": "11650352"}
+    monkeypatch.setattr(inventario, "ffprobe", lambda _: {"stream": stream, "format": formato})
+    monkeypatch.setattr(inventario, "analizar_movimiento", lambda _: (79.0, 4.0))
+    ficha = inventario.fichar(Path("celular-01.mp4"))
+    assert (ficha.ancho, ficha.alto, ficha.orientacion) == (576, 1024, "VERTICAL")

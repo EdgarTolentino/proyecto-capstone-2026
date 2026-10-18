@@ -121,12 +121,13 @@ def rotacion_grados(stream: dict[str, Any]) -> int:
     if crudo is None:
         return 0
     try:
-        grados = round(float(crudo))
+        grados = float(crudo)
     except (TypeError, ValueError):
         raise ValueError(f"rotación no numérica en ffprobe: {crudo!r}") from None
+    # Se valida antes de redondear: 89,75 no es 90.
     if grados % 90:
         raise ValueError(f"rotación que no es múltiplo de 90: {crudo!r}")
-    return grados % 360
+    return int(grados) % 360
 
 
 def dimensiones_de_cuadro(stream: dict[str, Any]) -> tuple[int, int]:
