@@ -63,8 +63,25 @@ describe("Menú de usuario", () => {
     expect(screen.queryByRole("region")).not.toBeInTheDocument();
     await user.click(boton);
     await user.tab();
+    expect(screen.getByRole("link", { name: "Ayuda" })).toHaveFocus();
+    expect(screen.getByRole("region")).toBeVisible();
+    await user.tab();
     expect(screen.getByRole("button", { name: "Fuera" })).toHaveFocus();
     expect(screen.queryByRole("region")).not.toBeInTheDocument();
+  });
+
+  it("ofrece Ayuda como enlace temporal al inicio accesible con Tab", async () => {
+    const user = userEvent.setup();
+    render(<UserMenu sesion={sesion} />);
+    await user.click(screen.getByRole("button", { name: /Menú de usuario/ }));
+    await user.tab();
+    const ayuda = screen.getByRole("link", { name: "Ayuda" });
+    expect(ayuda).toBeVisible();
+    expect(ayuda).toHaveAttribute("href", "/");
+    expect(ayuda).toHaveFocus();
+    await user.keyboard("{Escape}");
+    expect(screen.queryByRole("region")).not.toBeInTheDocument();
+    expect(screen.getByRole("button", { name: /Menú de usuario/ })).toHaveFocus();
   });
 
   it.each([false, true])("muestra el estado real sin sesión (error=%s), sin datos inventados", (sesionError) => {

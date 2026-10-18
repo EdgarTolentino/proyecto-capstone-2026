@@ -50,6 +50,7 @@ export function UserMenu({ sesion, sesionError = false }: UserMenuProps) {
     {abierto && <section id={panelId} className="user-menu__panel" aria-label="Datos del usuario">
       <strong>{nombre}</strong>
       <p><span>Rol: </span><span>{rol}</span></p>
+      <a className="user-menu__help" href="/">Ayuda</a>
     </section>}
   </div>;
 }
