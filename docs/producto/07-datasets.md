@@ -282,6 +282,6 @@ vuelve — y hay que arrancarlo con cinco semanas de anticipación.
 | 1 | **Conseguir más video largo y de cámara fija** — hay 1,8 min de los 20-30 | **S5** | 🟢 Reemplazado por el video de YouTube (decisión del 2026-10-01) |
 | 2 | Grabar los 20-30 min con el protocolo de arriba (#10) | S5 | ⚪ No se hará (decisión del 2026-10-01) |
 | 3 | Recortar los verticales a 16:9 o dejarlos fuera del conjunto de prueba | S5 | 🟠 |
-| 4 | Conseguir los dos papeles de autorización antes de grabar | Antes de grabar | ⚪ No aplica: no se graba |
+| 4 | Conseguir los dos papeles de autorización antes de grabar | Antes de grabar | 🟢 Lote 4: consentimiento y permiso declarados por Edgar el 2026-10-17; los papeles quedan fuera del repositorio |
 | 5 | Repetir la medición de píxeles sobre el video propio | Tras grabar | 🟠 |
 | 6 | Anotar cada lote nuevo en el inventario, con el script | Continuo | 🟡 |
