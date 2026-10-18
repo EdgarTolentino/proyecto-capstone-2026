@@ -38,6 +38,11 @@ de §2.bis. Lo que sale de esta decisión:
 - Ya no aplican la autorización de la empresa ni el consentimiento de §3: no se graba a nadie.
   Sigue aplicando el ADR-006 (rostro difuminado en todo recorte, sin identificación).
 
+**Cambio del 2026-10-17 (decisión de Edgar):** sí hay una grabación propia, corta y en oficina
+(lote 4). Con ella vuelven a aplicar la autorización y el consentimiento de §3, y la regla del
+video de prueba no cambia: **solo prueba, nunca entrenamiento.** El lote 3 sigue siendo el
+conjunto de prueba principal; el lote 4 agrega una segunda escena, de cerca.
+
 ## 2. Inventario
 
 Se llena con `scripts/inventario_video.py`, que saca de cada archivo lo que aquí importa sin
@@ -136,6 +141,23 @@ porque en una cámara fija el fondo domina el dHash. Los tramos están repartido
 horas y media para cubrir distintas fases de la obra. Uno cada 5 s da cuadros distintos
 (las personas se mueven), pero no independientes: es una muestra para medir detección, no
 un conjunto de miles.
+
+### Lote 4 — 2026-10-17 · grabación propia con celular · prueba de cerca
+
+| Campo | Valor |
+|---|---|
+| Origen | Grabación propia de Edgar con su celular, recibida por WhatsApp el 2026-10-17 |
+| Autorización | Consentimiento de las personas grabadas y permiso del lugar, declarados por Edgar el 2026-10-17. Los papeles se guardan fuera del repositorio (§3) |
+| Técnica | Tres videos de 128,9 s, 83,8 s y 129,3 s (342 s en total), 30 fps, verticales (576×1024 una vez rotados), recomprimidos por WhatsApp |
+| Cámara | **En mano**: `inventario_video.py` da «se mueve» (mediana de perímetro 79-107). Sirve para medir detección cuadro a cuadro, no para zonas, tracks ni eventos. El inventario dice «horizontal» porque no lee la rotación del archivo; los cuadros que escribe `lote0.py` salen verticales |
+| Escena | Una oficina, personas a pocos metros: con casco y chaleco, con el casco en la mano y subida a una silla. Clases presentes: persona, casco, chaleco |
+| Uso | **Solo prueba, como medición aparte: su cifra nunca se suma a la del lote 3** (§4, tarea 3). Nunca entrenamiento |
+
+**El lote de etiquetado** (`Fase 2/sistema/datos/lote-celular.csv`, versionado; las imágenes
+quedan fuera del repositorio): 115 cuadros, uno cada 3 s, todos en la partición `prueba`
+(`celular-01.mp4` 43, `celular-02.mp4` 28, `celular-03.mp4` 44), con `lote0.py
+--sin-deduplicar`. Se etiquetan **sin pre-etiquetas**, para que la verdad no herede los
+errores del modelo que se va a medir.
 
 ## 2.bis Datasets públicos de imágenes — para entrenar (PT-03)
 
@@ -259,7 +281,7 @@ vuelve — y hay que arrancarlo con cinco semanas de anticipación.
 |---|---|---|---|
 | 1 | **Conseguir más video largo y de cámara fija** — hay 1,8 min de los 20-30 | **S5** | 🟢 Reemplazado por el video de YouTube (decisión del 2026-10-01) |
 | 2 | Grabar los 20-30 min con el protocolo de arriba (#10) | S5 | ⚪ No se hará (decisión del 2026-10-01) |
-| 3 | Recortar los verticales a 16:9 o dejarlos fuera del conjunto de prueba | S5 | 🟠 |
-| 4 | Conseguir los dos papeles de autorización antes de grabar | Antes de grabar | ⚪ No aplica: no se graba |
+| 3 | Recortar los verticales a 16:9 o dejarlos fuera del conjunto de prueba | S5 | 🟠 Excepción, decisión de Edgar del 2026-10-17: el lote 4 es vertical y queda en prueba como **medición aparte**, que nunca se suma a la cifra del lote 3. Recortarlo a 16:9 cortaría a las personas, que llenan el alto del cuadro |
+| 4 | Conseguir los dos papeles de autorización antes de grabar | Antes de grabar | 🟢 Lote 4: consentimiento y permiso declarados por Edgar el 2026-10-17; los papeles quedan fuera del repositorio |
 | 5 | Repetir la medición de píxeles sobre el video propio | Tras grabar | 🟠 |
 | 6 | Anotar cada lote nuevo en el inventario, con el script | Continuo | 🟡 |
