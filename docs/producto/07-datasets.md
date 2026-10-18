@@ -151,7 +151,7 @@ un conjunto de miles.
 | Técnica | Tres videos de 128,9 s, 83,8 s y 129,3 s (342 s en total), 30 fps, verticales (576×1024 una vez rotados), recomprimidos por WhatsApp |
 | Cámara | **En mano**: `inventario_video.py` da «se mueve» (mediana de perímetro 79-107). Sirve para medir detección cuadro a cuadro, no para zonas, tracks ni eventos. El inventario dice «horizontal» porque no lee la rotación del archivo; los cuadros que escribe `lote0.py` salen verticales |
 | Escena | Una oficina, personas a pocos metros: con casco y chaleco, con el casco en la mano y subida a una silla. Clases presentes: persona, casco, chaleco |
-| Uso | **Solo prueba. Nunca entrenamiento** |
+| Uso | **Solo prueba, como medición aparte: su cifra nunca se suma a la del lote 3** (§4, tarea 3). Nunca entrenamiento |
 
 **El lote de etiquetado** (`Fase 2/sistema/datos/lote-celular.csv`, versionado; las imágenes
 quedan fuera del repositorio): 115 cuadros, uno cada 3 s, todos en la partición `prueba`
@@ -281,7 +281,7 @@ vuelve — y hay que arrancarlo con cinco semanas de anticipación.
 |---|---|---|---|
 | 1 | **Conseguir más video largo y de cámara fija** — hay 1,8 min de los 20-30 | **S5** | 🟢 Reemplazado por el video de YouTube (decisión del 2026-10-01) |
 | 2 | Grabar los 20-30 min con el protocolo de arriba (#10) | S5 | ⚪ No se hará (decisión del 2026-10-01) |
-| 3 | Recortar los verticales a 16:9 o dejarlos fuera del conjunto de prueba | S5 | 🟠 |
+| 3 | Recortar los verticales a 16:9 o dejarlos fuera del conjunto de prueba | S5 | 🟠 Excepción, decisión de Edgar del 2026-10-17: el lote 4 es vertical y queda en prueba como **medición aparte**, que nunca se suma a la cifra del lote 3. Recortarlo a 16:9 cortaría a las personas, que llenan el alto del cuadro |
 | 4 | Conseguir los dos papeles de autorización antes de grabar | Antes de grabar | 🟢 Lote 4: consentimiento y permiso declarados por Edgar el 2026-10-17; los papeles quedan fuera del repositorio |
 | 5 | Repetir la medición de píxeles sobre el video propio | Tras grabar | 🟠 |
 | 6 | Anotar cada lote nuevo en el inventario, con el script | Continuo | 🟡 |
