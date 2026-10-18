@@ -8,6 +8,14 @@ Solo en la máquina con GPU (`make setup-gpu`). Dentro del `--recorte` (px del c
 mosaico; fuera, el modelo sobre el cuadro entero, para no olvidar a las personas junto a la
 cámara. Escribe COCO 1.0, que se importa en la tarea de CVAT con «Upload annotations».
 
+Para imágenes tomadas de cerca (celular, personas a pocos metros) el mosaico no corresponde:
+`--cuadro-entero` corre solo el modelo sobre el cuadro completo. Es excluyente con `--recorte`
+y hay que dar uno de los dos. La descripción del COCO dice `/ cuadro-entero` en vez de
+`/ mosaico[...]`:
+
+    uv run --no-sync python scripts/preetiquetar.py LOTE manifiesto.csv pesos.pth salida.coco.json \
+        --variante small --clases rfdetr-s-epp-v2.clases.json --cuadro-entero
+
 Una pre-etiqueta no es verdad: quien etiqueta revisa cada caja, agrega lo que falta y fija
 los atributos (`docs/datos/guia-etiquetado.md`). El mapa de clases debe estar verificado con
 `exportar_onnx.py`: si no, las pre-etiquetas salen con la clase cambiada.
@@ -52,7 +60,15 @@ def main(argv: list[str] | None = None) -> int:
         default=0.4,
         help="más bajo que el del sistema: es más fácil borrar que dibujar",
     )
-    p.add_argument("--recorte", required=True, help="x1,y1,x2,y2 en px del cuadro")
+    modo = p.add_mutually_exclusive_group(required=True)
+    modo.add_argument(
+        "--recorte", help="x1,y1,x2,y2 en px del cuadro: mosaico dentro, modelo fuera"
+    )
+    modo.add_argument(
+        "--cuadro-entero",
+        action="store_true",
+        help="solo el modelo sobre el cuadro completo, sin mosaico (imágenes de cerca)",
+    )
     p.add_argument("--factor", type=float, default=2.0)
     p.add_argument("--lado", type=int, default=384)
     p.add_argument("--objeto-max-px", type=int, default=100)
@@ -70,14 +86,19 @@ def main(argv: list[str] | None = None) -> int:
     mapa = MapaDeClases.desde_json(ruta_clases)
     base = DetectorRFDETR(args.pesos, variante=args.variante, mapa=mapa, umbral=args.umbral)
 
-    x1, y1, x2, y2 = (int(v) for v in args.recorte.split(","))
-    muestra = cv2.imread(str(args.lote / archivos[0]))
-    if muestra is None:
-        sys.exit(f"no se pudo leer {archivos[0]}")
-    alto, ancho = muestra.shape[:2]
-    recorte = Caja(x1 / ancho, y1 / alto, x2 / ancho, y2 / alto)
-    mosaico = DetectorMosaico(base, Mosaico(recorte, args.factor, args.lado, args.objeto_max_px))
-    mosaico.validar(ancho, alto)
+    mosaico: DetectorMosaico | None = None
+    recorte: Caja | None = None
+    if args.recorte is not None:
+        x1, y1, x2, y2 = (int(v) for v in args.recorte.split(","))
+        muestra = cv2.imread(str(args.lote / archivos[0]))
+        if muestra is None:
+            sys.exit(f"no se pudo leer {archivos[0]}")
+        alto, ancho = muestra.shape[:2]
+        recorte = Caja(x1 / ancho, y1 / alto, x2 / ancho, y2 / alto)
+        mosaico = DetectorMosaico(
+            base, Mosaico(recorte, args.factor, args.lado, args.objeto_max_px)
+        )
+        mosaico.validar(ancho, alto)
 
     imagenes = []
     cuenta = dict.fromkeys(ClaseDetectada, 0)
@@ -85,9 +106,12 @@ def main(argv: list[str] | None = None) -> int:
         cuadro = cv2.imread(str(args.lote / archivo))
         if cuadro is None:
             sys.exit(f"no se pudo leer {archivo}")
-        del_mosaico = mosaico.detectar(cuadro, cuadro_idx=n, capture_ts=INSTANTE)
         del_cuadro = base.detectar(cuadro, cuadro_idx=n, capture_ts=INSTANTE)
-        detecciones = combinar(del_mosaico, del_cuadro, recorte)
+        if mosaico is None or recorte is None:
+            detecciones = list(del_cuadro)
+        else:
+            del_mosaico = mosaico.detectar(cuadro, cuadro_idx=n, capture_ts=INSTANTE)
+            detecciones = combinar(del_mosaico, del_cuadro, recorte)
         for d in detecciones:
             cuenta[d.clase] += 1
         imagenes.append((archivo, cuadro.shape[1], cuadro.shape[0], detecciones))
@@ -95,7 +119,8 @@ def main(argv: list[str] | None = None) -> int:
             print(f"  {n}/{len(archivos)}", flush=True)
 
     coco = a_coco(imagenes)
-    coco["info"] = {"description": f"pre-etiquetas {base.version} / {mosaico.version}"}
+    detector = "cuadro-entero" if mosaico is None else mosaico.version
+    coco["info"] = {"description": f"pre-etiquetas {base.version} / {detector}"}
     args.salida.write_text(json.dumps(coco), encoding="utf-8")
     previas = {str(c): v for c, v in cuenta.items() if v}
     print(
