@@ -85,17 +85,66 @@ def test_escenas_parecidas_dentro_de_una_particion_se_admiten() -> None:
     )
 
 
-def test_el_manifiesto_versionado_respeta_la_particion() -> None:
-    """Cuando exista `datos/lote0.csv` en el repositorio, CI lo verifica en cada empuje."""
-    manifiesto = RAIZ / "datos" / "lote0.csv"
-    if not manifiesto.exists():
-        pytest.skip("todavía no hay manifiesto del lote 0 (llega con la grabación, #10)")
+def _leer_manifiesto(manifiesto: Path) -> list[Imagen]:
     with manifiesto.open(encoding="utf-8") as f:
-        filas = [
+        return [
             Imagen(r["archivo"], r["video"], Particion(r["particion"]), int(r["dhash"], 16))
             for r in csv.DictReader(f)
         ]
-    verificar_particion(filas)
+
+
+def _verificar_manifiestos(carpeta: Path) -> int:
+    """Verifica cada `lote*.csv` y la unión de todos. Devuelve cuántos manifiestos vio."""
+    manifiestos = sorted(carpeta.glob("lote*.csv"))
+    unidos: list[Imagen] = []
+    for manifiesto in manifiestos:
+        filas = _leer_manifiesto(manifiesto)
+        verificar_particion(filas)
+        unidos += filas
+    # Un video no puede estar en entrenamiento en un lote y en prueba en otro.
+    verificar_particion(unidos)
+    return len(manifiestos)
+
+
+def test_los_manifiestos_versionados_respetan_la_particion() -> None:
+    """CI verifica en cada empuje todos los `datos/lote*.csv`, cada uno y juntos."""
+    if _verificar_manifiestos(RAIZ / "datos") == 0:
+        pytest.skip("todavía no hay manifiestos de lote (llegan con la grabación, #10)")
+
+
+def _escribir_manifiesto(ruta: Path, filas: list[tuple[str, str, str, int]]) -> None:
+    with ruta.open("w", encoding="utf-8", newline="") as f:
+        w = csv.writer(f)
+        w.writerow(["archivo", "video", "particion", "dhash", "doble_etiquetado"])
+        for archivo, video, particion, h in filas:
+            w.writerow([archivo, video, particion, f"{h:016x}", "0"])
+
+
+def test_los_manifiestos_se_buscan_todos_no_solo_lote0(tmp_path: Path) -> None:
+    _escribir_manifiesto(tmp_path / "lote0.csv", [("a.jpg", "v1.mp4", "entrenamiento", 0)])
+    _escribir_manifiesto(tmp_path / "lote-celular.csv", [("b.jpg", "v2.mp4", "prueba", 2**64 - 1)])
+    assert _verificar_manifiestos(tmp_path) == 2
+
+
+def test_un_video_en_dos_manifiestos_con_distinta_particion_se_rechaza(tmp_path: Path) -> None:
+    _escribir_manifiesto(tmp_path / "lote0.csv", [("a.jpg", "v1.mp4", "entrenamiento", 0)])
+    _escribir_manifiesto(tmp_path / "lote-celular.csv", [("b.jpg", "v1.mp4", "prueba", 2**64 - 1)])
+    with pytest.raises(ParticionInvalida, match="unidad de partición es el video"):
+        _verificar_manifiestos(tmp_path)
+
+
+def test_un_manifiesto_ajeno_a_lote0_con_defecto_se_rechaza(tmp_path: Path) -> None:
+    _escribir_manifiesto(tmp_path / "lote0.csv", [("a.jpg", "v1.mp4", "entrenamiento", 0)])
+    _escribir_manifiesto(
+        tmp_path / "lote-celular.csv",
+        [("b.jpg", "v2.mp4", "entrenamiento", 2**64 - 1), ("c.jpg", "v2.mp4", "prueba", 0b101)],
+    )
+    with pytest.raises(ParticionInvalida):
+        _verificar_manifiestos(tmp_path)
+
+
+def test_sin_manifiestos_no_se_verifica_nada(tmp_path: Path) -> None:
+    assert _verificar_manifiestos(tmp_path) == 0
 
 
 @pytest.mark.integration

@@ -104,6 +104,40 @@ def ffprobe(ruta: Path) -> dict[str, dict[str, Any]]:
     return {"stream": datos["streams"][0], "format": datos["format"]}
 
 
+def rotacion_grados(stream: dict[str, Any]) -> int:
+    """Rotación de visualización del stream, en grados normalizados a 0, 90, 180 o 270.
+
+    ffprobe nuevo la trae en `side_data_list` (`Display Matrix` -> `rotation`, p. ej. -90 para
+    un celular en vertical); el viejo, en `tags.rotate`. Sin ninguno de los dos es 0.
+    Un valor no numérico o que no sea múltiplo de 90 es un error, no un 0 silencioso.
+    """
+    crudo: Any = None
+    for dato in stream.get("side_data_list") or []:
+        if "rotation" in dato:
+            crudo = dato["rotation"]
+            break
+    if crudo is None:
+        crudo = (stream.get("tags") or {}).get("rotate")
+    if crudo is None:
+        return 0
+    try:
+        grados = float(crudo)
+    except (TypeError, ValueError):
+        raise ValueError(f"rotación no numérica en ffprobe: {crudo!r}") from None
+    # Se valida antes de redondear: 89,75 no es 90.
+    if grados % 90:
+        raise ValueError(f"rotación que no es múltiplo de 90: {crudo!r}")
+    return int(grados) % 360
+
+
+def dimensiones_de_cuadro(stream: dict[str, Any]) -> tuple[int, int]:
+    """(ancho, alto) de los cuadros tal como se ven: con 90/270 se intercambian."""
+    ancho, alto = int(stream["width"]), int(stream["height"])
+    if rotacion_grados(stream) in (90, 270):
+        return alto, ancho
+    return ancho, alto
+
+
 def leer_pgm(ruta: Path) -> tuple[int, int, bytes]:
     """Lee un PGM binario (P5). Cabecera: magico, ancho, alto, maxval."""
     crudo = ruta.read_bytes()
@@ -195,10 +229,11 @@ def fichar(ruta: Path) -> Ficha:
     s, f = meta["stream"], meta["format"]
     fps = float(Fraction(s.get("avg_frame_rate") or s["r_frame_rate"]))
     perimetro, actividad = analizar_movimiento(ruta)
+    ancho, alto = dimensiones_de_cuadro(s)
     return Ficha(
         nombre=ruta.name,
-        ancho=int(s["width"]),
-        alto=int(s["height"]),
+        ancho=ancho,
+        alto=alto,
         fps=round(fps, 2),
         duracion=round(float(f["duration"]), 1),
         codec=s.get("codec_name", "?"),
