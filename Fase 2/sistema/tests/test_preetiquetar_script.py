@@ -14,11 +14,15 @@ from gepp_core import Caja, ClaseDetectada, Deteccion
 from scripts import preetiquetar  # type: ignore[import-not-found]
 
 ANCHO, ALTO = 576, 1024
+RECORTE = "100,100,500,900"  # px: centro (0,5; 0,5) adentro, (0,075; 0,95) afuera
 PERSONA = Caja(0.25, 0.25, 0.75, 0.75)
+JUNTO_A_LA_CAMARA = Caja(0.0, 0.9, 0.15, 1.0)
+# El score distingue de dónde salió cada caja en el COCO.
+BASE_ADENTRO, BASE_AFUERA, MOSAICO = 0.9, 0.7, 0.8
 
 
 class _Base:
-    """Reemplaza a DetectorRFDETR: una persona por cuadro y cuenta las llamadas."""
+    """Reemplaza a DetectorRFDETR: una persona dentro del recorte y otra junto a la cámara."""
 
     llamadas = 0
     version = "rfdetr-falso:m:h"
@@ -28,7 +32,12 @@ class _Base:
 
     def detectar(self, _cuadro: Any, *, cuadro_idx: int, capture_ts: Any) -> list[Deteccion]:
         type(self).llamadas += 1
-        return [Deteccion(capture_ts, cuadro_idx, ClaseDetectada.PERSONA, PERSONA, 0.9)]
+        return [
+            Deteccion(capture_ts, cuadro_idx, ClaseDetectada.PERSONA, PERSONA, BASE_ADENTRO),
+            Deteccion(
+                capture_ts, cuadro_idx, ClaseDetectada.PERSONA, JUNTO_A_LA_CAMARA, BASE_AFUERA
+            ),
+        ]
 
 
 class _Mosaico:
@@ -44,7 +53,7 @@ class _Mosaico:
 
     def detectar(self, _cuadro: Any, *, cuadro_idx: int, capture_ts: Any) -> list[Deteccion]:
         type(self).usos += 1
-        return [Deteccion(capture_ts, cuadro_idx, ClaseDetectada.PERSONA, PERSONA, 0.8)]
+        return [Deteccion(capture_ts, cuadro_idx, ClaseDetectada.PERSONA, PERSONA, MOSAICO)]
 
 
 @pytest.fixture
@@ -77,6 +86,14 @@ def _correr(tmp_path: Path, *extra: str) -> int:
     )
 
 
+def _scores_por_imagen(tmp_path: Path) -> list[list[float]]:
+    coco = json.loads((tmp_path / "salida.json").read_text())
+    return [
+        sorted(a["score"] for a in coco["annotations"] if a["image_id"] == img["id"])
+        for img in coco["images"]
+    ]
+
+
 def _descripcion(tmp_path: Path) -> str:
     return str(json.loads((tmp_path / "salida.json").read_text())["info"]["description"])
 
@@ -85,14 +102,16 @@ def test_cuadro_entero_no_usa_el_mosaico(tmp_path: Path, lote: list[str]) -> Non
     assert _correr(tmp_path, "--cuadro-entero") == 0
     assert _Mosaico.usos == 0
     assert _Base.llamadas == len(lote)
-    coco = json.loads((tmp_path / "salida.json").read_text())
-    assert len(coco["annotations"]) == len(lote)  # una persona por cuadro, sin duplicar
+    # Las dos personas del modelo, adentro y afuera, y nada del mosaico.
+    assert _scores_por_imagen(tmp_path) == [[BASE_AFUERA, BASE_ADENTRO]] * len(lote)
     assert _descripcion(tmp_path) == "pre-etiquetas rfdetr-falso:m:h / cuadro-entero"
 
 
 def test_con_recorte_sigue_usando_el_mosaico(tmp_path: Path, lote: list[str]) -> None:
-    assert _correr(tmp_path, "--recorte", "100,100,500,900") == 0
+    assert _correr(tmp_path, "--recorte", RECORTE) == 0
     assert _Mosaico.usos == len(lote)
+    # Adentro manda el mosaico; del modelo solo queda la persona junto a la cámara.
+    assert _scores_por_imagen(tmp_path) == [[BASE_AFUERA, MOSAICO]] * len(lote)
     assert _descripcion(tmp_path).endswith("/ mosaico[falso]:rfdetr-falso:m:h")
 
 
