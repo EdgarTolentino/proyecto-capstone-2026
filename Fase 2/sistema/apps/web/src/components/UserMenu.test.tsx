@@ -63,25 +63,38 @@ describe("Menú de usuario", () => {
     expect(screen.queryByRole("region")).not.toBeInTheDocument();
     await user.click(boton);
     await user.tab();
-    expect(screen.getByRole("link", { name: "Ayuda" })).toHaveFocus();
+    expect(screen.getByRole("button", { name: "Ayuda" })).toHaveFocus();
     expect(screen.getByRole("region")).toBeVisible();
     await user.tab();
     expect(screen.getByRole("button", { name: "Fuera" })).toHaveFocus();
     expect(screen.queryByRole("region")).not.toBeInTheDocument();
   });
 
-  it("ofrece Ayuda como enlace temporal al inicio accesible con Tab", async () => {
+  it.each(["Escape", "botón"])("abre el popup de Ayuda sin navegar y cierra con %s", async (cierre) => {
     const user = userEvent.setup();
+    const ubicacion = window.location.href;
     render(<UserMenu sesion={sesion} />);
-    await user.click(screen.getByRole("button", { name: /Menú de usuario/ }));
+    const boton = screen.getByRole("button", { name: /Menú de usuario/ });
+    await user.click(boton);
     await user.tab();
-    const ayuda = screen.getByRole("link", { name: "Ayuda" });
-    expect(ayuda).toBeVisible();
-    expect(ayuda).toHaveAttribute("href", "/");
-    expect(ayuda).toHaveFocus();
-    await user.keyboard("{Escape}");
+    expect(screen.getByRole("button", { name: "Ayuda" })).toHaveFocus();
+    await user.keyboard("{Enter}");
+    const dialogo = screen.getByRole("dialog", { name: "Ayuda" });
+    expect(dialogo).toHaveAttribute("aria-modal", "true");
+    expect(within(dialogo).getByText("Llámanos al +56 9 XXXX XXXX. Estamos las 24 horas para ayudarte.")).toBeVisible();
+    expect(within(dialogo).getByText("Mensaje de demostración · Número ficticio.")).toBeVisible();
+    expect(window.location.href).toBe(ubicacion);
     expect(screen.queryByRole("region")).not.toBeInTheDocument();
-    expect(screen.getByRole("button", { name: /Menú de usuario/ })).toHaveFocus();
+    const cerrar = within(dialogo).getByRole("button", { name: "Cerrar ayuda" });
+    expect(cerrar).toHaveFocus();
+    await user.tab();
+    expect(cerrar).toHaveFocus();
+    await user.tab({ shift: true });
+    expect(cerrar).toHaveFocus();
+    if (cierre === "Escape") await user.keyboard("{Escape}");
+    else await user.click(cerrar);
+    expect(screen.queryByRole("dialog")).not.toBeInTheDocument();
+    expect(boton).toHaveFocus();
   });
 
   it.each([false, true])("muestra el estado real sin sesión (error=%s), sin datos inventados", (sesionError) => {

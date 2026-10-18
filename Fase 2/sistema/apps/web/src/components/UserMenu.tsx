@@ -2,6 +2,7 @@ import { ChevronDown } from "lucide-react";
 import { useEffect, useId, useRef, useState } from "react";
 
 import type { Sesion } from "../api/types";
+import { HelpDialog } from "./HelpDialog";
 
 interface UserMenuProps {
   sesion?: Sesion;
@@ -10,6 +11,7 @@ interface UserMenuProps {
 
 export function UserMenu({ sesion, sesionError = false }: UserMenuProps) {
   const [abierto, setAbierto] = useState(false);
+  const [ayudaAbierta, setAyudaAbierta] = useState(false);
   const contenedor = useRef<HTMLDivElement>(null);
   const boton = useRef<HTMLButtonElement>(null);
   const panelId = useId();
@@ -31,7 +33,7 @@ export function UserMenu({ sesion, sesionError = false }: UserMenuProps) {
     return <div className="user-profile" role="status">{sesionError ? "Sesión no disponible" : "Cargando sesión…"}</div>;
   }
 
-  return <div className="user-profile" ref={contenedor} onKeyDown={(event) => {
+  return <><div className="user-profile" ref={contenedor} onKeyDown={(event) => {
     if (event.key === "Escape" && abierto) {
       setAbierto(false);
       boton.current?.focus();
@@ -50,7 +52,15 @@ export function UserMenu({ sesion, sesionError = false }: UserMenuProps) {
     {abierto && <section id={panelId} className="user-menu__panel" aria-label="Datos del usuario">
       <strong>{nombre}</strong>
       <p><span>Rol: </span><span>{rol}</span></p>
-      <a className="user-menu__help" href="/">Ayuda</a>
+      <button type="button" className="user-menu__help" onClick={() => {
+        setAbierto(false);
+        setAyudaAbierta(true);
+      }}>Ayuda</button>
     </section>}
-  </div>;
+  </div>
+    {ayudaAbierta && <HelpDialog onClose={() => {
+      setAyudaAbierta(false);
+      boton.current?.focus();
+    }} />}
+  </>;
 }
