@@ -9,18 +9,51 @@ const sesion: Sesion = { id: 0, nombre: "Miguel Ortega", rol: "administrador", p
 afterEach(cleanup);
 
 describe("Menú de usuario", () => {
-  it("abre Ayuda cuando el ratón no enfoca botones por defecto", async () => {
+  it("recorre las cuatro tarjetas, vuelve atrás y reinicia después de Finalizar", async () => {
+    const user = userEvent.setup();
+    render(<UserMenu sesion={sesion} />);
+    const abrir = async () => {
+      await user.click(screen.getByRole("button", { name: /Menú de usuario/ }));
+      await user.click(screen.getByRole("button", { name: "Guía rápida" }));
+    };
+    await abrir();
+    expect(screen.getByText("1 de 4")).toBeVisible();
+    expect(screen.getByRole("button", { name: "Anterior" })).toBeDisabled();
+    expect(screen.getByRole("heading", { name: "Procesa un video" })).toBeVisible();
+    await user.click(screen.getByRole("button", { name: "Siguiente" }));
+    expect(screen.getByText("2 de 4")).toBeVisible();
+    expect(screen.getByRole("heading", { name: "Revisa los hallazgos" })).toBeVisible();
+    await user.click(screen.getByRole("button", { name: "Anterior" }));
+    expect(screen.getByText("1 de 4")).toBeVisible();
+    await user.click(screen.getByRole("button", { name: "Siguiente" }));
+    await user.click(screen.getByRole("button", { name: "Siguiente" }));
+    expect(screen.getByText("3 de 4")).toBeVisible();
+    expect(screen.getByRole("heading", { name: "Valida la evidencia" })).toBeVisible();
+    await user.click(screen.getByRole("button", { name: "Siguiente" }));
+    expect(screen.getByText("4 de 4")).toBeVisible();
+    expect(screen.getByRole("heading", { name: "¿Necesitas ayuda?" })).toBeVisible();
+    expect(screen.getByText("Llámanos al +56 9 XXXX XXXX. Estamos las 24 horas para ayudarte.")).toBeVisible();
+    expect(screen.getByText("Mensaje de demostración · Número ficticio.")).toBeVisible();
+    expect(screen.queryByRole("button", { name: "Siguiente" })).not.toBeInTheDocument();
+    await user.click(screen.getByRole("button", { name: "Finalizar" }));
+    expect(screen.queryByRole("dialog")).not.toBeInTheDocument();
+    expect(screen.getByRole("button", { name: /Menú de usuario/ })).toHaveFocus();
+    await abrir();
+    expect(screen.getByText("1 de 4")).toBeVisible();
+  });
+
+  it("abre Guía rápida cuando el ratón no enfoca botones por defecto", async () => {
     const user = userEvent.setup();
     render(<UserMenu sesion={sesion} />);
     const usuario = screen.getByRole("button", { name: /Menú de usuario/ });
     await user.click(usuario);
-    const ayuda = screen.getByRole("button", { name: "Ayuda" });
+    const ayuda = screen.getByRole("button", { name: "Guía rápida" });
     // Simula el comportamiento de un navegador que desenfoca el control actual
     // al pulsar otro botón sin darle foco. Un mousedown cancelado evita ese paso.
     if (fireEvent.mouseDown(ayuda)) fireEvent.blur(usuario, { relatedTarget: null });
     fireEvent.mouseUp(ayuda);
     fireEvent.click(ayuda);
-    expect(screen.getByRole("dialog", { name: "Ayuda" })).toBeVisible();
+    expect(screen.getByRole("dialog", { name: "Primeros pasos en Guardián EPP" })).toBeVisible();
   });
 
   it("enfoca el botón al abrir con clic aunque el navegador no lo enfoque automáticamente", async () => {
@@ -77,33 +110,32 @@ describe("Menú de usuario", () => {
     expect(screen.queryByRole("region")).not.toBeInTheDocument();
     await user.click(boton);
     await user.tab();
-    expect(screen.getByRole("button", { name: "Ayuda" })).toHaveFocus();
+    expect(screen.getByRole("button", { name: "Guía rápida" })).toHaveFocus();
     expect(screen.getByRole("region")).toBeVisible();
     await user.tab();
     expect(screen.getByRole("button", { name: "Fuera" })).toHaveFocus();
     expect(screen.queryByRole("region")).not.toBeInTheDocument();
   });
 
-  it.each(["Escape", "botón"])("abre el popup de Ayuda sin navegar y cierra con %s", async (cierre) => {
+  it.each(["Escape", "botón"])("abre Guía rápida sin navegar y cierra con %s", async (cierre) => {
     const user = userEvent.setup();
     const ubicacion = window.location.href;
     render(<UserMenu sesion={sesion} />);
     const boton = screen.getByRole("button", { name: /Menú de usuario/ });
     await user.click(boton);
     await user.tab();
-    expect(screen.getByRole("button", { name: "Ayuda" })).toHaveFocus();
+    expect(screen.getByRole("button", { name: "Guía rápida" })).toHaveFocus();
     await user.keyboard("{Enter}");
-    const dialogo = screen.getByRole("dialog", { name: "Ayuda" });
+    const dialogo = screen.getByRole("dialog", { name: "Primeros pasos en Guardián EPP" });
     expect(dialogo).toHaveAttribute("aria-modal", "true");
-    expect(within(dialogo).getByText("Llámanos al +56 9 XXXX XXXX. Estamos las 24 horas para ayudarte.")).toBeVisible();
-    expect(within(dialogo).getByText("Mensaje de demostración · Número ficticio.")).toBeVisible();
+    expect(within(dialogo).getByRole("heading", { name: "Procesa un video" })).toBeVisible();
     expect(window.location.href).toBe(ubicacion);
     expect(screen.queryByRole("region")).not.toBeInTheDocument();
-    const cerrar = within(dialogo).getByRole("button", { name: "Cerrar ayuda" });
-    expect(cerrar).toHaveFocus();
-    await user.tab();
+    const cerrar = within(dialogo).getByRole("button", { name: "Cerrar guía rápida" });
     expect(cerrar).toHaveFocus();
     await user.tab({ shift: true });
+    expect(within(dialogo).getByRole("button", { name: "Siguiente" })).toHaveFocus();
+    await user.tab();
     expect(cerrar).toHaveFocus();
     if (cierre === "Escape") await user.keyboard("{Escape}");
     else await user.click(cerrar);

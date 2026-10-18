@@ -60,7 +60,7 @@ export function UserMenu({ sesion, sesionError = false }: UserMenuProps) {
       }} onClick={() => {
         setAbierto(false);
         setAyudaAbierta(true);
-      }}>Ayuda</button>
+      }}>Guía rápida</button>
     </section>}
   </div>
     {ayudaAbierta && <HelpDialog onClose={() => {
