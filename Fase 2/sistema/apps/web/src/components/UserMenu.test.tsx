@@ -9,6 +9,20 @@ const sesion: Sesion = { id: 0, nombre: "Miguel Ortega", rol: "administrador", p
 afterEach(cleanup);
 
 describe("Menú de usuario", () => {
+  it("abre Ayuda cuando el ratón no enfoca botones por defecto", async () => {
+    const user = userEvent.setup();
+    render(<UserMenu sesion={sesion} />);
+    const usuario = screen.getByRole("button", { name: /Menú de usuario/ });
+    await user.click(usuario);
+    const ayuda = screen.getByRole("button", { name: "Ayuda" });
+    // Simula el comportamiento de un navegador que desenfoca el control actual
+    // al pulsar otro botón sin darle foco. Un mousedown cancelado evita ese paso.
+    if (fireEvent.mouseDown(ayuda)) fireEvent.blur(usuario, { relatedTarget: null });
+    fireEvent.mouseUp(ayuda);
+    fireEvent.click(ayuda);
+    expect(screen.getByRole("dialog", { name: "Ayuda" })).toBeVisible();
+  });
+
   it("enfoca el botón al abrir con clic aunque el navegador no lo enfoque automáticamente", async () => {
     const user = userEvent.setup();
     render(<UserMenu sesion={sesion} />);

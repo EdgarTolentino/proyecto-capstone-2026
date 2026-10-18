@@ -52,7 +52,12 @@ export function UserMenu({ sesion, sesionError = false }: UserMenuProps) {
     {abierto && <section id={panelId} className="user-menu__panel" aria-label="Datos del usuario">
       <strong>{nombre}</strong>
       <p><span>Rol: </span><span>{rol}</span></p>
-      <button type="button" className="user-menu__help" onClick={() => {
+      <button type="button" className="user-menu__help" onMouseDown={(event) => {
+        // Mantiene el foco dentro del menú hasta que llegue el clic, también
+        // cuando el navegador no enfoca botones al pulsarlos con el ratón.
+        event.preventDefault();
+        event.currentTarget.focus();
+      }} onClick={() => {
         setAbierto(false);
         setAyudaAbierta(true);
       }}>Ayuda</button>
