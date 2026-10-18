@@ -53,6 +53,14 @@ def commit_actual(salida: Path, archivo: str = "cambios_sin_commit.diff") -> str
     return f"{commit}-con-cambios (ver {archivo})"
 
 
+def escribir_procedencia(salida: Path, procedencia: dict[str, Any]) -> None:
+    """Escribe a un temporal y lo reemplaza: un corte a mitad de escritura no deja la
+    procedencia truncada, y una reanudación posterior sigue pudiendo leerla."""
+    temporal = salida / "procedencia.json.tmp"
+    temporal.write_text(json.dumps(procedencia, indent=2, ensure_ascii=False), encoding="utf-8")
+    temporal.replace(salida / "procedencia.json")
+
+
 def huella_anotaciones(dataset: Path) -> dict[str, str]:
     """sha256 de cada `_annotations.coco.json`: si se regenera el dataset en la misma ruta,
     la procedencia lo delata."""
@@ -157,18 +165,23 @@ def main(argv: list[str] | None = None) -> int:
     if not torch.cuda.is_available():
         sys.exit("no hay GPU CUDA: este script es para la máquina con GPU (ADR-010)")
 
+    notas: dict[str, str] = {"dataset": str(dataset)}
     if args.reanudar:
         reanudaciones = procedencia.setdefault("reanudaciones", [])
         n = len(reanudaciones) + 1
+        commit = commit_actual(salida, f"cambios_sin_commit-reanudacion-{n}.diff")
         reanudaciones.append(
             {
-                "commit": commit_actual(salida, f"cambios_sin_commit-reanudacion-{n}.diff"),
+                "commit": commit,
                 "inicio": datetime.now(UTC).isoformat(timespec="seconds"),
                 "desde": "last.ckpt",
                 "rfdetr": version("rfdetr"),
                 "torch": torch.__version__,
+                "gpu": torch.cuda.get_device_name(0),
             }
         )
+        # Los pesos que salgan de aquí los produjo este commit, no el del inicio.
+        notas |= {"commit": commit, "commit_inicio": procedencia["commit"]}
     else:
         salida.mkdir(parents=True)
         procedencia = {
@@ -184,7 +197,8 @@ def main(argv: list[str] | None = None) -> int:
             "torch": torch.__version__,
             "gpu": torch.cuda.get_device_name(0),
         }
-    (salida / "procedencia.json").write_text(json.dumps(procedencia, indent=2, ensure_ascii=False))
+        notas["commit"] = procedencia["commit"]
+    escribir_procedencia(salida, procedencia)
 
     modelo = getattr(rfdetr, VARIANTES[args.variante])()
     modelo.train(
@@ -199,12 +213,12 @@ def main(argv: list[str] | None = None) -> int:
         num_workers=args.trabajadores,
         tensorboard=False,
         progress_bar="tqdm",
-        notes={"commit": procedencia["commit"], "dataset": str(dataset)},
+        notes=notas,
         resume=str(salida / "last.ckpt") if args.reanudar else None,
     )
 
     procedencia["fin"] = datetime.now(UTC).isoformat(timespec="seconds")
-    (salida / "procedencia.json").write_text(json.dumps(procedencia, indent=2, ensure_ascii=False))
+    escribir_procedencia(salida, procedencia)
     print(f"listo: {salida}. Siguiente paso: scripts/exportar_onnx.py")
     return 0
 
