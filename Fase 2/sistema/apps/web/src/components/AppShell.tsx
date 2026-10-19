@@ -14,6 +14,7 @@ import type { ReactNode } from "react";
 import type { Catalogos, EstadoSistema, Sesion } from "../api/types";
 import type { SeccionApp } from "../hooks/useAppNavigation";
 import { UserMenu } from "./UserMenu";
+import { HelpMenu } from "./HelpMenu";
 
 interface AppShellProps {
   children: ReactNode;
@@ -46,7 +47,7 @@ export function AppShell({ children, catalogos, estado, sesion, sesionError = fa
           <div><strong>Guardián<span> EPP</span></strong><small>SEGURIDAD OPERACIONAL</small></div>
         </div>
         <div className="site-header__context"><HardHat size={18} /><span>Centro de control <strong>Operaciones</strong></span></div>
-        <UserMenu sesion={sesion} sesionError={sesionError} />
+        <div className="site-header__actions"><UserMenu sesion={sesion} sesionError={sesionError} /><HelpMenu /></div>
       </header>
       <nav className="operations-nav" aria-label="Navegación principal">
         {navegacion.map(({ texto, icono: Icono, seccion: destino }) => {

@@ -145,7 +145,7 @@ it("el atajo c confirma el caso abierto, no la primera fila", async () => {
 it.each([false, true])("la Guía bloquea c y x con visor abierto=%s y restaura c al cerrar", async (visor) => {
   await iniciar();
   if (visor) fireEvent.click(screen.getByText("Abrir segundo"));
-  fireEvent.click(screen.getByRole("button", { name: /Menú de usuario/ }));
+  fireEvent.click(screen.getByRole("button", { name: "Ayuda" }));
   fireEvent.click(screen.getByRole("button", { name: "Guía rápida" }));
   const cerrar = screen.getByRole("button", { name: "Cerrar guía rápida" });
   expect(cerrar).toHaveFocus();
