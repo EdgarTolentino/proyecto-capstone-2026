@@ -303,6 +303,17 @@ dd { margin: 0; color: var(--gepp-texto-2); font-size: 12px; overflow-wrap: anyw
 .quick-guide__card > p:not(.quick-guide__step) { line-height: 1.6; }
 .quick-guide__note { color: var(--gepp-texto-3); font-size: 12px; }
 .quick-guide footer { justify-content: space-between; }
+.account-help { width: min(880px, calc(100vw - 32px)); max-height: calc(100dvh - 32px); overflow-y: auto; }
+.account-help__columns { display: grid; grid-template-columns: 1fr 1fr; gap: 24px; padding: 20px; }
+.account-help__columns > * { min-width: 0; }
+.account-help h3 { margin: 0 0 16px; font-size: 16px; }
+.account-help label { display: grid; gap: 6px; margin: 12px 0; }
+.account-help input, .account-help textarea { width: 100%; padding: 10px; }
+.account-help p { line-height: 1.6; overflow-wrap: anywhere; }
+.account-help details { border-bottom: 1px solid var(--gepp-borde); padding: 12px 0; }
+.account-help summary { cursor: pointer; line-height: 1.5; }
+.account-help summary:focus-visible { outline: 2px solid var(--gepp-acento); outline-offset: 3px; }
+@media (max-width: 640px) { .account-help__columns { grid-template-columns: 1fr; } }
 @media (max-width: 1280px) {
   .panel-indicators { gap: 8px; }
   .panel-indicator { min-height: 148px; padding: 14px; }

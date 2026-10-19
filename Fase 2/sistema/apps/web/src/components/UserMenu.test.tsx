@@ -63,6 +63,8 @@ describe("Menú de usuario", () => {
     expect(screen.queryByRole("region")).not.toBeInTheDocument();
     await user.click(boton);
     await user.tab();
+    expect(screen.getByRole("button", { name: "Problemas con tu cuenta" })).toHaveFocus();
+    await user.tab();
     expect(screen.getByRole("button", { name: "Fuera" })).toHaveFocus();
     expect(screen.queryByRole("region")).not.toBeInTheDocument();
   });
