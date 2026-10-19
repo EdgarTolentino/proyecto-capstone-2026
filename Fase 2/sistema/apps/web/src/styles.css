@@ -24,6 +24,9 @@ input[type="checkbox"] { accent-color: var(--gepp-acento); width: 16px; height: 
 .site-header__context { display: flex; gap: 10px; align-items: center; padding-left: 30px; border-left: 1px solid var(--gepp-borde); color: var(--gepp-texto-4); font-size: 12px; }
 .site-header__context strong { display: block; color: var(--gepp-texto); margin-top: 2px; font-size: 14px; }
 .user-profile { position: relative; margin-left: auto; min-width: 0; }
+.site-header__actions { display: flex; align-items: center; gap: 12px; margin-left: auto; min-width: 0; }
+.help-menu { position: relative; flex-shrink: 0; }
+.help-menu__trigger { width: 36px; height: 36px; border-radius: 50%; color: var(--gepp-acento); font-size: 20px; font-weight: 700; }
 .user-avatar { display: grid; place-items: center; width: 37px; height: 37px; border: 1px solid var(--gepp-borde-fuerte); border-radius: 50%; background: var(--gepp-superficie-alta); font-weight: 600; }
 .user-profile small { display: block; color: var(--gepp-texto-4); font-size: 11px; margin-bottom: 3px; }
 .user-menu__trigger { display: flex; align-items: center; gap: 10px; padding: 6px; max-width: 280px; text-align: left; border-color: transparent; }

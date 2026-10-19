@@ -2,7 +2,6 @@ import { ChevronDown } from "lucide-react";
 import { useEffect, useId, useRef, useState } from "react";
 
 import type { Sesion } from "../api/types";
-import { HelpDialog } from "./HelpDialog";
 
 interface UserMenuProps {
   sesion?: Sesion;
@@ -11,7 +10,6 @@ interface UserMenuProps {
 
 export function UserMenu({ sesion, sesionError = false }: UserMenuProps) {
   const [abierto, setAbierto] = useState(false);
-  const [ayudaAbierta, setAyudaAbierta] = useState(false);
   const contenedor = useRef<HTMLDivElement>(null);
   const boton = useRef<HTMLButtonElement>(null);
   const panelId = useId();
@@ -33,7 +31,7 @@ export function UserMenu({ sesion, sesionError = false }: UserMenuProps) {
     return <div className="user-profile" role="status">{sesionError ? "Sesión no disponible" : "Cargando sesión…"}</div>;
   }
 
-  return <><div className="user-profile" ref={contenedor} onKeyDown={(event) => {
+  return <div className="user-profile" ref={contenedor} onKeyDown={(event) => {
     if (event.key === "Escape" && abierto) {
       setAbierto(false);
       boton.current?.focus();
@@ -52,21 +50,6 @@ export function UserMenu({ sesion, sesionError = false }: UserMenuProps) {
     {abierto && <section id={panelId} className="user-menu__panel" aria-label="Datos del usuario">
       <strong>{nombre}</strong>
       <p><span>Rol: </span><span>{rol}</span></p>
-      <button type="button" className="user-menu__help" onMouseDown={(event) => {
-        // Mantiene el foco dentro del menú hasta que llegue el clic, también
-        // cuando el navegador no enfoca botones al pulsarlos con el ratón.
-        event.preventDefault();
-        event.currentTarget.focus();
-      }} onClick={() => {
-        setAbierto(false);
-        setAyudaAbierta(true);
-      }}>Guía rápida</button>
-      <a className="user-menu__help" href="https://github.com/EdgarTolentino/proyecto-capstone-2026/blob/main/Fase%202/Evidencias%20Proyecto/Evidencias%20de%20documentaci%C3%B3n/Manual%20de%20Usuario.pdf" target="_blank" rel="noopener noreferrer">Manual de usuario (PDF)</a>
     </section>}
-  </div>
-    {ayudaAbierta && <HelpDialog onClose={() => {
-      setAyudaAbierta(false);
-      boton.current?.focus();
-    }} />}
-  </>;
+  </div>;
 }
