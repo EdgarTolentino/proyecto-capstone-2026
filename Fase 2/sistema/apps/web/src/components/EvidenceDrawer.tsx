@@ -33,12 +33,12 @@ export function EvidenceDrawer(props: EvidenceDrawerProps) {
   const siguiente = props.cola[indice + 1];
 
   // Al abrir, llevamos el foco al botón cerrar. Al cerrar, App lo devuelve a la bandeja.
-  useEffect(() => closeRef.current?.focus(), []);
+  useEffect(() => { if (!document.querySelector(".modal-layer")) closeRef.current?.focus(); }, []);
 
   return (
     <>
       <button className="drawer-overlay" type="button" aria-label="Cerrar visor" onClick={props.onClose} />
-      <aside ref={dialogRef} className="evidence-drawer" role="dialog" aria-modal="true" aria-labelledby="drawer-title">
+      <aside ref={dialogRef} className="evidence-drawer" role="dialog" data-hallazgo-shortcuts aria-modal="true" aria-labelledby="drawer-title">
         <header className="drawer-header">
           {detalle.data && <SeverityBadge severidad={detalle.data.severidad} />}
           <strong id="drawer-title" className="mono">H-{props.hallazgoId}</strong>

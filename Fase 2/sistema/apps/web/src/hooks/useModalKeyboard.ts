@@ -1,13 +1,15 @@
 import { useEffect, type RefObject } from "react";
 
-// El teclado queda dentro del último diálogo abierto y Escape cierra solo ese diálogo.
+// Los modales están sobre el visor, aunque el historial lo monte después.
 export function useModalKeyboard(ref: RefObject<HTMLElement | null>, onClose: () => void) {
   useEffect(() => {
     const manejar = (event: KeyboardEvent) => {
-      const dialogs = document.querySelectorAll('[role="dialog"]');
+      const modales = document.querySelectorAll('.modal-layer [role="dialog"]');
+      const dialogs = modales.length ? modales : document.querySelectorAll('[role="dialog"]');
       if (dialogs[dialogs.length - 1] !== ref.current) return;
       if (event.key === "Escape") {
         event.preventDefault();
+        event.stopImmediatePropagation();
         onClose();
       }
       if (event.key !== "Tab") return;

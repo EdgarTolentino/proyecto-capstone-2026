@@ -1,5 +1,6 @@
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
 import { cleanup, fireEvent, render, screen, waitFor, within } from "@testing-library/react";
+import userEvent from "@testing-library/user-event";
 import { afterEach, expect, it, vi } from "vitest";
 import App from "./App";
 import * as api from "./api/client";
@@ -49,7 +50,7 @@ vi.mock("./components/HallazgosGrid", () => ({
 }));
 vi.mock("./components/EvidenceDrawer", () => ({
   EvidenceDrawer: ({ hallazgoId, onClose, onFalsePositive }: { hallazgoId: number; onClose: () => void; onFalsePositive: () => void }) => (
-    <section role="dialog"><span>Caso {hallazgoId}</span><button onClick={onClose}>Cerrar visor</button><button onClick={onFalsePositive}>Descartar abierto</button></section>
+    <section role="dialog" data-hallazgo-shortcuts><span>Caso {hallazgoId}</span><button onClick={onClose}>Cerrar visor</button><button onClick={onFalsePositive}>Descartar abierto</button></section>
   ),
 }));
 
@@ -139,6 +140,24 @@ it("el atajo c confirma el caso abierto, no la primera fila", async () => {
   fireEvent.click(screen.getByText("Abrir segundo"));
   fireEvent.keyDown(window, { key: "c" });
   await waitFor(() => expect(api.triarHallazgo).toHaveBeenCalledWith(2, { estado: "confirmado" }));
+});
+
+it.each([false, true])("la Guía bloquea c y x con visor abierto=%s y restaura c al cerrar", async (visor) => {
+  await iniciar();
+  if (visor) fireEvent.click(screen.getByText("Abrir segundo"));
+  fireEvent.click(screen.getByRole("button", { name: /Menú de usuario/ }));
+  fireEvent.click(screen.getByRole("button", { name: "Guía rápida" }));
+  const cerrar = screen.getByRole("button", { name: "Cerrar guía rápida" });
+  expect(cerrar).toHaveFocus();
+  await userEvent.setup().keyboard("cx");
+  // También se bloquean eventos que lleguen desde fuera del diálogo.
+  fireEvent.keyDown(window, { key: "c" });
+  fireEvent.keyDown(window, { key: "x" });
+  expect(api.triarHallazgo).not.toHaveBeenCalled();
+  expect(screen.queryByRole("button", { name: "Guardar decisión" })).not.toBeInTheDocument();
+  fireEvent.click(cerrar);
+  fireEvent.keyDown(window, { key: "c" });
+  await waitFor(() => expect(api.triarHallazgo).toHaveBeenCalledWith(visor ? 2 : 1, { estado: "confirmado" }));
 });
 
 it("descartar desde el visor no modifica una selección anterior", async () => {
