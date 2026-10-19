@@ -7,7 +7,7 @@ const tarjetas = [
   { titulo: "Procesa un video", icono: FileVideo, texto: "En Videos, selecciona un archivo disponible en el servidor y la cámara correspondiente para solicitar su procesamiento. Esta acción requiere permiso para procesar videos." },
   { titulo: "Revisa los hallazgos", icono: SearchCheck, texto: "En Hallazgos, consulta los resultados y utiliza los filtros para encontrar lo que necesitas revisar. Los resultados disponibles dependen de tus permisos." },
   { titulo: "Valida la evidencia", icono: ShieldCheck, texto: "Si tienes permiso para ver evidencia, abre un hallazgo para revisar su evidencia y por qué se disparó. Los resultados son indicios y requieren validación humana." },
-  { titulo: "¿Necesitas ayuda?", icono: LifeBuoy, texto: "Llámanos al +56 9 XXXX XXXX. Estamos las 24 horas para ayudarte.", nota: "Mensaje de demostración · Número ficticio." },
+  { titulo: "¿Necesitas ayuda?", icono: LifeBuoy, texto: "Consulta el Manual de usuario (PDF) desde la cabecera. El documento se abre en GitHub y requiere conexión a internet." },
 ];
 
 export function HelpDialog({ onClose }: { onClose: () => void }) {
@@ -31,7 +31,6 @@ export function HelpDialog({ onClose }: { onClose: () => void }) {
         <p className="quick-guide__step">{indice + 1} de {tarjetas.length}</p>
         <h3>{tarjeta.titulo}</h3>
         <p id={mensajeId}>{tarjeta.texto}</p>
-        {tarjeta.nota && <p className="quick-guide__note">{tarjeta.nota}</p>}
       </div>
       <footer>
         <button type="button" disabled={indice === 0} onClick={() => setIndice(indice - 1)}>Anterior</button>

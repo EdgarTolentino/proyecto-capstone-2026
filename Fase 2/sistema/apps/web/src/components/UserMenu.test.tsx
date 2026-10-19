@@ -1,14 +1,42 @@
 import { cleanup, fireEvent, render, screen, within } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
-import { afterEach, describe, expect, it } from "vitest";
+import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
+import { afterEach, describe, expect, it, vi } from "vitest";
+import * as api from "../api/client";
+import { EvidenceDrawer } from "./EvidenceDrawer";
 
 import type { Sesion } from "../api/types";
 import { UserMenu } from "./UserMenu";
 
 const sesion: Sesion = { id: 0, nombre: "Miguel Ortega", rol: "administrador", permisos: [] };
-afterEach(cleanup);
+afterEach(() => { cleanup(); vi.restoreAllMocks(); });
 
 describe("Menú de usuario", () => {
+  it("mantiene foco, Tab y Escape en la Guía si el historial vuelve a montar el visor detrás", async () => {
+    vi.spyOn(api, "obtenerHallazgo").mockImplementation(() => new Promise(() => {}));
+    const user = userEvent.setup();
+    const client = new QueryClient();
+    const cerrarVisor = vi.fn();
+    const vista = (visor: boolean) => <QueryClientProvider client={client}>
+      <UserMenu sesion={sesion} />
+      {visor && <EvidenceDrawer hallazgoId={1} cola={[]} permiteTriar={false} isUpdating={false} onClose={cerrarVisor} onMove={vi.fn()} onTriage={vi.fn()} onFalsePositive={vi.fn()} />}
+    </QueryClientProvider>;
+    const { rerender } = render(vista(false));
+    await user.click(screen.getByRole("button", { name: /Menú de usuario/ }));
+    await user.click(screen.getByRole("button", { name: "Guía rápida" }));
+    // Reproduce el montaje que hace popstate al volver a una URL con hallazgo_id.
+    rerender(vista(true));
+    const cerrarGuia = screen.getByRole("button", { name: "Cerrar guía rápida" });
+    expect(cerrarGuia).toHaveFocus();
+    await user.tab({ shift: true });
+    expect(screen.getByRole("button", { name: "Siguiente" })).toHaveFocus();
+    await user.tab();
+    expect(cerrarGuia).toHaveFocus();
+    await user.keyboard("{Escape}");
+    expect(screen.queryByRole("dialog", { name: "Primeros pasos en Guardián EPP" })).not.toBeInTheDocument();
+    expect(screen.getByRole("dialog", { name: "H-1" })).toBeVisible();
+    expect(cerrarVisor).not.toHaveBeenCalled();
+  });
   it("muestra el enlace al manual PDF de GitHub en una pestaña nueva", async () => {
     const user = userEvent.setup();
     render(<UserMenu sesion={sesion} />);
@@ -46,8 +74,7 @@ describe("Menú de usuario", () => {
     await user.click(screen.getByRole("button", { name: "Siguiente" }));
     expect(screen.getByText("4 de 4")).toBeVisible();
     expect(screen.getByRole("heading", { name: "¿Necesitas ayuda?" })).toBeVisible();
-    expect(screen.getByText("Llámanos al +56 9 XXXX XXXX. Estamos las 24 horas para ayudarte.")).toBeVisible();
-    expect(screen.getByText("Mensaje de demostración · Número ficticio.")).toBeVisible();
+    expect(screen.getByText("Consulta el Manual de usuario (PDF) desde la cabecera. El documento se abre en GitHub y requiere conexión a internet.")).toBeVisible();
     expect(screen.queryByRole("button", { name: "Siguiente" })).not.toBeInTheDocument();
     await user.click(screen.getByRole("button", { name: "Finalizar" }));
     expect(screen.queryByRole("dialog")).not.toBeInTheDocument();
