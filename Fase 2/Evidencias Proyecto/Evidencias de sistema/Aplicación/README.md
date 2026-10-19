@@ -19,8 +19,39 @@ git checkout v0.1.0-avance
 
 ## Capturas
 
+La [prueba en Windows y Microsoft Edge del 19-oct-2026](2026-10-19-menu-guia-windows/verificacion.html)
+incluye 18 pantallazos, cada uno con prueba, resultado esperado, resultado observado y estado,
+además del guion reproducible y los resultados estructurados. Se realizó contra el **mock del
+contrato**, en 1440 × 1000 y 390 × 844: el recorrido pasó, Tab alcanzó Guía rápida y Finalizar
+mostró un contorno de foco sólido de 2 px. La salida de la suite web está adjunta al informe.
+
+**Actualización de Safari (19-oct-2026):** el usuario confirmó que ya se contrastó y funcionó.
+Se conserva lo observado en la sesión histórica de WebKit, pero el contraste con Safari ya no
+está pendiente. La confirmación del usuario es independiente de la nueva prueba en Windows.
+
+La [verificación del menú y Guía rápida del 18-oct-2026](2026-10-18-menu-guia/verificacion.html)
+incluye 15 capturas con pasos, resultados y comentarios. Se ejecutó en WebKit de Playwright
+contra la API real local con datos de demo, en 1440 × 1000 y 390 × 844. Registra las
+observaciones de navegación con Tab/Option+Tab y del foco visual de Finalizar; no reemplaza
+la revisión independiente del diff ni una prueba en la aplicación Safari del usuario.
+
 | Archivo | Qué muestra |
 |---|---|
+| [01-menu-escritorio.png](2026-10-18-menu-guia/output/playwright/01-menu-escritorio.png) | **01. Menú de usuario en escritorio**. Prueba: Pulsar el botón de usuario. Esperado: Nombre, rol y Guía rápida visibles. Observado: Se muestran Prevencionista de turno, rol prevencionista y el acceso a la guía. Estado: Pasó |
+| [02-escritorio-paso-1.png](2026-10-18-menu-guia/output/playwright/02-escritorio-paso-1.png) | **02. Abrir la guía**. Prueba: Pulsar Guía rápida. Esperado: Primera tarjeta, contador 1 de 4 y Anterior deshabilitado. Observado: Se presenta Procesa un video y el botón Anterior está deshabilitado. Estado: Pasó |
+| [03-escritorio-paso-2.png](2026-10-18-menu-guia/output/playwright/03-escritorio-paso-2.png) | **03. Segunda tarjeta**. Prueba: Pulsar Siguiente desde la primera tarjeta. Esperado: Revisa los hallazgos, 2 de 4. Observado: Texto y contador correctos, sin cambiar de sección ni URL. Estado: Pasó |
+| [04-escritorio-anterior.png](2026-10-18-menu-guia/output/playwright/04-escritorio-anterior.png) | **04. Retroceso**. Prueba: Pulsar Anterior desde la segunda tarjeta. Esperado: Volver a 1 de 4. Observado: Regresa a Procesa un video y Anterior vuelve a quedar deshabilitado. Estado: Pasó |
+| [05-escritorio-paso-3.png](2026-10-18-menu-guia/output/playwright/05-escritorio-paso-3.png) | **05. Tercera tarjeta**. Prueba: Avanzar hasta la tercera tarjeta. Esperado: Valida la evidencia, 3 de 4. Observado: Se explica el permiso de evidencia y la necesidad de validación humana. Estado: Pasó |
+| [06-escritorio-paso-4.png](2026-10-18-menu-guia/output/playwright/06-escritorio-paso-4.png) | **06. Última tarjeta**. Prueba: Pulsar Siguiente desde la tercera tarjeta. Esperado: Contacto de demostración, 4 de 4 y Finalizar. Observado: Se ve el teléfono con XXXX, la nota Número ficticio y Finalizar. Siguiente no está presente. Estado: Pasó |
+| [07-teclado-foco.png](2026-10-18-menu-guia/output/playwright/07-teclado-foco.png) | **07. Foco dentro del diálogo**. Prueba: Enfocar Cerrar y pulsar Shift+Tab; después Tab. Esperado: El foco debe permanecer dentro del diálogo y ser reconocible visualmente. Observado: Shift+Tab lleva el foco DOM a Finalizar y Tab vuelve a Cerrar. En esta sesión WebKit, Finalizar tiene focusVisible=false y outline sin estilo: la captura no muestra un indicador de foco distinguible. Estado: Observación histórica; contraste con Safari confirmado por el usuario el 19-oct-2026 |
+| [08-cierre-escape.png](2026-10-18-menu-guia/output/playwright/08-cierre-escape.png) | **08. Cerrar con Escape**. Prueba: Pulsar Escape con el diálogo abierto. Esperado: Cerrar el diálogo y devolver el foco al botón de usuario. Observado: Se comprobó la desaparición del diálogo y document.activeElement en el botón de usuario. La imagen muestra el panel tras cerrar. Estado: Pasó |
+| [09-reapertura.png](2026-10-18-menu-guia/output/playwright/09-reapertura.png) | **09. Reabrir con teclado**. Prueba: Abrir el menú, usar Option+Tab y Enter. Esperado: Abrir nuevamente en 1 de 4. Observado: Option+Tab llegó a Guía rápida y Enter abrió la primera tarjeta. Tab solo había omitido los botones y cerrado el menú al mover el foco al filtro Obra. Estado: Pasó con condición de teclado |
+| [10-cierre-finalizar.png](2026-10-18-menu-guia/output/playwright/10-cierre-finalizar.png) | **10. Finalizar el recorrido**. Prueba: Avanzar hasta 4 de 4 y pulsar Finalizar. Esperado: Cerrar y devolver el foco al usuario. Observado: El diálogo desaparece y el foco DOM vuelve al botón de usuario. Estado: Pasó |
+| [11-menu-estrecho.png](2026-10-18-menu-guia/output/playwright/11-menu-estrecho.png) | **11. Menú en ventana estrecha**. Prueba: Cambiar a 390 × 844 y abrir el menú. Esperado: Acceso legible y dentro del ancho visible. Observado: Nombre, rol y Guía rápida se ven dentro del panel; la cabecera usa avatar compacto. Estado: Pasó |
+| [12-estrecho-paso-1.png](2026-10-18-menu-guia/output/playwright/12-estrecho-paso-1.png) | **12. Primera tarjeta estrecha**. Prueba: Abrir Guía rápida en 390 × 844. Esperado: 1 de 4 y controles completos sin desborde del diálogo. Observado: Texto y botones se ven completos. Diálogo entre x=16 y x=374; scrollWidth=clientWidth=356. Estado: Pasó |
+| [13-estrecho-paso-2.png](2026-10-18-menu-guia/output/playwright/13-estrecho-paso-2.png) | **13. Segunda tarjeta estrecha**. Prueba: Pulsar Siguiente. Esperado: 2 de 4 y texto legible. Observado: Contenido dentro del viewport y sin desborde horizontal del diálogo. Estado: Pasó |
+| [14-estrecho-paso-3.png](2026-10-18-menu-guia/output/playwright/14-estrecho-paso-3.png) | **14. Tercera tarjeta estrecha**. Prueba: Pulsar Siguiente. Esperado: 3 de 4 y texto legible. Observado: Mensaje de validación humana y ambos controles visibles, sin desborde horizontal del diálogo. Estado: Pasó |
+| [15-estrecho-paso-4.png](2026-10-18-menu-guia/output/playwright/15-estrecho-paso-4.png) | **15. Última tarjeta estrecha**. Prueba: Pulsar Siguiente. Esperado: 4 de 4, contacto ficticio y Finalizar visibles. Observado: Contenido dentro del viewport. Después se pulsó Cerrar y se comprobó el retorno del foco al usuario. Estado: Pasó |
 | `2026-09-22-api-real-bandeja.png` | La bandeja de `apps/web` contra la **API real** (PT-09), con el hallazgo que produjo `make demo` sobre el video sintético CAM 03 |
 | `2026-09-22-api-real-visor.png` | El visor del mismo hallazgo: recorte con la cabeza pixelada, línea de tiempo y botones de triage |
 | `2026-09-28-iconos-epp-faltante.png` | La bandeja contra el mock del contrato, con iconos accesibles de EPP faltante y un hallazgo al que le faltan casco y chaleco |

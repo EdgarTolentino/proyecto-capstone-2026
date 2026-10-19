@@ -1,0 +1,82 @@
+
+> npm run lint
+
+> guardian-epp-web@0.1.0 lint
+> eslint . --max-warnings 0
+
+
+> npm run typecheck
+
+> guardian-epp-web@0.1.0 typecheck
+> tsc -b --pretty false
+
+
+> npm run test
+
+> guardian-epp-web@0.1.0 test
+> vitest run
+
+
+ RUN  v5.0.3 C:/Users/migue/OneDrive/Documentos/GitHub/proyecto-capstone-2026/Fase 2/sistema/apps/web
+
+ ❯ src/components/VideosPage.test.tsx (0 test)
+ ❯ src/components/VivoVideo.test.tsx (0 test)
+ ❯ src/App.test.tsx (0 test)
+ ❯ src/api/client.test.ts (0 test)
+ ❯ src/components/ReglasPage.test.tsx (0 test)
+ ❯ src/components/UserMenu.test.tsx (0 test)
+ ❯ src/components/AvanceVideo.test.tsx (0 test)
+ ❯ src/components/PanelPage.test.tsx (0 test)
+ ❯ src/hooks/useAppNavigation.test.tsx (0 test)
+ ❯ src/hooks/useHallazgoShortcuts.test.tsx (0 test)
+ ❯ src/components/PanelOperations.test.tsx (0 test)
+ ❯ src/components/HallazgosGrid.test.ts (0 test)
+ ❯ src/utils/format.test.ts (0 test)
+ ❯ src/hooks/usePanelFilters.test.tsx (0 test)
+ ❯ src/components/PanelCharts.test.tsx (0 test)
+ ❯ src/api/videos.test.ts (0 test)
+ ❯ src/api/fechas.test.ts (0 test)
+ ❯ src/components/PanelFilters.test.tsx (0 test)
+ ❯ src/components/reproductorVivo.test.ts (0 test)
+ ❯ src/hooks/useHallazgoFilters.test.tsx (0 test)
+ ❯ src/components/AppErrorBoundary.test.tsx (0 test)
+ ❯ src/components/SeverityBadge.test.tsx (0 test)
+ ❯ src/components/FalsePositiveDialog.test.tsx (0 test)
+
+⎯⎯⎯⎯⎯⎯ Failed Suites 23 ⎯⎯⎯⎯⎯⎯
+
+ FAIL  src/App.test.tsx [ src/App.test.tsx ]
+ FAIL  src/api/client.test.ts [ src/api/client.test.ts ]
+ FAIL  src/api/fechas.test.ts [ src/api/fechas.test.ts ]
+ FAIL  src/api/videos.test.ts [ src/api/videos.test.ts ]
+ FAIL  src/components/AppErrorBoundary.test.tsx [ src/components/AppErrorBoundary.test.tsx ]
+ FAIL  src/components/AvanceVideo.test.tsx [ src/components/AvanceVideo.test.tsx ]
+ FAIL  src/components/FalsePositiveDialog.test.tsx [ src/components/FalsePositiveDialog.test.tsx ]
+ FAIL  src/components/HallazgosGrid.test.ts [ src/components/HallazgosGrid.test.ts ]
+ FAIL  src/components/PanelCharts.test.tsx [ src/components/PanelCharts.test.tsx ]
+ FAIL  src/components/PanelFilters.test.tsx [ src/components/PanelFilters.test.tsx ]
+ FAIL  src/components/PanelOperations.test.tsx [ src/components/PanelOperations.test.tsx ]
+ FAIL  src/components/PanelPage.test.tsx [ src/components/PanelPage.test.tsx ]
+ FAIL  src/components/ReglasPage.test.tsx [ src/components/ReglasPage.test.tsx ]
+ FAIL  src/components/reproductorVivo.test.ts [ src/components/reproductorVivo.test.ts ]
+ FAIL  src/components/SeverityBadge.test.tsx [ src/components/SeverityBadge.test.tsx ]
+ FAIL  src/components/UserMenu.test.tsx [ src/components/UserMenu.test.tsx ]
+ FAIL  src/components/VideosPage.test.tsx [ src/components/VideosPage.test.tsx ]
+ FAIL  src/components/VivoVideo.test.tsx [ src/components/VivoVideo.test.tsx ]
+ FAIL  src/hooks/useAppNavigation.test.tsx [ src/hooks/useAppNavigation.test.tsx ]
+ FAIL  src/hooks/useHallazgoFilters.test.tsx [ src/hooks/useHallazgoFilters.test.tsx ]
+ FAIL  src/hooks/useHallazgoShortcuts.test.tsx [ src/hooks/useHallazgoShortcuts.test.tsx ]
+ FAIL  src/hooks/usePanelFilters.test.tsx [ src/hooks/usePanelFilters.test.tsx ]
+ FAIL  src/utils/format.test.ts [ src/utils/format.test.ts ]
+Error: ENOENT: no such file or directory, open 'C:\Users\migue\AppData\Local\Packages\sandbox.{01bc657e-0e01-4046-9042-70d790a7292b}\AC\Temp\Otg9pqio-xnVp15vaIVbB\client\ede1860522c795d4cc4ed2cd82ad77079a5d16cd'
+⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯[1/23]⎯
+
+
+ Test Files  23 failed | 1 passed (24)
+      Tests  51 passed (51)
+   Start at  04:12:24
+   Duration  11.41s (environment 93%, tests 5%, setup 1%, transform 1%)
+
+Environment  jsdom was created 24 times · 105.00s total, 93% of tracked time
+             create it once per worker with pool: 'vmThreads' (keeps per-file isolation) or isolate: false (shares it across files)
+             learn more: https://vitest.dev/guide/improving-performance#test-environments
