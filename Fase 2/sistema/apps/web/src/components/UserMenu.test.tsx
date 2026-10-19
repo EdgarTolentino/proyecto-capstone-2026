@@ -32,7 +32,11 @@ describe("Menú de usuario", () => {
     expect(screen.getByRole("button", { name: "Siguiente" })).toHaveFocus();
     await user.tab();
     expect(cerrarGuia).toHaveFocus();
+    const accionDetras = vi.fn();
+    window.addEventListener("keydown", accionDetras);
     await user.keyboard("{Escape}");
+    window.removeEventListener("keydown", accionDetras);
+    expect(accionDetras).not.toHaveBeenCalled();
     expect(screen.queryByRole("dialog", { name: "Primeros pasos en Guardián EPP" })).not.toBeInTheDocument();
     expect(screen.getByRole("dialog", { name: "H-1" })).toBeVisible();
     expect(cerrarVisor).not.toHaveBeenCalled();

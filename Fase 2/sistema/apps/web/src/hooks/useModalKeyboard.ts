@@ -9,6 +9,7 @@ export function useModalKeyboard(ref: RefObject<HTMLElement | null>, onClose: ()
       if (dialogs[dialogs.length - 1] !== ref.current) return;
       if (event.key === "Escape") {
         event.preventDefault();
+        event.stopImmediatePropagation();
         onClose();
       }
       if (event.key !== "Tab") return;
