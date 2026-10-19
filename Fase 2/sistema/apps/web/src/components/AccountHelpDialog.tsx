@@ -16,9 +16,9 @@ export function AccountHelpDialog({ onClose, volverA }: { onClose: () => void; v
   const avisoId = useId();
   useModalKeyboard(dialogRef, onClose);
   useEffect(() => {
+    const destino = volverA.current;
     cerrarRef.current?.focus();
     return () => {
-      const destino = volverA.current;
       if (destino?.isConnected) destino.focus();
       else document.querySelector<HTMLButtonElement>('.help-menu__trigger')?.focus();
     };
