@@ -9,6 +9,20 @@ const sesion: Sesion = { id: 0, nombre: "Miguel Ortega", rol: "administrador", p
 afterEach(cleanup);
 
 describe("Menú de usuario", () => {
+  it("muestra el enlace al manual PDF de GitHub en una pestaña nueva", async () => {
+    const user = userEvent.setup();
+    render(<UserMenu sesion={sesion} />);
+    await user.click(screen.getByRole("button", { name: /Menú de usuario/ }));
+    const manual = within(screen.getByRole("region", { name: "Datos del usuario" })).getByRole("link", { name: "Manual de usuario (PDF)" });
+    expect(manual).toBeVisible();
+    expect(manual).toHaveAttribute("href", "https://github.com/EdgarTolentino/proyecto-capstone-2026/blob/main/Fase%202/Evidencias%20Proyecto/Evidencias%20de%20documentaci%C3%B3n/Manual%20de%20Usuario.pdf");
+    expect(manual).toHaveAttribute("target", "_blank");
+    expect(manual).toHaveAttribute("rel", "noopener noreferrer");
+    await user.tab();
+    await user.tab();
+    expect(manual).toHaveFocus();
+  });
+
   it("recorre las cuatro tarjetas, vuelve atrás y reinicia después de Finalizar", async () => {
     const user = userEvent.setup();
     render(<UserMenu sesion={sesion} />);
@@ -111,6 +125,9 @@ describe("Menú de usuario", () => {
     await user.click(boton);
     await user.tab();
     expect(screen.getByRole("button", { name: "Guía rápida" })).toHaveFocus();
+    expect(screen.getByRole("region")).toBeVisible();
+    await user.tab();
+    expect(screen.getByRole("link", { name: "Manual de usuario (PDF)" })).toHaveFocus();
     expect(screen.getByRole("region")).toBeVisible();
     await user.tab();
     expect(screen.getByRole("button", { name: "Fuera" })).toHaveFocus();

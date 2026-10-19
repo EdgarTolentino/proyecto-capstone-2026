@@ -61,6 +61,7 @@ export function UserMenu({ sesion, sesionError = false }: UserMenuProps) {
         setAbierto(false);
         setAyudaAbierta(true);
       }}>Guía rápida</button>
+      <a className="user-menu__help" href="https://github.com/EdgarTolentino/proyecto-capstone-2026/blob/main/Fase%202/Evidencias%20Proyecto/Evidencias%20de%20documentaci%C3%B3n/Manual%20de%20Usuario.pdf" target="_blank" rel="noopener noreferrer">Manual de usuario (PDF)</a>
     </section>}
   </div>
     {ayudaAbierta && <HelpDialog onClose={() => {
