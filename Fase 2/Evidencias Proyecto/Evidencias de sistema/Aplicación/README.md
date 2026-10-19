@@ -19,6 +19,12 @@ git checkout v0.1.0-avance
 
 ## Capturas
 
+La [verificación del menú y Guía rápida del 18-oct-2026](2026-10-18-menu-guia/verificacion.html)
+incluye 15 capturas con pasos, resultados y comentarios. Se ejecutó en WebKit de Playwright
+contra la API real local con datos de demo, en 1440 × 1000 y 390 × 844. Registra las
+observaciones de navegación con Tab/Option+Tab y del foco visual de Finalizar; no reemplaza
+la revisión independiente del diff ni una prueba en la aplicación Safari del usuario.
+
 | Archivo | Qué muestra |
 |---|---|
 | `2026-09-22-api-real-bandeja.png` | La bandeja de `apps/web` contra la **API real** (PT-09), con el hallazgo que produjo `make demo` sobre el video sintético CAM 03 |
