@@ -19,6 +19,22 @@ git checkout v0.1.0-avance
 
 ## Capturas
 
+> **Menú y Guía: registros históricos.** Los informes del 18 y 19 de octubre muestran
+> una interfaz anterior, con la Guía en el menú de usuario y un contacto ficticio ya retirado.
+> No acreditan la versión corregida de #194 y #196, que ofrece Ayuda en «?» y acceso al PDF.
+
+### Evidencia final pendiente
+
+1. Integrar #194 y luego #196; registrar el commit resultante de main.
+2. Actualizar la base de #195 a main y ejecutar la suite web completa sobre su último commit.
+3. Repetir las capturas en escritorio y ventana estrecha desde Ayuda «?», incluyendo el PDF,
+   las cuatro tarjetas, el foco y los cierres.
+4. Repetir Hallazgos → cerrar visor → abrir Guía → Atrás: comprobar c/x sin triage,
+   Tab dentro de la Guía y Escape cerrando solo la Guía.
+5. Inspeccionar las imágenes, validar enlaces y publicar salidas sin rutas personales.
+
+### Capturas históricas
+
 La [prueba en Windows y Microsoft Edge del 19-oct-2026](2026-10-19-menu-guia-windows/verificacion.html)
 incluye 18 pantallazos, cada uno con prueba, resultado esperado, resultado observado y estado,
 además del guion reproducible y los resultados estructurados. Se realizó contra el **mock del

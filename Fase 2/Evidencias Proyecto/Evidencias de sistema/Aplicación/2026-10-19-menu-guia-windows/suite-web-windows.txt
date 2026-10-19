@@ -1,3 +1,4 @@
+Registro histórico; ruta local reemplazada por <repositorio>. No corresponde al commit final de main.
 
 > npm run lint
 
@@ -17,7 +18,7 @@
 > vitest run
 
 
- RUN  v5.0.3 C:/Users/migue/OneDrive/Documentos/GitHub/proyecto-capstone-2026/Fase 2/sistema/apps/web
+ RUN  v5.0.3 <repositorio>/Fase 2/sistema/apps/web
 
 
  Test Files  24 passed (24)
