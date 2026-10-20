@@ -132,14 +132,14 @@ describe("Ayuda global", () => {
   it("abre Guía rápida cuando el ratón no enfoca botones por defecto", async () => {
     const user = userEvent.setup();
     render(<HelpMenu />);
-    const usuario = screen.getByRole("button", { name: "Ayuda" });
-    await user.click(usuario);
-    const ayuda = screen.getByRole("button", { name: "Guía rápida" });
+    const ayuda = screen.getByRole("button", { name: "Ayuda" });
+    await user.click(ayuda);
+    const guiaRapida = screen.getByRole("button", { name: "Guía rápida" });
     // Simula el comportamiento de un navegador que desenfoca el control actual
     // al pulsar otro botón sin darle foco. Un mousedown cancelado evita ese paso.
-    if (fireEvent.mouseDown(ayuda)) fireEvent.blur(usuario, { relatedTarget: null });
-    fireEvent.mouseUp(ayuda);
-    fireEvent.click(ayuda);
+    if (fireEvent.mouseDown(guiaRapida)) fireEvent.blur(ayuda, { relatedTarget: null });
+    fireEvent.mouseUp(guiaRapida);
+    fireEvent.click(guiaRapida);
     expect(screen.getByRole("dialog", { name: "Primeros pasos en Guardián EPP" })).toBeVisible();
   });
 

@@ -30,7 +30,7 @@ export function HelpMenu() {
       event.currentTarget.focus();
       setAbierto(!abierto);
     }}>?</button>
-    {abierto && <section id={panelId} className="user-menu__panel" aria-label="Opciones de ayuda">
+    {abierto && <section id={panelId} className="user-menu__panel help-menu__panel" data-bloquea-atajos-hallazgos aria-label="Opciones de ayuda">
       <a className="user-menu__help" href="https://github.com/EdgarTolentino/proyecto-capstone-2026/blob/main/Fase%202/Evidencias%20Proyecto/Evidencias%20de%20documentaci%C3%B3n/Manual%20de%20Usuario.pdf" target="_blank" rel="noopener noreferrer">Manual de usuario (PDF)</a>
       <button type="button" className="user-menu__help" onMouseDown={(event) => {
         event.preventDefault();

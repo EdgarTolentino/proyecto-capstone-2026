@@ -20,6 +20,7 @@ export function useHallazgoShortcuts(options: ShortcutOptions) {
     const usarAtajo = (event: KeyboardEvent) => {
       // Solo el visor permite revisar por teclado; los otros diálogos bloquean la bandeja.
       if (document.querySelector('[role="dialog"]:not([data-hallazgo-shortcuts])')) return;
+      if (document.querySelector("[data-bloquea-atajos-hallazgos]")) return;
       const estaEscribiendo =
         event.target instanceof Element &&
         Boolean(event.target.closest("input, select, textarea, [contenteditable]:not([contenteditable='false'])"));
