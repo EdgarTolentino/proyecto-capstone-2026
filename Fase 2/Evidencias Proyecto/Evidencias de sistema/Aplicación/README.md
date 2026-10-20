@@ -5,9 +5,10 @@ El código fuente **no se duplica aquí**. Vive en [`Fase 2/sistema/`](../../../
 | Entrega | Etiqueta de git | Fecha | Nota |
 |---|---|---|---|
 | Avance S10 | `v0.1.0-avance` | 2026-10-13 | Evaluación de avance de la Fase 2: presentación, diario, capturas y datos de ejemplo |
+| Avance S11 | `v0.2.0-avance` | 2026-10-20 | Entrega remota en GitHub (clase del 20-oct). Suma #188, #194 y #196 sobre la S10 |
 | Final S15 | `v1.0.0` | _pendiente_ | |
 
-Para reproducir la entrega de avance:
+Para reproducir una entrega de avance (cambiar la etiqueta por la que corresponda):
 
 ```bash
 git clone https://github.com/EdgarTolentino/proyecto-capstone-2026.git
