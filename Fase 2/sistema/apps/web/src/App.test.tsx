@@ -145,7 +145,7 @@ it("el atajo c confirma el caso abierto, no la primera fila", async () => {
 it.each([false, true])("la Guía bloquea c y x con visor abierto=%s y restaura c al cerrar", async (visor) => {
   await iniciar();
   if (visor) fireEvent.click(screen.getByText("Abrir segundo"));
-  fireEvent.click(screen.getByRole("button", { name: /Menú de usuario/ }));
+  fireEvent.click(screen.getByRole("button", { name: "Ayuda" }));
   fireEvent.click(screen.getByRole("button", { name: "Guía rápida" }));
   const cerrar = screen.getByRole("button", { name: "Cerrar guía rápida" });
   expect(cerrar).toHaveFocus();
@@ -158,6 +158,16 @@ it.each([false, true])("la Guía bloquea c y x con visor abierto=%s y restaura c
   fireEvent.click(cerrar);
   fireEvent.keyDown(window, { key: "c" });
   await waitFor(() => expect(api.triarHallazgo).toHaveBeenCalledWith(visor ? 2 : 1, { estado: "confirmado" }));
+});
+
+it("el panel de Ayuda bloquea c y x antes de abrir la Guía", async () => {
+  await iniciar();
+  fireEvent.click(screen.getByRole("button", { name: "Ayuda" }));
+  expect(screen.getByRole("region", { name: "Opciones de ayuda" })).toHaveAttribute("data-bloquea-atajos-hallazgos");
+  fireEvent.keyDown(window, { key: "c" });
+  fireEvent.keyDown(window, { key: "x" });
+  expect(api.triarHallazgo).not.toHaveBeenCalled();
+  expect(screen.queryByRole("button", { name: "Guardar decisión" })).not.toBeInTheDocument();
 });
 
 it("descartar desde el visor no modifica una selección anterior", async () => {

@@ -23,7 +23,10 @@ input[type="checkbox"] { accent-color: var(--gepp-acento); width: 16px; height: 
 .brand small { display: block; margin-top: 5px; color: var(--gepp-texto-4); font-size: 9px; letter-spacing: 2px; font-weight: 600; }
 .site-header__context { display: flex; gap: 10px; align-items: center; padding-left: 30px; border-left: 1px solid var(--gepp-borde); color: var(--gepp-texto-4); font-size: 12px; }
 .site-header__context strong { display: block; color: var(--gepp-texto); margin-top: 2px; font-size: 14px; }
-.user-profile { position: relative; margin-left: auto; min-width: 0; }
+.user-profile { position: relative; min-width: 0; }
+.site-header__actions { display: flex; align-items: center; gap: 12px; margin-left: auto; min-width: 0; }
+.help-menu { position: relative; flex-shrink: 0; }
+.help-menu__trigger { width: 36px; height: 36px; border-radius: 50%; color: var(--gepp-acento); font-size: 20px; font-weight: 700; }
 .user-avatar { display: grid; place-items: center; width: 37px; height: 37px; border: 1px solid var(--gepp-borde-fuerte); border-radius: 50%; background: var(--gepp-superficie-alta); font-weight: 600; }
 .user-profile small { display: block; color: var(--gepp-texto-4); font-size: 11px; margin-bottom: 3px; }
 .user-menu__trigger { display: flex; align-items: center; gap: 10px; padding: 6px; max-width: 280px; text-align: left; border-color: transparent; }
@@ -36,6 +39,7 @@ input[type="checkbox"] { accent-color: var(--gepp-acento); width: 16px; height: 
 .user-menu__panel > strong { display: block; font-size: 14px; }
 .user-menu__panel > p { margin: 8px 0 0; color: var(--gepp-texto-3); font-size: 12px; }
 .user-menu__help { display: block; width: 100%; margin-top: 14px; padding: 10px 0 0; border: 0; border-top: 1px solid var(--gepp-borde); border-radius: 0; background: transparent; color: var(--gepp-acento); font-size: 13px; text-align: left; text-decoration: underline; text-underline-offset: 3px; }
+.help-menu__panel > .user-menu__help:first-child { margin-top: 0; padding-top: 0; border-top: 0; }
 .user-menu__help:focus-visible { outline: 2px solid var(--gepp-acento); outline-offset: 3px; }
 .operations-nav { display: flex; gap: 24px; padding: 0 4%; background: var(--gepp-superficie); border-top: 1px solid var(--gepp-borde-suave); border-bottom: 1px solid var(--gepp-borde); overflow-x: auto; }
 .nav-item { display: flex; gap: 8px; align-items: center; flex-shrink: 0; min-height: 51px; padding: 0 2px; background: transparent; border: 0; border-radius: 0; border-bottom: 3px solid transparent; color: var(--gepp-texto-3); font-size: 12px; }
