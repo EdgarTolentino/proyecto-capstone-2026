@@ -1,0 +1,110 @@
+<!doctype html><html lang="es"><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"><title>Prueba Windows — menú y Guía rápida</title><style>body{font:16px/1.6 system-ui;margin:0;background:#f5f5f2;color:#202826}main{max-width:1050px;margin:auto;padding:28px}section,figure{background:white;padding:24px;border:1px solid #ddd;border-radius:8px;margin:24px 0}img{display:block;max-width:100%;max-height:800px;object-fit:contain;object-position:left top}figcaption{padding-top:16px}code{overflow-wrap:anywhere}h1{line-height:1.2}</style><main><h1>Prueba histórica en Windows: menú de usuario y Guía rápida</h1><section><h2>No es evidencia de la interfaz final</h2><p>Estas capturas corresponden al código 3863172: la Guía estaba en el menú de usuario, sin el enlace al PDF y con un contacto ficticio. La versión corregida ofrece Ayuda en el botón «?» y remite al manual. Hay que repetir el recorrido y las capturas sobre el commit de main que integre #194 y #196. Los resultados siguientes describen exclusivamente aquella ejecución.</p></section><p>19 de octubre de 2026 · America/Santiago · rama feat/web-menu-usuario-114 · código de la app: 3863172.</p><section><h2>Entorno y alcance</h2><p>Microsoft Edge 155, modo headless, ejecutado en Windows (Win32). App local en 127.0.0.1:5173 y mock del contrato en 127.0.0.1:4010. La respuesta GET /yo fue 200 y mostró Prevencionista de turno, rol prevencionista. Esta sesión verifica la interfaz contra el mock; no valida el backend real ni el detector.</p><p>Escritorio: 1440 × 1000. Ventana estrecha: 390 × 844, sin emulación de un teléfono físico. No se usaron teclas de macOS.</p><p>Los datos del panel de fondo son ejemplos de Prism: el 0 % en Hallazgos abiertos y la severidad Baja en críticos recientes son inconsistencias del mock, documentadas en el README de evidencias.</p><p>Safari: el usuario confirmó el 19-oct-2026 que ya se contrastó el comportamiento y funcionó. Esa comprobación fue informada por el usuario; esta sesión automatizada corresponde exclusivamente a Windows y Edge.</p></section><section><h2>Resultado</h2><p>Los 18 pasos del recorrido pasaron. Tab llegó a Guía rápida sin modificadores adicionales. Shift+Tab llevó el foco a Finalizar y Tab volvió a Cerrar. Finalizar tuvo focusVisible=true y un contorno sólido de 2 px. Las cuatro tarjetas quedaron dentro del viewport estrecho y sin desborde horizontal del diálogo.</p><p>La consola registró dos errores 404 de favicon.ico; no impidieron el recorrido. No se observaron otros errores de consola durante esta sesión.</p><p>Preparación: se restauraron las dependencias con npm ci --ignore-scripts porque Vite no estaba disponible. Un intento de levantar otro mock terminó con EADDRINUSE; se utilizó el mock ya activo. El primer intento de pasar el guion en la línea de comandos superó el límite de Windows; se ejecutó mediante --filename. El guion se repitió para guardar el resultado estructurado y sus capturas finales.</p><p><a href="resultados.json">Resultados y entorno</a> · <a href="recorrido.js">Guion reproducible</a> · <a href="ejecucion.txt">Salida del recorrido</a> · <a href="suite-web-windows.txt">Salida final de la suite web</a></p><p>Reproducción histórica sobre el código 3863172, desde la raíz del repositorio y con la web y el mock activos: abrir la sesión issue114win mediante playwright-cli --session issue114win open http://127.0.0.1:5173 --browser msedge y ejecutar playwright-cli --session issue114win run-code --filename con la ruta de recorrido.js. El guion conserva las capturas en output/playwright dentro de esta carpeta.</p><p>Esta sesión de pruebas no sustituye la revisión independiente del diff requerida por AGENTS.md.</p></section>
+<section><h2>Suite web y revisión de evidencia</h2><p>Se ejecutaron npm run lint, npm run typecheck, npm test y npm run build. Lint y tipos pasaron. La corrida final fuera del sandbox informó literalmente: <code>Test Files 24 passed (24)</code>, <code>Tests 352 passed (352)</code> y <code>1971 modules transformed</code>; el build terminó correctamente.</p><p>Se adjunta solo la <a href="suite-web-windows.txt">corrida aprobada de esa sesión histórica</a>, con la ruta local anonimizada. No verifica las correcciones posteriores de #194 y #196.</p><p>Se inspeccionaron visualmente los 18 pantallazos y se comprobaron los 18 enlaces de imagen y los 18 pies con los cuatro campos. La ventana estrecha corresponde a un navegador de escritorio redimensionado. No se cambió código de la aplicación durante esta prueba.</p></section><figure><a href='output/playwright/01-menu-escritorio.png'><img src='output/playwright/01-menu-escritorio.png' alt='01-menu-escritorio.png' loading='lazy'></a><figcaption><strong>01-menu-escritorio.png</strong><br>
+<strong>Prueba realizada:</strong> Abrir el men&#250; con clic.<br>
+<strong>Resultado esperado:</strong> Nombre, rol, Gu&#237;a r&#225;pida y aria-expanded=true.<br>
+<strong>Resultado observado:</strong> Prevencionista de turno, rol prevencionista y Gu&#237;a r&#225;pida visibles; aria-expanded=true.<br>
+<strong>Estado:</strong> Pas&#243;<br>
+</figcaption></figure>
+<figure><a href='output/playwright/02-menu-escape.png'><img src='output/playwright/02-menu-escape.png' alt='02-menu-escape.png' loading='lazy'></a><figcaption><strong>02-menu-escape.png</strong><br>
+<strong>Prueba realizada:</strong> Cerrar el men&#250; con Escape.<br>
+<strong>Resultado esperado:</strong> Men&#250; cerrado y foco en el usuario.<br>
+<strong>Resultado observado:</strong> {&quot;texto&quot;:&quot;Men&#250; de usuario: Prevencionista de turno&quot;,&quot;focusVisible&quot;:true,&quot;outline&quot;:&quot;rgb(185, 67, 8) solid 2px&quot;}<br>
+<strong>Estado:</strong> Pas&#243;<br>
+</figcaption></figure>
+<figure><a href='output/playwright/03-menu-tab.png'><img src='output/playwright/03-menu-tab.png' alt='03-menu-tab.png' loading='lazy'></a><figcaption><strong>03-menu-tab.png</strong><br>
+<strong>Prueba realizada:</strong> Abrir con Enter y avanzar con Tab.<br>
+<strong>Resultado esperado:</strong> Tab llega a Gu&#237;a r&#225;pida sin teclas adicionales.<br>
+<strong>Resultado observado:</strong> {&quot;texto&quot;:&quot;Gu&#237;a r&#225;pida&quot;,&quot;focusVisible&quot;:true,&quot;outline&quot;:&quot;rgb(185, 67, 8) solid 2px&quot;}<br>
+<strong>Estado:</strong> Pas&#243;<br>
+</figcaption></figure>
+<figure><a href='output/playwright/04-paso-1.png'><img src='output/playwright/04-paso-1.png' alt='04-paso-1.png' loading='lazy'></a><figcaption><strong>04-paso-1.png</strong><br>
+<strong>Prueba realizada:</strong> Abrir la gu&#237;a con Enter.<br>
+<strong>Resultado esperado:</strong> 1 de 4; Anterior deshabilitado; foco en Cerrar.<br>
+<strong>Resultado observado:</strong> {&quot;texto&quot;:&quot;Cerrar gu&#237;a r&#225;pida&quot;,&quot;focusVisible&quot;:true,&quot;outline&quot;:&quot;rgb(185, 67, 8) solid 2px&quot;}<br>
+<strong>Estado:</strong> Pas&#243;<br>
+</figcaption></figure>
+<figure><a href='output/playwright/05-paso-2.png'><img src='output/playwright/05-paso-2.png' alt='05-paso-2.png' loading='lazy'></a><figcaption><strong>05-paso-2.png</strong><br>
+<strong>Prueba realizada:</strong> Pulsar Siguiente.<br>
+<strong>Resultado esperado:</strong> 2 de 4; Revisa los hallazgos.<br>
+<strong>Resultado observado:</strong> Contador y t&#237;tulo correctos.<br>
+<strong>Estado:</strong> Pas&#243;<br>
+</figcaption></figure>
+<figure><a href='output/playwright/06-anterior.png'><img src='output/playwright/06-anterior.png' alt='06-anterior.png' loading='lazy'></a><figcaption><strong>06-anterior.png</strong><br>
+<strong>Prueba realizada:</strong> Pulsar Anterior.<br>
+<strong>Resultado esperado:</strong> Regreso a 1 de 4.<br>
+<strong>Resultado observado:</strong> Se vuelve a Procesa un video.<br>
+<strong>Estado:</strong> Pas&#243;<br>
+</figcaption></figure>
+<figure><a href='output/playwright/07-paso-3.png'><img src='output/playwright/07-paso-3.png' alt='07-paso-3.png' loading='lazy'></a><figcaption><strong>07-paso-3.png</strong><br>
+<strong>Prueba realizada:</strong> Avanzar a la tercera tarjeta.<br>
+<strong>Resultado esperado:</strong> 3 de 4; Valida la evidencia.<br>
+<strong>Resultado observado:</strong> Contador y t&#237;tulo correctos.<br>
+<strong>Estado:</strong> Pas&#243;<br>
+</figcaption></figure>
+<figure><a href='output/playwright/08-paso-4.png'><img src='output/playwright/08-paso-4.png' alt='08-paso-4.png' loading='lazy'></a><figcaption><strong>08-paso-4.png</strong><br>
+<strong>Prueba realizada:</strong> Avanzar a la &#250;ltima tarjeta.<br>
+<strong>Resultado esperado:</strong> 4 de 4; contacto ficticio y Finalizar.<br>
+<strong>Resultado observado:</strong> Contador, contacto ficticio y Finalizar visibles; Siguiente ausente.<br>
+<strong>Estado:</strong> Pas&#243;<br>
+</figcaption></figure>
+<figure><a href='output/playwright/09-foco-finalizar.png'><img src='output/playwright/09-foco-finalizar.png' alt='09-foco-finalizar.png' loading='lazy'></a><figcaption><strong>09-foco-finalizar.png</strong><br>
+<strong>Prueba realizada:</strong> Desde Cerrar, pulsar Shift+Tab.<br>
+<strong>Resultado esperado:</strong> Foco en Finalizar dentro del di&#225;logo con indicador visible.<br>
+<strong>Resultado observado:</strong> {&quot;texto&quot;:&quot;Finalizar&quot;,&quot;focusVisible&quot;:true,&quot;outline&quot;:&quot;rgb(185, 67, 8) solid 2px&quot;}<br>
+<strong>Estado:</strong> Pas&#243;<br>
+</figcaption></figure>
+<figure><a href='output/playwright/10-guia-escape.png'><img src='output/playwright/10-guia-escape.png' alt='10-guia-escape.png' loading='lazy'></a><figcaption><strong>10-guia-escape.png</strong><br>
+<strong>Prueba realizada:</strong> Pulsar Tab y despu&#233;s Escape.<br>
+<strong>Resultado esperado:</strong> Tab vuelve a Cerrar; Escape cierra y devuelve el foco al usuario.<br>
+<strong>Resultado observado:</strong> {&quot;texto&quot;:&quot;Men&#250; de usuario: Prevencionista de turno&quot;,&quot;focusVisible&quot;:true,&quot;outline&quot;:&quot;rgb(185, 67, 8) solid 2px&quot;}<br>
+<strong>Estado:</strong> Pas&#243;<br>
+</figcaption></figure>
+<figure><a href='output/playwright/11-reapertura.png'><img src='output/playwright/11-reapertura.png' alt='11-reapertura.png' loading='lazy'></a><figcaption><strong>11-reapertura.png</strong><br>
+<strong>Prueba realizada:</strong> Reabrir con Enter, Tab y Enter.<br>
+<strong>Resultado esperado:</strong> Reinicio en 1 de 4.<br>
+<strong>Resultado observado:</strong> Primera tarjeta visible; Anterior deshabilitado.<br>
+<strong>Estado:</strong> Pas&#243;<br>
+</figcaption></figure>
+<figure><a href='output/playwright/12-finalizar.png'><img src='output/playwright/12-finalizar.png' alt='12-finalizar.png' loading='lazy'></a><figcaption><strong>12-finalizar.png</strong><br>
+<strong>Prueba realizada:</strong> Recorrer y pulsar Finalizar.<br>
+<strong>Resultado esperado:</strong> Cierre, retorno del foco y URL conservada.<br>
+<strong>Resultado observado:</strong> {&quot;texto&quot;:&quot;Men&#250; de usuario: Prevencionista de turno&quot;,&quot;focusVisible&quot;:false,&quot;outline&quot;:&quot;rgb(37, 46, 43) none 3px&quot;}; URL sin cambios.<br>
+<strong>Estado:</strong> Pas&#243;<br>
+</figcaption></figure>
+<figure><a href='output/playwright/13-menu-estrecho.png'><img src='output/playwright/13-menu-estrecho.png' alt='13-menu-estrecho.png' loading='lazy'></a><figcaption><strong>13-menu-estrecho.png</strong><br>
+<strong>Prueba realizada:</strong> Abrir el men&#250; en 390 &#215; 844.<br>
+<strong>Resultado esperado:</strong> Men&#250; legible dentro de la ventana.<br>
+<strong>Resultado observado:</strong> Nombre, rol y Gu&#237;a r&#225;pida visibles.<br>
+<strong>Estado:</strong> Pas&#243;<br>
+</figcaption></figure>
+<figure><a href='output/playwright/14-estrecho-paso-1.png'><img src='output/playwright/14-estrecho-paso-1.png' alt='14-estrecho-paso-1.png' loading='lazy'></a><figcaption><strong>14-estrecho-paso-1.png</strong><br>
+<strong>Prueba realizada:</strong> Mostrar la tarjeta 1 en ventana estrecha.<br>
+<strong>Resultado esperado:</strong> 1 de 4; texto y controles dentro del viewport.<br>
+<strong>Resultado observado:</strong> {&quot;x&quot;:16,&quot;right&quot;:374,&quot;y&quot;:210.21875,&quot;bottom&quot;:633.78125,&quot;scrollWidth&quot;:356,&quot;clientWidth&quot;:356,&quot;viewportWidth&quot;:390,&quot;viewportHeight&quot;:844}<br>
+<strong>Estado:</strong> Pas&#243;<br>
+</figcaption></figure>
+<figure><a href='output/playwright/15-estrecho-paso-2.png'><img src='output/playwright/15-estrecho-paso-2.png' alt='15-estrecho-paso-2.png' loading='lazy'></a><figcaption><strong>15-estrecho-paso-2.png</strong><br>
+<strong>Prueba realizada:</strong> Mostrar la tarjeta 2 en ventana estrecha.<br>
+<strong>Resultado esperado:</strong> 2 de 4; texto y controles dentro del viewport.<br>
+<strong>Resultado observado:</strong> {&quot;x&quot;:16,&quot;right&quot;:374,&quot;y&quot;:210.21875,&quot;bottom&quot;:633.78125,&quot;scrollWidth&quot;:356,&quot;clientWidth&quot;:356,&quot;viewportWidth&quot;:390,&quot;viewportHeight&quot;:844}<br>
+<strong>Estado:</strong> Pas&#243;<br>
+</figcaption></figure>
+<figure><a href='output/playwright/16-estrecho-paso-3.png'><img src='output/playwright/16-estrecho-paso-3.png' alt='16-estrecho-paso-3.png' loading='lazy'></a><figcaption><strong>16-estrecho-paso-3.png</strong><br>
+<strong>Prueba realizada:</strong> Mostrar la tarjeta 3 en ventana estrecha.<br>
+<strong>Resultado esperado:</strong> 3 de 4; texto y controles dentro del viewport.<br>
+<strong>Resultado observado:</strong> {&quot;x&quot;:16,&quot;right&quot;:374,&quot;y&quot;:210.21875,&quot;bottom&quot;:633.78125,&quot;scrollWidth&quot;:356,&quot;clientWidth&quot;:356,&quot;viewportWidth&quot;:390,&quot;viewportHeight&quot;:844}<br>
+<strong>Estado:</strong> Pas&#243;<br>
+</figcaption></figure>
+<figure><a href='output/playwright/17-estrecho-paso-4.png'><img src='output/playwright/17-estrecho-paso-4.png' alt='17-estrecho-paso-4.png' loading='lazy'></a><figcaption><strong>17-estrecho-paso-4.png</strong><br>
+<strong>Prueba realizada:</strong> Mostrar la tarjeta 4 en ventana estrecha.<br>
+<strong>Resultado esperado:</strong> 4 de 4; texto y controles dentro del viewport.<br>
+<strong>Resultado observado:</strong> {&quot;x&quot;:16,&quot;right&quot;:374,&quot;y&quot;:217.015625,&quot;bottom&quot;:626.984375,&quot;scrollWidth&quot;:356,&quot;clientWidth&quot;:356,&quot;viewportWidth&quot;:390,&quot;viewportHeight&quot;:844}<br>
+<strong>Estado:</strong> Pas&#243;<br>
+</figcaption></figure>
+<figure><a href='output/playwright/18-cerrar-estrecho.png'><img src='output/playwright/18-cerrar-estrecho.png' alt='18-cerrar-estrecho.png' loading='lazy'></a><figcaption><strong>18-cerrar-estrecho.png</strong><br>
+<strong>Prueba realizada:</strong> Cerrar con el bot&#243;n en ventana estrecha.<br>
+<strong>Resultado esperado:</strong> Di&#225;logo cerrado y foco en el usuario.<br>
+<strong>Resultado observado:</strong> {&quot;texto&quot;:&quot;Men&#250; de usuario: Prevencionista de turno&quot;,&quot;focusVisible&quot;:false,&quot;outline&quot;:&quot;rgb(37, 46, 43) none 3px&quot;}<br>
+<strong>Estado:</strong> Pas&#243;<br>
+</figcaption></figure>
+</main></html>

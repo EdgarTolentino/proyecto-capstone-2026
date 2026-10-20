@@ -1,0 +1,100 @@
+async (page) => {
+  const base = 'Fase 2/Evidencias Proyecto/Evidencias de sistema/Aplicación/2026-10-19-menu-guia-windows/output/playwright';
+  const resultados = [];
+  const usuario = page.getByRole('button', { name: 'Menú de usuario: Prevencionista de turno' });
+  const dialogo = page.getByRole('dialog');
+  const boton = (name) => page.getByRole('button', { name, exact: true });
+  const verificar = (ok, mensaje) => { if (!ok) throw new Error(mensaje); };
+  const foco = () => page.evaluate(() => {
+    const el = document.activeElement;
+    const css = getComputedStyle(el);
+    return { texto: el.getAttribute('aria-label') || el.textContent.trim(), focusVisible: el.matches(':focus-visible'), outline: css.outline };
+  });
+  const registrar = async (archivo, prueba, esperado, observado, estado = 'Pasó') => {
+    await page.screenshot({ path: `${base}/${archivo}.png` });
+    resultados.push({ archivo: `${archivo}.png`, prueba, esperado, observado, estado });
+  };
+  const tarjeta = async (numero, titulo) => {
+    verificar(await dialogo.getByText(`${numero} de 4`, { exact: true }).isVisible(), 'Contador incorrecto');
+    verificar(await dialogo.getByRole('heading', { name: titulo, exact: true }).isVisible(), 'Título incorrecto');
+  };
+  const url = page.url();
+  if (await dialogo.isVisible()) await page.keyboard.press('Escape');
+  await page.setViewportSize({ width: 1440, height: 1000 });
+  await usuario.click();
+  verificar(await usuario.getAttribute('aria-expanded') === 'true', 'aria-expanded incorrecto');
+  verificar(await page.getByRole('region', { name: 'Datos del usuario' }).getByText('Rol: prevencionista').isVisible(), 'Rol ausente');
+  await registrar('01-menu-escritorio', 'Abrir el menú con clic.', 'Nombre, rol, Guía rápida y aria-expanded=true.', 'Prevencionista de turno, rol prevencionista y Guía rápida visibles; aria-expanded=true.');
+  await page.keyboard.press('Escape');
+  verificar(await usuario.getAttribute('aria-expanded') === 'false', 'Escape no cierra');
+  verificar((await foco()).texto.includes('Menú de usuario'), 'Foco fuera del usuario');
+  await registrar('02-menu-escape', 'Cerrar el menú con Escape.', 'Menú cerrado y foco en el usuario.', JSON.stringify(await foco()));
+  await page.keyboard.press('Enter');
+  await page.keyboard.press('Tab');
+  verificar((await foco()).texto === 'Guía rápida', 'Tab no llega a Guía rápida');
+  await registrar('03-menu-tab', 'Abrir con Enter y avanzar con Tab.', 'Tab llega a Guía rápida sin teclas adicionales.', JSON.stringify(await foco()));
+  await page.keyboard.press('Enter');
+  await tarjeta(1, 'Procesa un video');
+  verificar(await boton('Anterior').isDisabled(), 'Anterior debe estar deshabilitado');
+  verificar(await dialogo.getAttribute('aria-modal') === 'true', 'Falta aria-modal');
+  await registrar('04-paso-1', 'Abrir la guía con Enter.', '1 de 4; Anterior deshabilitado; foco en Cerrar.', JSON.stringify(await foco()));
+  await boton('Siguiente').click();
+  await tarjeta(2, 'Revisa los hallazgos');
+  await registrar('05-paso-2', 'Pulsar Siguiente.', '2 de 4; Revisa los hallazgos.', 'Contador y título correctos.');
+  await boton('Anterior').click();
+  await tarjeta(1, 'Procesa un video');
+  await registrar('06-anterior', 'Pulsar Anterior.', 'Regreso a 1 de 4.', 'Se vuelve a Procesa un video.');
+  await boton('Siguiente').click();
+  await boton('Siguiente').click();
+  await tarjeta(3, 'Valida la evidencia');
+  await registrar('07-paso-3', 'Avanzar a la tercera tarjeta.', '3 de 4; Valida la evidencia.', 'Contador y título correctos.');
+  await boton('Siguiente').click();
+  await tarjeta(4, '¿Necesitas ayuda?');
+  verificar(await boton('Siguiente').count() === 0, 'Siguiente presente en la última tarjeta');
+  verificar(await boton('Finalizar').isVisible(), 'Finalizar ausente');
+  await registrar('08-paso-4', 'Avanzar a la última tarjeta.', '4 de 4; contacto ficticio y Finalizar.', 'Contador, contacto ficticio y Finalizar visibles; Siguiente ausente.');
+  // Se alcanza el inicio y se recorre el límite con teclas reales.
+  await page.keyboard.press('Tab');
+  verificar((await foco()).texto === 'Cerrar guía rápida', 'Tab no vuelve a Cerrar');
+  await page.keyboard.press('Shift+Tab');
+  verificar((await foco()).texto === 'Finalizar', 'Shift+Tab no vuelve a Finalizar');
+  const focoFinalizar = await foco();
+  await registrar('09-foco-finalizar', 'Desde Cerrar, pulsar Shift+Tab.', 'Foco en Finalizar dentro del diálogo con indicador visible.', JSON.stringify(focoFinalizar), focoFinalizar.focusVisible && !focoFinalizar.outline.includes(' none ') ? 'Pasó' : 'Observación');
+  await page.keyboard.press('Tab');
+  verificar((await foco()).texto === 'Cerrar guía rápida', 'Foco escapa del diálogo');
+  await page.keyboard.press('Escape');
+  verificar(!await dialogo.isVisible(), 'Escape no cierra la guía');
+  verificar((await foco()).texto.includes('Menú de usuario'), 'Escape no devuelve foco');
+  await registrar('10-guia-escape', 'Pulsar Tab y después Escape.', 'Tab vuelve a Cerrar; Escape cierra y devuelve el foco al usuario.', JSON.stringify(await foco()));
+  await page.keyboard.press('Enter');
+  await page.keyboard.press('Tab');
+  await page.keyboard.press('Enter');
+  await tarjeta(1, 'Procesa un video');
+  await registrar('11-reapertura', 'Reabrir con Enter, Tab y Enter.', 'Reinicio en 1 de 4.', 'Primera tarjeta visible; Anterior deshabilitado.');
+  for (let i = 0; i < 3; i++) await boton('Siguiente').click();
+  await boton('Finalizar').click();
+  verificar(!await dialogo.isVisible(), 'Finalizar no cierra');
+  verificar((await foco()).texto.includes('Menú de usuario'), 'Finalizar no devuelve foco');
+  verificar(page.url() === url, 'La guía cambió la URL');
+  await registrar('12-finalizar', 'Recorrer y pulsar Finalizar.', 'Cierre, retorno del foco y URL conservada.', JSON.stringify(await foco()) + '; URL sin cambios.');
+  await page.setViewportSize({ width: 390, height: 844 });
+  await usuario.click();
+  await registrar('13-menu-estrecho', 'Abrir el menú en 390 × 844.', 'Menú legible dentro de la ventana.', 'Nombre, rol y Guía rápida visibles.');
+  await boton('Guía rápida').click();
+  const titulos = ['Procesa un video', 'Revisa los hallazgos', 'Valida la evidencia', '¿Necesitas ayuda?'];
+  for (let i = 0; i < titulos.length; i++) {
+    await tarjeta(i + 1, titulos[i]);
+    const medidas = await dialogo.evaluate(el => {
+      const r = el.getBoundingClientRect();
+      return { x: r.x, right: r.right, y: r.y, bottom: r.bottom, scrollWidth: el.scrollWidth, clientWidth: el.clientWidth, viewportWidth: innerWidth, viewportHeight: innerHeight };
+    });
+    verificar(medidas.x >= 0 && medidas.right <= medidas.viewportWidth && medidas.y >= 0 && medidas.bottom <= medidas.viewportHeight && medidas.scrollWidth <= medidas.clientWidth, 'Diálogo fuera de la ventana');
+    await registrar(`${14 + i}-estrecho-paso-${i + 1}`, `Mostrar la tarjeta ${i + 1} en ventana estrecha.`, `${i + 1} de 4; texto y controles dentro del viewport.`, JSON.stringify(medidas));
+    if (i < 3) await boton('Siguiente').click();
+  }
+  await boton('Cerrar guía rápida').click();
+  verificar(!await dialogo.isVisible(), 'Cerrar no cierra');
+  verificar((await foco()).texto.includes('Menú de usuario'), 'Cerrar no devuelve foco');
+  await registrar('18-cerrar-estrecho', 'Cerrar con el botón en ventana estrecha.', 'Diálogo cerrado y foco en el usuario.', JSON.stringify(await foco()));
+  return { entorno: await page.evaluate(() => ({ userAgent: navigator.userAgent, plataforma: navigator.platform, url: location.href })), resultados };
+}
