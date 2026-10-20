@@ -21,17 +21,15 @@ git checkout v0.1.0-avance
 
 > **Menú y Guía: registros históricos.** Los informes del 18 y 19 de octubre muestran
 > una interfaz anterior, con la Guía en el menú de usuario y un contacto ficticio ya retirado.
-> No acreditan la versión corregida de #194 y #196, que ofrece Ayuda en «?» y acceso al PDF.
+> No acreditan la versión corregida de #194 y #196. La evidencia final actualizada está abajo.
 
-### Evidencia final pendiente
+### Evidencia final actualizada
 
-1. Integrar #194 y luego #196; registrar el commit resultante de main.
-2. Actualizar la base de #195 a main y ejecutar la suite web completa sobre su último commit.
-3. Repetir las capturas en escritorio y ventana estrecha desde Ayuda «?», incluyendo el PDF,
-   las cuatro tarjetas, el foco y los cierres.
-4. Repetir Hallazgos → cerrar visor → abrir Guía → Atrás: comprobar c/x sin triage,
-   Tab dentro de la Guía y Escape cerrando solo la Guía.
-5. Inspeccionar las imágenes, validar enlaces y publicar salidas sin rutas personales.
+La [prueba final de Ayuda global en Windows](2026-10-20-ayuda-global-main/verificacion.html)
+se ejecutó sobre `main` en `71bd454`, después de fusionar #194 y #196. Registra el acceso desde
+«?», el PDF, la Guía, Tab, Escape y una ventana de 390 × 844. La protección c/x con visor en
+Hallazgos se valida en App.test.tsx; el recorrido visual nuevo se realizó en Panel general. Las
+capturas se inspeccionaron visualmente y solo contienen datos de demostración del mock del contrato.
 
 ### Capturas históricas
 
