@@ -170,6 +170,17 @@ it("el panel de Ayuda bloquea c y x antes de abrir la Guía", async () => {
   expect(screen.queryByRole("button", { name: "Guardar decisión" })).not.toBeInTheDocument();
 });
 
+it("el menú de usuario bloquea c y x con un hallazgo seleccionado", async () => {
+  await iniciar();
+  fireEvent.click(screen.getByText("Seleccionar primero"));
+  fireEvent.click(screen.getByRole("button", { name: /Menú de usuario/ }));
+  expect(screen.getByRole("region", { name: "Datos del usuario" })).toBeInTheDocument();
+  fireEvent.keyDown(window, { key: "c" });
+  fireEvent.keyDown(window, { key: "x" });
+  expect(api.triarHallazgo).not.toHaveBeenCalled();
+  expect(screen.queryByRole("button", { name: "Guardar decisión" })).not.toBeInTheDocument();
+});
+
 it("descartar desde el visor no modifica una selección anterior", async () => {
   await iniciar();
   fireEvent.click(screen.getByText("Seleccionar primero"));

@@ -47,7 +47,7 @@ export function UserMenu({ sesion, sesionError = false }: UserMenuProps) {
       <span className="user-menu__summary"><small>Sesión de trabajo</small><span>{nombre}</span></span>
       <ChevronDown size={16} aria-hidden="true" />
     </button>
-    {abierto && <section id={panelId} className="user-menu__panel" aria-label="Datos del usuario">
+    {abierto && <section id={panelId} className="user-menu__panel" data-bloquea-atajos-hallazgos aria-label="Datos del usuario">
       <strong>{nombre}</strong>
       <p><span>Rol: </span><span>{rol}</span></p>
     </section>}
