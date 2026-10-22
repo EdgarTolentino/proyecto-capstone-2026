@@ -76,7 +76,7 @@ revisor puede comprobar.
 |---|---|---|
 | 1 | **No afirmar lo que no se miró.** Repetir una afirmación no la verifica | Cada «funciona», «conserva» o «pasa» del PR, del commit o de un README trae su evidencia: comando y salida, test o captura. Lo probado solo contra el mock o con una muestra lo dice |
 | 2 | **Las cifras se copian de una salida, no se calculan de memoria** | Cada número del PR (tests, imágenes, métricas) se puede rastrear hasta un comando corrido en ese commit. Se recalculan justo antes de publicar |
-| 3 | **La suite completa va una vez, al final, antes de pedir revisión** | El PR pega la salida de esa corrida (`make lint tipos test` o `npm run lint typecheck test build`) |
+| 3 | **La suite completa va una vez, al final, antes de pedir revisión** | El PR pega la salida de esa corrida (`make lint tipos test` o `npm run lint typecheck test build`). También si el PR es solo de documentación: el CI se salta las pruebas de Python y no lo reemplaza (#201) |
 | 4 | **Un test se valida inyectándole el defecto que dice cuidar** | Se rompió el código a propósito y el test cayó. Los tests de interfaz miran el estado visible, no solo la URL |
 | 5 | **Toda función con umbral o centinela se prueba en sus dos extremos y con una entrada inválida** | Hay un caso justo en el umbral, uno a cada lado y uno inválido. Para umbrales en coma flotante, valores diádicos (0,25; 0,5; 0,75) que dan resultados exactos |
 | 6 | **Una guarda que se dispara se entiende antes de tocarla** (tests de AST, CI de licencias, mypy, `CategoriaDesconocida`) | El commit explica por qué se disparó. Si molesta, lo normal es que el defecto sea propio |

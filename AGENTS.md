@@ -35,7 +35,8 @@ make mock                   # API simulada del contrato en :4010 (cabecera Autho
 
 Un cambio está terminado cuando se cumplen las cinco condiciones:
 
-1. **La suite completa pasa en el último commit**, corrida una vez al final. Las cifras que van
+1. **La suite completa pasa en el último commit**, corrida una vez al final, también en un PR
+   solo de documentación (el CI se salta las pruebas de Python, #201). Las cifras que van
    al PR (archivos, pruebas, módulos) salen de esa corrida, copiadas de la salida.
 2. **Cada afirmación del PR o del README de evidencias se comprobó.** Si dice «conserva los
    filtros», hay un test o un recorrido que lo demuestra, y se explica cuál. Si algo se probó
