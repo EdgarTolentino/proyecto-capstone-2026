@@ -116,6 +116,8 @@ Se completa en cada sesión: fecha, caso, decisión y quiénes estaban.
 |---|---|---|---|
 | 2026-10-08 | Cascos de 8 y 9 px | Se etiquetan; el mínimo del casco baja a 8 px. Persona y chaleco siguen en 10 px | Edgar, Miguel |
 | 2026-10-15 | Cascos del doble etiquetado (#112): el mismo casco con cajas de distinto tamaño, y cascos que marcó uno solo | Todo casco visible desde 8 px lleva su caja, aunque la persona ya tenga la suya. La caja va justa al casco, sin la cabeza y sin margen (§2 y §4.1). Chaleco, persona tapada y personas bajo el toldo quedan para la próxima sesión | Edgar |
+| 2026-10-22 | Casco levantado sobre la cabeza, con pelo a la vista entre el casco y la frente (lote 4, trabajo 10, cuadro 106) | `casco`, `puesto = no`: se lo está sacando o poniendo. Es el mismo criterio del casco en la mano (§5) | Edgar, Miguel (en #189) |
+| 2026-10-22 | Chaleco que se ve solo como una franja, tapado por otra persona, sin que se sepa si está puesto (lote 4, trabajo 10, cuadro 101) | Sin caja. Sigue abierto desde qué porción visible un chaleco parcial sí lleva caja | Edgar, Miguel (en #189) |
 
 ## 8. Lote 0 y partición
 
