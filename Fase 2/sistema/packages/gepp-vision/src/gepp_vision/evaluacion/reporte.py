@@ -8,6 +8,7 @@ from __future__ import annotations
 
 import dataclasses
 import hashlib
+import re
 import subprocess
 from collections.abc import Mapping, Sequence
 from pathlib import Path
@@ -22,10 +23,10 @@ from gepp_vision.evaluacion.deteccion import MAX_DETS, UMBRAL_IOU, MetricasRegio
 ORIGENES: tuple[str, ...] = ("con-preetiquetas", "sin-preetiquetas")
 
 LIMITACIONES: tuple[str, ...] = (
-    "Los cuadros salen de un solo video, en 4 tramos: no hay intervalos de confianza por "
-    "remuestreo de video (02-plan-de-evaluacion.md).",
     "El nivel 1 mide objetos, no eventos: no hay prevalencia de incumplimiento.",
 )
+#: El nombre que `lote0.py` le pone a cada cuadro: `<archivo de video>_<índice:06d>.jpg`.
+_CUADRO = re.compile(r"^(?P<video>.+)_\d{6}\.jpg$")
 #: El mAP recorre la curva completa: necesita predicciones desde este score (`preetiquetar.py
 #: --umbral 0.05`). Con un mínimo más alto la curva se corta y el mAP sale bajo sin error.
 SCORE_MINIMO_MAP = 0.05
@@ -37,6 +38,33 @@ SESGO = (
     "La verdad se hizo corrigiendo pre-etiquetas de este mismo modelo: la cifra está inflada "
     "(04-evaluar-niveles-0-1.md, «El sesgo de las pre-etiquetas»)."
 )
+
+
+def videos_de_origen(imagenes: Sequence[str]) -> list[str] | None:
+    """Los archivos de video de donde salen los cuadros, leídos del nombre de cada uno. None si
+    no hay imágenes o si algún nombre no sigue el formato de `lote0.py`: entonces no se sabe."""
+    videos = set()
+    for nombre in imagenes:
+        m = _CUADRO.match(Path(nombre).name)
+        if m is None:
+            return None
+        videos.add(m["video"])
+    return sorted(videos) or None
+
+
+def limitacion_videos(imagenes: Sequence[str]) -> str:
+    """Lo que el reporte puede decir de dónde salen los cuadros. Un texto fijo («un solo video,
+    en 4 tramos») quedó falso al medir el lote 4, que son 3 videos."""
+    videos = videos_de_origen(imagenes)
+    if videos is None:
+        origen = "No se sabe de qué archivos de video salen los cuadros"
+    else:
+        plural = "archivo de video" if len(videos) == 1 else "archivos de video"
+        origen = f"Los cuadros salen de {len(videos)} {plural} ({', '.join(videos)})"
+    return (
+        f"{origen}: no hay intervalos de confianza por remuestreo de video "
+        "(02-plan-de-evaluacion.md)."
+    )
 
 
 def sha256(ruta: Path) -> str:
@@ -90,7 +118,11 @@ def reporte(
             "imagenes": len(imagenes),
         },
         "imagenes": list(imagenes),
-        "limitaciones": [*LIMITACIONES, *([SESGO] if origen_verdad == ORIGENES[0] else [])],
+        "limitaciones": [
+            limitacion_videos(imagenes),
+            *LIMITACIONES,
+            *([SESGO] if origen_verdad == ORIGENES[0] else []),
+        ],
         "regiones": {r: dataclasses.asdict(m) for r, m in regiones.items()},
     }
 
@@ -156,7 +188,6 @@ LIMITACIONES_ACUERDO: tuple[str, ...] = (
     "La primera exportación se etiquetó corrigiendo pre-etiquetas del modelo y la segunda "
     "desde cero: el kappa mezcla el desacuerdo entre personas con el efecto de las sugerencias "
     "(04-evaluar-niveles-0-1.md, §Nivel 0).",
-    "Son los cuadros del doble etiquetado de un solo video: el kappa es una estimación gruesa.",
     "La primera exportación tiene que tener completos (completed en CVAT) los trabajos que "
     "contienen esos cuadros; si no, el kappa compara las pre-etiquetas del modelo con la "
     "segunda persona.",
@@ -176,7 +207,10 @@ def reporte_acuerdo(
             "imagenes": len(resultado.imagenes),
         },
         "imagenes": list(resultado.imagenes),
-        "limitaciones": list(LIMITACIONES_ACUERDO),
+        "limitaciones": [
+            *LIMITACIONES_ACUERDO,
+            f"{limitacion_videos(resultado.imagenes)} El kappa es una estimación gruesa.",
+        ],
         "resultado": dataclasses.asdict(resultado),
     }
 

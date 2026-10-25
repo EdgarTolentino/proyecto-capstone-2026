@@ -130,8 +130,11 @@ Un JSON con las métricas y lo necesario para reproducirlas, como pide el `CLAUD
 - la versión del modelo que viene en `info.description` de las predicciones. Si esa descripción
   trae el recorte del mosaico y no coincide con `--recorte` (tolerancia de 1 px), el script avisa
   por stderr sin detenerse;
-- **limitaciones declaradas:** los 240 cuadros salen de un solo video, en 4 tramos, así que no hay
-  intervalos de confianza por remuestreo de video (`02-plan-de-evaluacion.md`). Tampoco hay
+- **limitaciones declaradas:** de cuántos archivos de video salen los cuadros, leído del nombre
+  que les pone `lote0.py` (`<video>_<índice:06d>.jpg`; si un nombre no sigue ese formato, dice
+  que no se sabe), y que no hay intervalos de confianza por remuestreo de video
+  (`02-plan-de-evaluacion.md`). En el lote 3 son 4 archivos, tramos de un mismo video de
+  YouTube; en el lote 4, 3 videos. Tampoco hay
   prevalencia de incumplimiento, porque el nivel 1 mide objetos, no eventos. Y, si la verdad es
   `con-preetiquetas`, que la cifra está inflada por el sesgo de arriba.
 
