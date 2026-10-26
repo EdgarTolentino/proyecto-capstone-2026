@@ -183,6 +183,24 @@ primero la alternativa operativa sin cambios de código: ejecutar la demo en Ubu
 No se instaló nada ni se modificó la `.venv` de Windows. El entorno Linux se preparará fuera del
 repositorio para no reemplazarla.
 
+## Paso 9 — entorno Linux separado
+
+Se creó `/tmp/gepp-issue36-venv` dentro de Ubuntu mediante `uv`, con el lockfile congelado y sin
+extras de GPU. El primer intento terminó antes de instalar porque WSL no conservó una variable de
+shell con la ruta que contiene espacios; el segundo usó rutas literales y completó la instalación.
+
+| Comprobación | Resultado | Estado |
+|---|---|---|
+| Entorno | `/tmp/gepp-issue36-venv` | Creado fuera del repositorio |
+| Python | 3.13.15 | Compatible |
+| Dependencias | 66 paquetes | Instaladas |
+| Paquetes GEPP | `gepp-core`, `gepp-bd`, `gepp-api`, `gepp-vision`, `gepp-worker` | Importables |
+| Lockfile | Congelado durante la sincronización | Sin cambios |
+| Árbol Git | Limpio después de instalar | Pasó |
+
+`uv` no pudo crear hardlinks entre su caché y `/tmp`, por lo que copió los archivos. La advertencia
+afecta el tiempo y espacio de instalación, no el entorno resultante.
+
 ## Avance de las pruebas
 
 | # | Prueba | Estado | Evidencia |
