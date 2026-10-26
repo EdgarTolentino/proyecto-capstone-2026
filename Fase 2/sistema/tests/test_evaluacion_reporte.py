@@ -14,18 +14,25 @@ from gepp_vision.evaluacion.coco import ArchivoCoco, CajaPx
 from gepp_vision.evaluacion.deteccion import MAX_DETS, evaluar
 from gepp_vision.evaluacion.reporte import (
     estado_git,
+    limitacion_videos,
     reporte,
     reporte_acuerdo,
     sha256,
     tabla_acuerdo,
     tabla_markdown,
+    videos_de_origen,
 )
 
 HD = (1920, 1080)
 GIT = {"commit": "a" * 40, "cambios_sin_confirmar": False}
 
 
-def _datos(tmp_path: Path, origen: str, score_minimo: float | None = 0.05) -> dict[str, Any]:
+def _datos(
+    tmp_path: Path,
+    origen: str,
+    score_minimo: float | None = 0.05,
+    imagenes: tuple[str, ...] = ("a.jpg",),
+) -> dict[str, Any]:
     entrada = tmp_path / "verdad.json"
     entrada.write_text("{}", encoding="utf-8")
     persona = CajaPx("a.jpg", "persona", 0, 0, 50, 100)
@@ -34,7 +41,7 @@ def _datos(tmp_path: Path, origen: str, score_minimo: float | None = 0.05) -> di
         {"dentro": region, "fuera": evaluar([], [], {"a.jpg": HD})},
         origen_verdad=origen,
         modelo="rfdetr-n-epp-v1",
-        imagenes=["a.jpg"],
+        imagenes=list(imagenes),
         recorte=(600.0, 220.0, 1400.0, 730.0),
         umbral=0.45,
         score_minimo=score_minimo,
@@ -136,18 +143,18 @@ def test_estado_git_detecta_cambios_sin_confirmar(tmp_path: Path) -> None:
     assert estado_git(tmp_path)["cambios_sin_confirmar"] is True
 
 
-def _acuerdo_de_prueba(tmp_path: Path, segunda_casco: str) -> dict[str, Any]:
+def _acuerdo_de_prueba(tmp_path: Path, segunda_casco: str, img: str = "a.jpg") -> dict[str, Any]:
     entrada = tmp_path / "segunda.json"
     entrada.write_text("{}", encoding="utf-8")
-    hd = {"a.jpg": (1920, 1080)}
+    hd = {img: (1920, 1080)}
     primera = ArchivoCoco(
         hd,
-        (CajaPx("a.jpg", "persona", 0, 0, 50, 100), CajaPx("a.jpg", "casco", 500, 0, 20, 20)),
+        (CajaPx(img, "persona", 0, 0, 50, 100), CajaPx(img, "casco", 500, 0, 20, 20)),
         "",
     )
     segunda = ArchivoCoco(
         hd,
-        (CajaPx("a.jpg", "persona", 0, 0, 50, 100), CajaPx("a.jpg", segunda_casco, 500, 0, 20, 20)),
+        (CajaPx(img, "persona", 0, 0, 50, 100), CajaPx(img, segunda_casco, 500, 0, 20, 20)),
         "",
     )
     return reporte_acuerdo(acuerdo(primera, segunda), entradas={"segunda": entrada}, git=GIT)
@@ -190,3 +197,63 @@ def test_la_tabla_del_acuerdo_dice_cuando_el_kappa_es_indefinido() -> None:
     }
     tabla = tabla_acuerdo(datos)
     assert "| — | — | 0 | 0 | 0 |" in tabla and "indefinido" in tabla
+
+
+@pytest.mark.parametrize(
+    ("nombre", "video"),
+    [
+        ("celular-01_000000.jpg", "celular-01"),
+        ("yt_GPCHfE_min020_000150.jpg", "yt_GPCHfE_min020"),  # el video lleva «_» en su nombre
+        ("lote/celular-02_001260.jpg", "celular-02"),  # con carpeta delante
+        ("camara_999999.jpg", "camara"),  # el último índice de seis dígitos
+        ("camara_1000000.jpg", "camara"),  # `:06d` es ancho mínimo: desde aquí salen siete
+    ],
+)
+def test_el_video_sale_del_nombre_que_pone_lote0(nombre: str, video: str) -> None:
+    assert videos_de_origen([nombre]) == [video]
+
+
+@pytest.mark.parametrize(
+    "nombre",
+    [
+        "celular-01_00000.jpg",
+        "celular-01_0000000.jpg",
+        "a.jpg",
+        "celular-01_000000.png",
+        "celular-02_000000.jpg\n",
+        # dígitos de ancho completo, U+FF11 a U+FF16
+        "celular-02_\uff11\uff12\uff13\uff14\uff15\uff16.jpg",
+    ],
+)
+def test_un_nombre_fuera_del_formato_no_dice_de_que_video_sale(nombre: str) -> None:
+    # 5 dígitos, y 7 con cero delante, que `:06d` nunca escribe; un nombre suelto, otra
+    # extensión, un salto de línea al final y dígitos que no son ASCII
+    assert videos_de_origen(["celular-01_000000.jpg", nombre]) is None
+
+
+def test_sin_imagenes_no_se_sabe_el_origen() -> None:
+    assert videos_de_origen([]) is None
+
+
+def test_la_limitacion_cuenta_los_videos_de_verdad() -> None:
+    lote4 = ["celular-03_000000.jpg", "celular-01_000000.jpg", "celular-02_000000.jpg"]
+    assert limitacion_videos(lote4).startswith(
+        "Los cuadros salen de 3 archivos de video (celular-01, celular-02, celular-03):"
+    )
+    uno = ["celular-01_000000.jpg", "celular-01_000090.jpg"]
+    assert limitacion_videos(uno).startswith(
+        "Los cuadros salen de 1 archivo de video (celular-01):"
+    )
+    assert limitacion_videos(["a.jpg"]).startswith("No se sabe de qué archivos de video")
+
+
+def test_el_reporte_y_el_acuerdo_llevan_la_limitacion_de_sus_imagenes(tmp_path: Path) -> None:
+    lote4 = ("celular-01_000000.jpg", "celular-02_000000.jpg", "celular-03_000000.jpg")
+    nivel1 = _datos(tmp_path, "sin-preetiquetas", imagenes=lote4)["limitaciones"]
+    assert nivel1[0].startswith("Los cuadros salen de 3 archivos de video")
+    assert not any("4 tramos" in linea for linea in nivel1)
+    nivel0 = _acuerdo_de_prueba(tmp_path, "casco", img="celular-02_000090.jpg")["limitaciones"]
+    assert any(
+        linea.startswith("Los cuadros salen de 1 archivo de video (celular-02)") for linea in nivel0
+    )
+    assert not any("un solo video" in linea for linea in nivel0)
