@@ -99,7 +99,9 @@ def entorno_del_trabajador(
     modelo: Path | None,
 ) -> dict[str, str]:
     """El entorno de `python -m gepp_worker`. Con modelo, SIN `GEPP_GUION_FALSO`: el Makefile
-    carga el .env, que puede traerlo, y el trabajador usaría el guion sin avisar."""
+    carga el .env, que puede traerlo, y el trabajador usaría el guion sin avisar. Por lo mismo,
+    el motor se fija en `onnx`: la demo recibe un `.onnx`, y un `GEPP_MODELO_MOTOR=rfdetr` del
+    .env lo abriría como pesos de PyTorch (#204)."""
     entorno = base | {
         "GEPP_BD_URL": url,
         "GEPP_REDIS_URL": base.get("GEPP_REDIS_URL", "redis://localhost:6379/15"),
@@ -115,7 +117,9 @@ def entorno_del_trabajador(
         entorno.pop("GEPP_MODELO_RUTA", None)
     else:
         entorno.pop("GEPP_GUION_FALSO", None)
+        entorno.pop("GEPP_MODELO_VARIANTE", None)
         entorno["GEPP_MODELO_RUTA"] = str(modelo.resolve())
+        entorno["GEPP_MODELO_MOTOR"] = "onnx"
     return entorno
 
 

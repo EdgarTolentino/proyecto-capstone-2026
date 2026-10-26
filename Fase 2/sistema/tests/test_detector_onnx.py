@@ -163,6 +163,7 @@ def test_el_trabajador_elige_el_detector_por_el_entorno(
     assert isinstance(_fabrica_detector()(), DetectorFalso)  # el guion manda
 
     monkeypatch.delenv("GEPP_GUION_FALSO")
+    monkeypatch.delenv("GEPP_MODELO_MOTOR", raising=False)  # el .env puede traer rfdetr (#204)
     monkeypatch.setenv("GEPP_UMBRAL_CONFIANZA", "0.9")
     detector = _fabrica_detector()()
     assert isinstance(detector, DetectorOnnx)
