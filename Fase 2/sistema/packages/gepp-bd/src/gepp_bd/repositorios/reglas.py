@@ -6,7 +6,7 @@ from collections.abc import Iterable
 from dataclasses import dataclass, fields, replace
 from datetime import time
 
-from gepp_core import Regla, Severidad, TipoEPP, Ventana
+from gepp_core import ModoIncumplimiento, Regla, Severidad, TipoEPP, Ventana
 from sqlalchemy import select, update
 from sqlalchemy.orm import Session
 
@@ -156,11 +156,11 @@ def en_fuente(sesion: Session, fila: FilaRegla, fuente: Fuente) -> Regla | None:
     - Exige solo lo evaluable (V2, #3). Si no queda nada que la cámara resuelva, la regla no
       se aplica: **el motor nunca exige lo que la cámara no ve**.
     """
-    zona_horaria = sesion.execute(
-        select(Faena.zona_horaria)
+    zona_horaria, modo = sesion.execute(
+        select(Faena.zona_horaria, Faena.modo_incumplimiento)
         .join(Area, Area.faena_id == Faena.id)
         .where(Area.id == fuente.area_id)
-    ).scalar_one()
+    ).one()
     if fila.zona_id is not None:
         zona = sesion.get(Zona, fila.zona_id)
         if zona is None or zona.fuente_id != fuente.id:
@@ -185,6 +185,7 @@ def en_fuente(sesion: Session, fila: FilaRegla, fuente: Fuente) -> Regla | None:
         epp_exigido=exigido,
         zona=tuple((float(x), float(y)) for x, y in unica.poligono) if unica else None,
         ventana=_ventana(fila, zona_horaria),
+        modo=ModoIncumplimiento(modo),
     )
 
 

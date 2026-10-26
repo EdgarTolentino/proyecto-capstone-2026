@@ -18,7 +18,7 @@ from gepp_core import Severidad, TipoEPP
 from sqlalchemy import select
 from sqlalchemy.orm import Session
 
-from gepp_bd.modelos import ROLES, Area, Faena, Fuente, Usuario, Zona
+from gepp_bd.modelos import MODOS_INCUMPLIMIENTO, ROLES, Area, Faena, Fuente, Usuario, Zona
 from gepp_bd.repositorios import reglas
 from gepp_bd.sesion import crear_motor, transaccion
 
@@ -78,10 +78,23 @@ def cargar(sesion: Session, perfil: dict[str, Any]) -> Faena:
     Todas las referencias entre secciones son por nombre y se validan: un área o una
     fuente mal escrita falla con el nombre, no con un error de clave foránea.
     """
+    # Clave ausente y clave vacía no son lo mismo: `modo_incumplimiento:` sin valor es un error
+    # del perfil, no un perfil viejo.
+    declarado = perfil["faena"].get("modo_incumplimiento")
+    if "modo_incumplimiento" in perfil["faena"] and declarado not in MODOS_INCUMPLIMIENTO:
+        raise PerfilInvalido(
+            f"faena.modo_incumplimiento: {declarado!r} no es válido; "
+            f"use uno de {MODOS_INCUMPLIMIENTO}"
+        )
+    modo = declarado or "ausencia"
     existente = sesion.execute(
         select(Faena).where(Faena.nombre == perfil["faena"]["nombre"])
     ).scalar_one_or_none()
     if existente is not None:
+        # El modo de una faena ya sembrada se cambia desde el perfil. Si el perfil no trae la
+        # clave no se toca: recargar un perfil viejo no debe devolver la faena a `ausencia`.
+        if declarado is not None:
+            existente.modo_incumplimiento = declarado
         areas_existentes = {
             a.nombre: a
             for a in sesion.execute(select(Area).where(Area.faena_id == existente.id)).scalars()
@@ -92,6 +105,7 @@ def cargar(sesion: Session, perfil: dict[str, Any]) -> Faena:
     faena = Faena(
         nombre=perfil["faena"]["nombre"],
         zona_horaria=perfil["faena"].get("zona_horaria", "America/Santiago"),
+        modo_incumplimiento=modo,
     )
     sesion.add(faena)
     sesion.flush()
