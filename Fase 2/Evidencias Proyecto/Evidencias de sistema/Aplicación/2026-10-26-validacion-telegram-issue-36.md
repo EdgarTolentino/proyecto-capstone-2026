@@ -239,12 +239,30 @@ La [captura redactada](2026-10-26-alerta-telegram-telefono-redactada.jpg) conser
 botón; el nombre del bot fue ocultado antes de incorporarla. No contiene metadatos GPS ni de autor.
 Su SHA-256 es `E19E6B12D8FA225DD04A0F1AABD02D72281FA4BD55A0195029ABF012761C4D85`.
 
+## Paso 12 — acuse de recibo
+
+El usuario pulsó «Acuso recibo» en Telegram y confirmó que el botón desapareció. La
+[captura posterior al acuse](2026-10-26-acuse-telegram-boton-retirado-redactada.jpg) conserva el
+mensaje sin el botón y con el nombre del bot oculto. No contiene metadatos GPS. Su SHA-256 es
+`9F2027BD0D70C863ABFB885793686925571EBF769B0FC9F3BDBC8052C79D56AB`.
+
+El despachador informó `acusados=1` y `fallos=0`. La consulta de PostgreSQL devolvió una fila con:
+
+| Campo | Resultado |
+|---|---|
+| `estado` | `acusada` |
+| `enviada_en` | Presente |
+| `acusada_en` | Presente |
+| Orden temporal | `acusada_en >= enviada_en` |
+
+Después de comprobar el resultado, el despachador se detuvo de forma controlada.
+
 ## Avance de las pruebas
 
 | # | Prueba | Estado | Evidencia |
 |---|---|---|---|
 | 1 | El aviso llega | Pasó | Despachador: `enviados=1`, `fallos=0`; captura redactada |
-| 2 | El acuse vuelve a la base | Pendiente | — |
+| 2 | El acuse vuelve a la base | Pasó | `acusados=1`; PostgreSQL en `acusada`; captura sin botón |
 | 3 | Lo corriente no avisa de inmediato | Pendiente | — |
 | 4 | Una caída temporal no pierde el aviso | Pendiente | — |
 | 5 | El aviso no identifica personas | Pasó | Texto del aviso y captura redactada |
