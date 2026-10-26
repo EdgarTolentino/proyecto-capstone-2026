@@ -17,3 +17,4 @@ un Pull Request. El formato es corto a propósito — un ADR que nadie lee no si
 | [010](010-computo-partido.md) | El cómputo se parte: nube para lo público, local para la faena | Aceptada |
 | [011](011-dominio-configurable.md) | El dominio es configuración: se valida en construcción, la minería es un perfil | Aceptada |
 | [012](012-persistencia-compartida.md) | Persistencia compartida en un quinto paquete `gepp-bd` | Aceptada |
+| [013](013-incumplimiento-por-evidencia.md) | El incumplimiento se decide por evidencia positiva, no por ausencia | Propuesta (se decide con la meta de #31) |
