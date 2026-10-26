@@ -84,7 +84,11 @@ class AgregadorDeHallazgos:
             assert persona.track_id is not None
             vistos.add(persona.track_id)
             faltante = epp_faltante(
-                persona, detecciones, self._regla.epp_exigido, self._regla.confianza_minima
+                persona,
+                detecciones,
+                self._regla.epp_exigido,
+                self._regla.confianza_minima,
+                self._regla.modo,
             )
             if faltante:
                 hallazgo = self._acumular(persona, faltante)

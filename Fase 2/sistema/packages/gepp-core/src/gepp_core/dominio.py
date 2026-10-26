@@ -52,6 +52,18 @@ class ClaseDetectada(StrEnum):
     SIN_CHALECO = "sin_chaleco"
 
 
+class ModoIncumplimiento(StrEnum):
+    """Cómo se decide que a una persona le falta un EPP (ADR-013, #31).
+
+    - `AUSENCIA`: falta lo exigido que el detector no vio puesto. Con un modelo que ve el casco
+      en una fracción de los cuadros, produce falsas alertas.
+    - `EVIDENCIA`: falta solo si el modelo vio la falta (`cabeza`, `sin_chaleco`).
+    """
+
+    AUSENCIA = "ausencia"
+    EVIDENCIA = "evidencia"
+
+
 #: Franja vertical de la persona donde se espera cada EPP, en fracción de su alto.
 #: Se usa para asociar un EPP suelto a la persona correcta cuando hay varias en el cuadro.
 FRANJA_ESPERADA: dict[TipoEPP, tuple[float, float]] = {
@@ -127,6 +139,8 @@ class Regla:
     zona: Poligono | None = None
     #: Franja horaria (turno u horario). `None` = siempre.
     ventana: Ventana | None = None
+    #: Cómo se decide que falta un EPP. Se fija por faena (`faena.modo_incumplimiento`).
+    modo: ModoIncumplimiento = ModoIncumplimiento.AUSENCIA
 
     def __post_init__(self) -> None:
         # Un umbral inválido no puede construir una regla: `cierre_segundos=0` terminaba sin

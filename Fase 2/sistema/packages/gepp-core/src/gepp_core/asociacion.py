@@ -15,6 +15,7 @@ from gepp_core.dominio import (
     FRANJA_ESPERADA,
     ClaseDetectada,
     Deteccion,
+    ModoIncumplimiento,
     TipoEPP,
 )
 
@@ -26,6 +27,13 @@ CLASE_A_EPP: dict[ClaseDetectada, TipoEPP] = {
     ClaseDetectada.GUANTES: TipoEPP.GUANTES,
     ClaseDetectada.ARNES: TipoEPP.ARNES,
     ClaseDetectada.CALZADO: TipoEPP.CALZADO,
+}
+
+#: Clase de EVIDENCIA positiva de que falta un EPP (ADR-013) -> el EPP que falta. Los EPP sin
+#: entrada aquí (lentes, guantes, arnés, calzado) no tienen clase de evidencia.
+EVIDENCIA_DE_FALTA: dict[ClaseDetectada, TipoEPP] = {
+    ClaseDetectada.CABEZA: TipoEPP.CASCO,
+    ClaseDetectada.SIN_CHALECO: TipoEPP.CHALECO,
 }
 
 
@@ -49,11 +57,45 @@ def epp_puesto(
     return puesto
 
 
+def _hay_evidencia_de_falta(
+    persona: Deteccion,
+    detecciones: list[Deteccion],
+    tipo: TipoEPP,
+    confianza_minima: float,
+) -> bool:
+    """¿El modelo vio la falta de `tipo`? (confianza >= mínima y centro en la franja)"""
+    desde, hasta = FRANJA_ESPERADA[tipo]
+    franja = persona.caja.franja(desde, hasta)
+    return any(
+        EVIDENCIA_DE_FALTA.get(det.clase) is tipo
+        and det.confianza >= confianza_minima
+        and franja.contiene(det.caja.centro)
+        for det in detecciones
+    )
+
+
 def epp_faltante(
     persona: Deteccion,
     detecciones: list[Deteccion],
     exigido: frozenset[TipoEPP],
     confianza_minima: float = CONFIANZA_MINIMA_REGLA,
+    modo: ModoIncumplimiento = ModoIncumplimiento.AUSENCIA,
 ) -> set[TipoEPP]:
-    """EPP exigido que esta persona NO lleva puesto."""
-    return set(exigido) - epp_puesto(persona, detecciones, confianza_minima)
+    """EPP exigido que esta persona NO lleva puesto.
+
+    - `AUSENCIA`: todo lo exigido que no se ve puesto.
+    - `EVIDENCIA`: un EPP con clase de evidencia (`EVIDENCIA_DE_FALTA`) falta solo si el modelo
+      vio esa evidencia en la franja de la persona **y** el EPP no está puesto (un casco y una
+      cabeza a la vez: gana el casco). Un EPP exigido SIN clase de evidencia (lentes, guantes,
+      arnés, calzado) se sigue evaluando por ausencia, porque no hay otra forma de decidirlo.
+    """
+    sin_puesto = set(exigido) - epp_puesto(persona, detecciones, confianza_minima)
+    if modo is ModoIncumplimiento.AUSENCIA:
+        return sin_puesto
+    con_evidencia = set(EVIDENCIA_DE_FALTA.values())
+    return {
+        tipo
+        for tipo in sin_puesto
+        if tipo not in con_evidencia
+        or _hay_evidencia_de_falta(persona, detecciones, tipo, confianza_minima)
+    }
