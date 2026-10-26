@@ -128,6 +128,41 @@ informarlo en la issue antes de modificar código, como indican las instruccione
 > recorrido, siguiendo la instrucción de esta issue. El token, el `chat_id` y el nombre del bot
 > no se incluyeron en la evidencia.
 
+## Paso 7 — reporte y diagnóstico
+
+El fallo se publicó en la issue #36:
+<https://github.com/EdgarTolentino/proyecto-capstone-2026/issues/36#issuecomment-6424417137>.
+
+La causa está en la combinación de tres hechos:
+
+1. `scripts/demo.py` inicia el trabajador con `python -m gepp_worker`.
+2. `gepp_worker/__main__.py` define `correr_vigilante` y `correr_trabajador`, y las entrega como
+   destinos de `multiprocessing.Process`.
+3. Windows usa `spawn`: cada hijo inicia un intérprete nuevo y reconstruye el destino por su
+   módulo y nombre. Al ejecutar el paquete con `-m`, esas funciones pertenecen temporalmente a
+   `__main__`; el `__main__` del hijo es el proceso de arranque de `multiprocessing` y no contiene
+   las funciones. Por eso falla al buscarlas.
+
+En Ubuntu, el método habitual es `fork`: el hijo hereda la memoria del padre y no necesita volver
+a importar el destino. Todos los jobs de CI actuales usan `ubuntu-latest`, y las pruebas importan
+funciones auxiliares de `gepp_worker.__main__` pero no arrancan el comando real con `spawn`. Eso
+explica por qué la suite puede pasar mientras la demo falla en Windows.
+
+El archivo ya tiene la protección `if __name__ == "__main__"`; agregar solo `freeze_support()` no
+resuelve que los destinos estén definidos en el módulo ejecutado como `__main__`.
+
+La solución recomendada es mover ambos destinos a un módulo importable estable, por ejemplo
+`gepp_worker/procesos.py`, e importarlos desde `__main__.py`. Así se serializan como
+`gepp_worker.procesos.correr_trabajador` y `gepp_worker.procesos.correr_vigilante`, nombres que el
+hijo puede importar en Windows. Debe acompañarse con una prueba que fuerce el contexto `spawn` y
+una ejecución del comando real en Windows o en un job de CI para Windows.
+
+Como alternativa operativa, la demo puede ejecutarse en Linux o WSL, donde usa `fork`; eso permite
+continuar la validación, pero no corrige la incompatibilidad del comando documentado con Windows.
+Otra alternativa técnica es lanzar un punto de entrada que importe `gepp_worker.__main__` como
+módulo antes de llamar a `main`; es un parche menor, pero deja la arquitectura más frágil que mover
+los destinos a un módulo dedicado.
+
 ## Avance de las pruebas
 
 | # | Prueba | Estado | Evidencia |
