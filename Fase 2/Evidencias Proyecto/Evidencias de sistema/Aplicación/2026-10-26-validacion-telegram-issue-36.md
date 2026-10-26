@@ -163,6 +163,26 @@ Otra alternativa técnica es lanzar un punto de entrada que importe `gepp_worker
 módulo antes de llamar a `main`; es un parche menor, pero deja la arquitectura más frágil que mover
 los destinos a un módulo dedicado.
 
+## Paso 8 — disponibilidad de Ubuntu
+
+Después de informar el fallo, Edgar pidió intentar resolverlo con cambios mínimos. Se eligió
+primero la alternativa operativa sin cambios de código: ejecutar la demo en Ubuntu mediante WSL 2.
+
+| Comprobación | Resultado | Estado |
+|---|---|---|
+| Sistema | Ubuntu sobre WSL 2, kernel Linux x86-64 | Disponible |
+| Python del sistema | 3.14.4; el proyecto exige `>=3.12,<3.14` | Requiere entorno separado |
+| `uv` | Instalado | Disponible |
+| `make` | Instalado | Disponible |
+| Docker CLI | Instalado | Disponible |
+| Repositorio | Visible desde Ubuntu | Disponible |
+| `generativa.mp4` | Visible desde Ubuntu | Disponible |
+| PostgreSQL local | Puerto 5432 accesible | Disponible |
+| Redis local | Puerto 6379 accesible | Disponible |
+
+No se instaló nada ni se modificó la `.venv` de Windows. El entorno Linux se preparará fuera del
+repositorio para no reemplazarla.
+
 ## Avance de las pruebas
 
 | # | Prueba | Estado | Evidencia |
