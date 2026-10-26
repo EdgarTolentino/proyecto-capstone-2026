@@ -224,12 +224,27 @@ simulado y `FUENTE=2`. La ejecución terminó con código 0.
 El destinatario se ocultó de la salida. El despachador todavía no se ejecutó, por lo que esta
 corrida prepara la prueba de llegada al teléfono pero aún no la acredita.
 
+## Paso 11 — llegada y privacidad del aviso
+
+Se inició el despachador contra `gepp_demo`. Informó `enviados=1` y `fallos=0`. El usuario confirmó
+en un iPhone que llegó un mensaje con:
+
+- «Frente de obra gruesa · turno A»;
+- una persona sin casco ni chaleco;
+- «Indicio automatizado. Requiere validación humana.»;
+- el botón «Acuso recibo»;
+- ningún nombre de persona ni imagen.
+
+La [captura redactada](2026-10-26-alerta-telegram-telefono-redactada.jpg) conserva el mensaje y el
+botón; el nombre del bot fue ocultado antes de incorporarla. No contiene metadatos GPS ni de autor.
+Su SHA-256 es `E19E6B12D8FA225DD04A0F1AABD02D72281FA4BD55A0195029ABF012761C4D85`.
+
 ## Avance de las pruebas
 
 | # | Prueba | Estado | Evidencia |
 |---|---|---|---|
-| 1 | El aviso llega | Pendiente | — |
+| 1 | El aviso llega | Pasó | Despachador: `enviados=1`, `fallos=0`; captura redactada |
 | 2 | El acuse vuelve a la base | Pendiente | — |
 | 3 | Lo corriente no avisa de inmediato | Pendiente | — |
 | 4 | Una caída temporal no pierde el aviso | Pendiente | — |
-| 5 | El aviso no identifica personas | Pendiente | — |
+| 5 | El aviso no identifica personas | Pasó | Texto del aviso y captura redactada |
