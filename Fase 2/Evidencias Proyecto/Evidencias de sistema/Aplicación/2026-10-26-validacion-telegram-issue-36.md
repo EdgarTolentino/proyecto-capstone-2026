@@ -85,6 +85,26 @@ El `chat_id` se guardó directamente en `GEPP_AVISO_DESTINATARIO` dentro de `.en
 confirmó que el campo contiene un identificador válido. Su valor no se imprimió ni se incorporó a
 Git.
 
+## Paso 6 — demo crítica con `FUENTE=2`
+
+Se ejecutó en Windows el equivalente directo de
+`make demo VIDEO=.../generativa.mp4 FUENTE=2`, usando el Python del entorno virtual y el detector
+simulado. La ejecución recreó `gepp_demo` y vació la base Redis de la demo, pero falló antes de
+registrar el video.
+
+| Campo | Resultado |
+|---|---|
+| Esperado | Video `listo`, hallazgo crítico y aviso pendiente en el outbox |
+| Observado | Los procesos hijos no pudieron cargar `correr_trabajador` y `correr_vigilante` desde `__main__` |
+| Estado final informado | `sin registrar` |
+| Filas en `video` | 0 |
+| Hallazgos | 0 |
+| Avisos en el outbox | 0 |
+| Código de salida | 1 |
+
+No se intentó corregir ni ejecutar una variante después del fallo. Se conserva el resultado para
+informarlo en la issue antes de modificar código, como indican las instrucciones de #36.
+
 ## Avance de las pruebas
 
 | # | Prueba | Estado | Evidencia |
