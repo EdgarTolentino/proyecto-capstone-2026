@@ -52,7 +52,7 @@ CONVENCION_DE_NOMBRES = {
 
 # Valores de las columnas TEXT con CHECK. Se exportan para que la API y el trabajador
 # validen contra la misma lista que la base, en vez de copiarla.
-TIPOS_ZONA = ("interes", "privacidad")
+TIPOS_ZONA = ("interes", "privacidad", "mosaico")
 TIPOS_FUENTE = ("carpeta", "rtsp")
 ORIGENES_CAPTURE_TS = ("metadatos", "mtime", "manual", "ocr")
 ESTADOS_VIDEO = ("en_cola", "procesando", "reintentando", "listo", "error")
@@ -120,7 +120,9 @@ class Fuente(Base):
 
 
 class Zona(Base):
-    """Polígono sobre el cuadro de referencia. `privacidad` se ennegrece ANTES de inferir."""
+    """Polígono sobre el cuadro de referencia. `privacidad` se ennegrece ANTES de inferir.
+    `mosaico` (a lo sumo una por cámara): el trabajador analiza solo la caja que la encierra,
+    ampliada en mosaicos (#203); sin ella, el cuadro entero."""
 
     __tablename__ = "zona"
     __table_args__ = (CheckConstraint(en("tipo", TIPOS_ZONA), name="tipo"),)

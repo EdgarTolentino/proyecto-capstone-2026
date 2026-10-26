@@ -53,6 +53,15 @@ zonas:
     tipo: interes
     poligono: [[0, 0], [1, 0], [1, 1], [0, 1]]
     evaluable: [casco, chaleco]
+  # Mosaico (#203): en una cámara lejana el modelo, sobre el cuadro entero, no ve los cascos. Con
+  # una zona `mosaico` (a lo sumo una por cámara), el trabajador analiza solo la caja que la
+  # encierra, ampliada en mosaicos; lo de fuera no se analiza. Va cuando exista el cuadro real.
+  # Ejemplo: el foso del video de prueba, 600,220 a 1400,730 sobre 1920x1080.
+  # - nombre: Foso
+  #   fuente: Cámara 01 · acceso
+  #   area: Acceso y patio de materiales
+  #   tipo: mosaico
+  #   poligono: [[0.3125, 0.2037], [0.7292, 0.2037], [0.7292, 0.6759], [0.3125, 0.6759]]
 
 reglas:
   - nombre: Casco y chaleco en acceso

@@ -6,7 +6,8 @@ Transacciones separadas por video, a propósito:
 
 1. **Registro:** `video` (idempotente por hash). Se confirma sola, antes de revisar reglas, para
    que el video exista en `GET /videos` aunque lo siguiente falle.
-2. **Preparación:** reglas aplicables y zonas de privacidad de la cámara; estado `procesando`.
+2. **Preparación:** reglas aplicables, zonas de privacidad y zona de mosaico de la cámara;
+   estado `procesando`.
 3. **Resultado:** detecciones crudas, hallazgos, su evidencia y su notificación (outbox) y el
    estado `listo`, **todo o nada**. Si algo falla a la mitad no queda un hallazgo sin
    evidencia ni un aviso de un hallazgo que no existe, y reprocesar no duplica filas.
@@ -37,8 +38,9 @@ from gepp_bd.modelos import Fuente, Zona
 from gepp_bd.modelos import Regla as FilaRegla
 from gepp_bd.repositorios import detecciones, evidencias, hallazgos, reglas, videos
 from gepp_bd.sesion import transaccion
-from gepp_core import ClaseDetectada, Deteccion, Hallazgo, Regla
+from gepp_core import Caja, ClaseDetectada, Deteccion, Hallazgo, Regla
 from gepp_core.textos import sin_rutas
+from gepp_vision.detectores.mosaico import DetectorMosaico, Mosaico
 from gepp_vision.evidencia import EvidenciaEscrita, escribir_evidencia
 from gepp_vision.pipeline import CuadroFechado, PipelineEtapa1, ResultadoCuadro
 from gepp_vision.privacidad import MascaraPrivacidad
@@ -68,6 +70,18 @@ class Aviso:
 
 
 @dataclass(frozen=True, slots=True)
+class ParametrosMosaico:
+    """Cómo se parte la zona `mosaico` de una cámara (`gepp_vision.detectores.mosaico`). Solo
+    se usa si la cámara tiene esa zona; sin ella se analiza el cuadro entero (#203). `lado` es
+    la entrada del modelo: 384 el nano, 512 el small. Con otro, el modelo reescala cada mosaico
+    y la medición de #31 deja de describir lo que corre."""
+
+    factor: float = 2.0
+    lado: int = 384
+    objeto_max_px: int = 100
+
+
+@dataclass(frozen=True, slots=True)
 class Configuracion:
     carpeta_evidencia: Path
     fps_objetivo: float = 5.0
@@ -83,6 +97,7 @@ class Configuracion:
     #: Carpeta que se vacía al arrancar aunque la vista esté apagada (restos de una corrida cortada
     #: con la vista prendida). Si es None se usa `carpeta_vivo`. No se crea si no existe.
     carpeta_vivo_residuos: Path | None = None
+    mosaico: ParametrosMosaico = ParametrosMosaico()
 
 
 @dataclass(frozen=True, slots=True)
@@ -101,8 +116,25 @@ class _Contexto:
     area_id: int
     reglas: list[FilaRegla]
     privacidad: list[list[list[float]]]
+    #: La caja que encierra la zona `mosaico` de la cámara; None = cuadro entero.
+    mosaico: Caja | None
     #: Las mismas reglas, tal como se aplican en esta cámara (zona, horario, evaluable).
     aplicables: list[Regla]
+
+
+def recorte_de_mosaico(poligonos: list[list[list[float]]]) -> Caja | None:
+    """La caja que encierra la zona `mosaico` de una cámara: el mosaico trabaja con
+    rectángulos. None si no tiene. Más de una, o un vértice fuera de 0..1, es un error de
+    configuración y detiene el video con su motivo: adivinar cuál usar cambiaría lo medido."""
+    if not poligonos:
+        return None
+    if len(poligonos) > 1:
+        raise LookupError(f"la cámara tiene {len(poligonos)} zonas de mosaico; admite una")
+    xs = [x for x, _ in poligonos[0]]
+    ys = [y for _, y in poligonos[0]]
+    if min(xs + ys) < 0 or max(xs + ys) > 1:
+        raise ValueError(f"la zona de mosaico tiene vértices fuera de 0..1: {poligonos[0]}")
+    return Caja(min(xs), min(ys), max(xs), max(ys))
 
 
 def _propiedades(ruta: Path) -> PropiedadesFuente:
@@ -355,17 +387,35 @@ class Trabajador:
                     )
                 ).scalars()
             )
+            mosaico = recorte_de_mosaico(
+                list(
+                    s.execute(
+                        select(Zona.poligono).where(
+                            Zona.fuente_id == fuente.id, Zona.tipo == "mosaico"
+                        )
+                    ).scalars()
+                )
+            )
             videos.cambiar_estado(s, video_id, "procesando")
             # Cada intento parte de cero: sin esto se vería el avance del anterior (`reintentando`).
             videos.reiniciar_avance(s, video_id)
-            return _Contexto(video_id, fuente.id, fuente.area_id, activas, privacidad, aplicables)
+            return _Contexto(
+                video_id, fuente.id, fuente.area_id, activas, privacidad, mosaico, aplicables
+            )
 
     def _analizar(
         self, ruta: Path, props: PropiedadesFuente, ctx: _Contexto, inicio: float
     ) -> Resultado:
         mascara = MascaraPrivacidad([[(x, y) for x, y in p] for p in ctx.privacidad])
+        detector = self._fabrica_detector()
+        if ctx.mosaico is not None:
+            m = self._config.mosaico
+            # Con demasiados mosaicos, el primer cuadro falla con su motivo (`validar`).
+            detector = DetectorMosaico(
+                detector, Mosaico(ctx.mosaico, m.factor, m.lado, m.objeto_max_px)
+            )
         pipeline = PipelineEtapa1(
-            self._fabrica_detector(),
+            detector,
             self._fabrica_seguidor(),
             ctx.aplicables,
             mascara=mascara,

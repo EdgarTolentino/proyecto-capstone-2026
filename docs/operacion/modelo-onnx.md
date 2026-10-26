@@ -40,21 +40,47 @@ GEPP_UMBRAL_CONFIANZA=0.25
 
 Si el archivo no existe, el trabajador se detiene al arrancar y lo dice.
 
-## Lo que se mide y se muestra: el `.pth` en la GPU (#203)
+## Lo que se mide y se muestra: mosaico en la GPU (#203)
 
-ONNX en CPU sirve para desarrollar en los portátiles. Para medir y para la demostración, el
-trabajador corre los pesos de PyTorch en la máquina con GPU (`make setup-gpu`):
+**Con ONNX en CPU y sin mosaico, en el CCTV de prueba el trabajador no ve ningún casco.** El
+modelo achica el cuadro de 1920×1080 a su entrada (384 o 512 px) y un casco del fondo queda en
+1 o 2 px. Las cifras de #31 se midieron con mosaico; sin él, el recall de casco es 0 (#203).
+ONNX en CPU sirve para desarrollar en los portátiles, **no para medir ni para la demostración**.
+
+Para eso, en la máquina con GPU (`make setup-gpu`):
 
 ```
 GEPP_MODELO_MOTOR=rfdetr
 GEPP_MODELO_VARIANTE=small
 GEPP_MODELO_RUTA=/ruta/a/rfdetr-s-epp-v2.pth     # con rfdetr-s-epp-v2.clases.json al lado
+GEPP_MOSAICO_LADO=512                            # la entrada del modelo: 384 el nano, 512 el small
 ```
 
 El mapa de clases se busca con el mismo nombre que los pesos: `modelo.pth` va con
 `modelo.clases.json`. Si los pesos se llaman `checkpoint_best_total.pth`, hay que copiarlos o
 enlazarlos con el nombre del modelo. Un motor o una variante desconocidos detienen el arranque.
-Regla de ADR-010: nunca entrenar y servir a la vez en esa máquina.
+
+Además, la cámara necesita una **zona `mosaico`** en su perfil (`perfiles/construccion.yaml`
+trae un ejemplo comentado): el trabajador analiza solo la caja que encierra ese polígono,
+ampliada `GEPP_MOSAICO_FACTOR` veces y partida en mosaicos. Lo de fuera de la zona no se
+analiza. Sin la zona, el cuadro entero, como antes. A lo sumo una por cámara: con dos, el video
+queda en error con su motivo.
+
+Costo medido el 2026-10-25 sobre 24 cuadros de 1920×1080 (#203):
+
+| Modelo | Sin mosaico | Con mosaico, CPU (8 núcleos) | Con mosaico, GPU (RTX 4070 Laptop) |
+|---|---|---|---|
+| small v2, mosaicos de 512 | 0,029 s/cuadro (GPU) | 4,48 s/cuadro | 0,49 s/cuadro |
+| nano v1, mosaicos de 384 | 0,024 s/cuadro (GPU) | 7,82 s/cuadro | 1,04 s/cuadro |
+
+A 5 fps, el small con mosaico en la GPU procesa un minuto de video en unos 2,5 minutos. No es
+tiempo real. Regla de ADR-010: nunca entrenar y servir a la vez en esa máquina.
+
+**El mosaico es necesario, pero no basta.** En la corrida real del 2026-10-25 (#203), en 122 de
+los 157 hallazgos de casco comparables con la verdad, la persona tenía casco: con el recall de
+casco y chaleco actual en el CCTV, inferir el incumplimiento por ausencia da sobre todo falsas
+alarmas. Hasta que eso se resuelva (#31), los hallazgos no se presentan como incumplimientos
+confirmados.
 
 ## Probar un video propio
 
@@ -73,6 +99,8 @@ Si el video falla, igual se levantan la API y la web. El motivo queda en la cola
 | `No se pudo leer el video: ...` | El archivo no es un video o está dañado | Probar con otro archivo, o convertirlo a MP4 (H.264) |
 | `... no tiene reglas activas` / `ninguna regla se puede aplicar` | La cámara no tiene reglas que evaluar | Revisar las reglas del área y usar "Reprocesar" |
 | `falta el mapa de clases junto al modelo` | Falta el `.clases.json` al lado del `.onnx` | Copiarlo junto al modelo |
+| `la cámara tiene 2 zonas de mosaico; admite una` | El perfil declara más de una zona `mosaico` en esa cámara | Dejar una y usar "Reprocesar" |
+| `... mosaicos por cuadro (tope 64) ...` | La zona, el factor u `objeto_max_px` dan demasiados mosaicos | Achicar la zona o bajar `GEPP_MOSAICO_FACTOR` |
 
 Un video queda en `error` después de 3 intentos. Corregida la causa, "Reprocesar" lo
 devuelve a la cola.

@@ -16,14 +16,18 @@ Configuración desde el entorno (ver `.env.example`):
                        requiere `make setup-gpu`). Con `rfdetr`, GEPP_MODELO_VARIANTE (`nano`
                        por defecto, `small`...)
     GEPP_UMBRAL_CONFIANZA  corte del detector (0.25 por defecto; ver `rfdetr_comun`)
+    GEPP_MOSAICO_FACTOR · GEPP_MOSAICO_LADO · GEPP_MOSAICO_OBJETO_MAX_PX: cómo se parte la zona
+                       `mosaico` de una cámara (2 · 384 · 100 por defecto; LADO = entrada del
+                       modelo: 384 el nano, 512 el small). Sin esa zona, cuadro entero (#203)
     GEPP_AVISO_CANAL + GEPP_AVISO_DESTINATARIO: si están, cada hallazgo escribe su aviso
     GEPP_MAXIMO_INTENTOS: intentos antes de dejar un video en `error` (3 por defecto)
     GEPP_VISTA_EN_VIVO=1 + GEPP_CARPETA_VIVO + GEPP_VIVO_FPS (25 por defecto): vista en
     vivo del procesamiento (apagada por defecto; ver `gepp_worker.vivo` y la excepción en
     02-privacidad-y-cumplimiento.md)
 
-Sin `GEPP_GUION_FALSO`, el detector es RF-DETR (`docs/operacion/modelo-onnx.md`): el `.onnx` en
-CPU para desarrollar, o el `.pth` en la GPU para lo que se mide y se muestra (#203).
+Sin `GEPP_GUION_FALSO`, el detector es RF-DETR (`docs/operacion/modelo-onnx.md`). Sin mosaico,
+en el CCTV de prueba no ve ningún casco (#203): lo que se mide y se muestra corre con `rfdetr` en
+la GPU y con la zona `mosaico` de la cámara. En CPU, el mosaico tarda segundos por cuadro.
 """
 
 from __future__ import annotations
@@ -41,6 +45,7 @@ if TYPE_CHECKING:
     from gepp_vision import Detector
 
     from gepp_worker.cola import ColaTrabajos
+    from gepp_worker.trabajador import ParametrosMosaico
 
 VARIABLES_OBLIGATORIAS = ("GEPP_BD_URL", "GEPP_REDIS_URL", "GEPP_CARPETA_VIGILADA")
 
@@ -106,6 +111,32 @@ def _fabrica_detector() -> Callable[[], Detector]:
     return lambda: base
 
 
+def _numero_positivo(variable: str, defecto: float, tipo: type[float] | type[int]) -> float:
+    """El valor de `variable`, o `defecto` si no está; uno inválido detiene el arranque."""
+    texto = os.environ.get(variable)
+    if texto is None:
+        return defecto
+    try:
+        valor = tipo(texto)
+    except ValueError:
+        sys.exit(f"{variable}={texto!r} no es un número válido (use punto: 2.5)")
+    if valor <= 0:
+        sys.exit(f"{variable}={texto!r} debe ser positivo")
+    return valor
+
+
+def _parametros_mosaico() -> ParametrosMosaico:
+    """Los de `GEPP_MOSAICO_*`, con los de `ParametrosMosaico` por defecto."""
+    from gepp_worker.trabajador import ParametrosMosaico
+
+    d = ParametrosMosaico()
+    return ParametrosMosaico(
+        factor=_numero_positivo("GEPP_MOSAICO_FACTOR", d.factor, float),
+        lado=int(_numero_positivo("GEPP_MOSAICO_LADO", d.lado, int)),
+        objeto_max_px=int(_numero_positivo("GEPP_MOSAICO_OBJETO_MAX_PX", d.objeto_max_px, int)),
+    )
+
+
 def _carpeta_entrada() -> Path | None:
     """La carpeta de los pedidos desde la web, validada; None si no está configurada."""
     from gepp_worker.pedidos import validar_carpeta_entrada
@@ -148,6 +179,7 @@ def correr_trabajador() -> None:
         carpeta_vivo=carpeta_vivo_configurada(),
         vivo_fps=_fps_vivo(),
         carpeta_vivo_residuos=carpeta_de_residuos(),
+        mosaico=_parametros_mosaico(),
     )
     parar = _detenible()
     trabajador = Trabajador(crear_motor(), _cola(), fabrica_detector, config)
