@@ -306,6 +306,30 @@ anterior de las 4:12 sin botón y el recuperado de las 4:33 con «Acuso recibo»
 está oculto y la imagen no contiene metadatos GPS. Su SHA-256 es
 `22D90B0004A04954CEE8FA1A2CD603E7B85FC63B807DD0AC48C61BD721474853`.
 
+## Paso 15 — verificación completa
+
+Con PostgreSQL y Redis arriba se ejecutaron los controles completos de backend y frontend.
+
+| Control | Resultado copiado de la salida |
+|---|---|
+| Ruff | `All checks passed!` |
+| Formato Python | 185 archivos ya formateados |
+| Mypy estricto | Sin problemas en 94 archivos fuente |
+| Pytest | 1.414 aprobadas, 1 omitida por requerir GPU, 7 advertencias, 252,43 s |
+| ESLint | Aprobado sin advertencias |
+| TypeScript | Aprobado |
+| Vitest | 25 archivos y 363 pruebas aprobadas, 15,94 s |
+| Build | 1.972 módulos transformados, 1,72 s |
+
+La primera ejecución de Vitest dentro del sandbox falló al leer archivos temporales internos de
+`AppData/Local/Packages/sandbox...` (`ENOENT` en 21 suites). Lint y tipos ya habían aprobado. La
+suite se repitió fuera del sandbox y aprobó completa; el primer resultado fue una limitación del
+entorno, no una aserción del proyecto.
+
+Esta sección modifica la documentación después de la corrida. Para cumplir la regla de que la
+suite pase sobre el último commit, los mismos controles deben repetirse después del commit que
+incorpore este registro.
+
 ## Avance de las pruebas
 
 | # | Prueba | Estado | Evidencia |
