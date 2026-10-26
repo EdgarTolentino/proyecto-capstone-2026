@@ -44,6 +44,13 @@ class TestDetectorRFDETR(ContratoDetector):
         return DetectorRFDETR(_ruta("GEPP_PESOS_RFDETR"))
 
 
+def test_el_lado_de_entrada_es_la_resolucion_del_modelo() -> None:
+    """Con los pesos v1 (nano) da 384; con los small v2, 512 (comprobado el 2026-10-25)."""
+    from gepp_vision.detectores.rfdetr import DetectorRFDETR
+
+    assert DetectorRFDETR(_ruta("GEPP_PESOS_RFDETR")).lado_entrada == 384
+
+
 #: Solo se comparan las detecciones con margen sobre el corte del detector: una a 0,251 en un
 #: adaptador puede salir a 0,249 en el otro y caerse del corte, y eso no es una diferencia.
 MARGEN = 0.05

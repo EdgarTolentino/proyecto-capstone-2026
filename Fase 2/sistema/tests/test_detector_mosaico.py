@@ -334,3 +334,12 @@ class TestDetectorMosaico(ContratoDetector):
         caja = Caja(0.4, 0.4, 0.6, 0.6)
         guion = [Segmento(0.0, 10.0, (DeteccionGuionada(P, caja, 0.8),))]
         return DetectorMosaico(DetectorFalso(guion), Mosaico(Caja(0, 0, 1, 1), 2.0, 64, 10))
+
+
+def test_validar_rechaza_un_recorte_que_no_cubre_ningun_pixel() -> None:
+    # `detectar` devuelve [] sin avisar (test anterior): el trabajador valida antes (#205).
+    vacio = DetectorMosaico(Blancos(), Mosaico(Caja(0.5, 0.5, 0.5001, 0.5001), 1.0, 640, 100))
+    with pytest.raises(ValueError, match="no cubre ningún píxel"):
+        vacio.validar(1920, 1080)
+    un_pixel = Caja(0.5, 0.5, 0.5 + 1 / 1920, 0.5 + 1 / 1080)
+    DetectorMosaico(Blancos(), Mosaico(un_pixel, 1.0, 640, 100)).validar(1920, 1080)  # pasa
