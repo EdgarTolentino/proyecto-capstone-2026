@@ -75,6 +75,16 @@ La comprobación local confirmó que `GEPP_TELEGRAM_TOKEN` existe, no está vac�
 básico esperado. El valor no se imprimió, no se añadió a Git y no se envió a ningún servicio en
 este paso. `GEPP_AVISO_DESTINATARIO` continúa vacío.
 
+## Paso 5 — destinatario del aviso
+
+El usuario inició el bot desde Telegram en iPhone y le envió un mensaje. La primera consulta no
+encontró actualizaciones; después de enviar un mensaje nuevo al bot correcto, la segunda consulta
+encontró exactamente un chat.
+
+El `chat_id` se guardó directamente en `GEPP_AVISO_DESTINATARIO` dentro de `.env`. La verificación
+confirmó que el campo contiene un identificador válido. Su valor no se imprimió ni se incorporó a
+Git.
+
 ## Avance de las pruebas
 
 | # | Prueba | Estado | Evidencia |
