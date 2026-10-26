@@ -201,6 +201,29 @@ shell con la ruta que contiene espacios; el segundo usó rutas literales y compl
 `uv` no pudo crear hardlinks entre su caché y `/tmp`, por lo que copió los archivos. La advertencia
 afecta el tiempo y espacio de instalación, no el entorno resultante.
 
+## Paso 10 — demo crítica en Ubuntu
+
+Se ejecutó `make demo` desde Ubuntu, con el entorno Linux separado, `generativa.mp4`, detector
+simulado y `FUENTE=2`. La ejecución terminó con código 0.
+
+| Resultado | Valor observado |
+|---|---|
+| Estado del video | `listo` |
+| Intentos fallidos | 0 |
+| Cuadros analizados | 40 |
+| Detecciones | 269 |
+| Personas seguidas | 4 |
+| Hallazgos | 1 |
+| EPP faltante | Casco y chaleco |
+| Severidad | 4, crítica |
+| Duración | 2,0 segundos |
+| Estado del hallazgo | `por_revisar` |
+| Evidencias | 1 recorte en la carpeta temporal de Ubuntu |
+| Avisos en el outbox | 1 notificación Telegram `pendiente` |
+
+El destinatario se ocultó de la salida. El despachador todavía no se ejecutó, por lo que esta
+corrida prepara la prueba de llegada al teléfono pero aún no la acredita.
+
 ## Avance de las pruebas
 
 | # | Prueba | Estado | Evidencia |
