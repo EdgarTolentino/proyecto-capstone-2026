@@ -257,12 +257,32 @@ El despachador informó `acusados=1` y `fallos=0`. La consulta de PostgreSQL dev
 
 Después de comprobar el resultado, el despachador se detuvo de forma controlada.
 
+## Paso 13 — el hallazgo corriente no interrumpe
+
+Se recreó `gepp_demo` y se procesó `generativa.mp4` con detector simulado y `FUENTE=1`. El video
+quedó `listo` y produjo un hallazgo de severidad 3, con una notificación inicialmente pendiente.
+
+Al ejecutar un ciclo del despachador se observó:
+
+| Resultado | Valor |
+|---|---|
+| Avisos enviados | 0 |
+| Filas enviadas al resumen | 1 |
+| Fallos | 0 |
+| `notificacion.tipo` | `resumen_turno` |
+| `notificacion.estado` | `pendiente` |
+| `notificacion.motivo` | `corriente` |
+| `notificacion.enviada_en` | Vacío |
+
+El usuario confirmó desde el iPhone que no llegó ningún mensaje nuevo. Después de la comprobación,
+el despachador se detuvo de forma controlada.
+
 ## Avance de las pruebas
 
 | # | Prueba | Estado | Evidencia |
 |---|---|---|---|
 | 1 | El aviso llega | Pasó | Despachador: `enviados=1`, `fallos=0`; captura redactada |
 | 2 | El acuse vuelve a la base | Pasó | `acusados=1`; PostgreSQL en `acusada`; captura sin botón |
-| 3 | Lo corriente no avisa de inmediato | Pendiente | — |
+| 3 | Lo corriente no avisa de inmediato | Pasó | `enviados=0`, motivo `corriente`; confirmación en iPhone |
 | 4 | Una caída temporal no pierde el aviso | Pendiente | — |
 | 5 | El aviso no identifica personas | Pasó | Texto del aviso y captura redactada |
