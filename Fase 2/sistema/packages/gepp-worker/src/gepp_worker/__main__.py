@@ -11,15 +11,19 @@ Configuración desde el entorno (ver `.env.example`):
                            trabajador no atiende pedidos. Debe existir, no estar bajo /mnt/ ni
                            coincidir o anidarse con GEPP_CARPETA_VIGILADA
     GEPP_GUION_FALSO   ruta a un guion JSON: usa el detector falso (demostración sin modelo)
-    GEPP_MODELO_RUTA   si no hay guion: RF-DETR exportado a ONNX, con su `.clases.json` al lado
-    GEPP_UMBRAL_CONFIANZA  corte del detector ONNX (0.25 por defecto; ver `rfdetr_comun`)
+    GEPP_MODELO_RUTA   si no hay guion: el modelo, con su `.clases.json` al lado
+    GEPP_MODELO_MOTOR  `onnx` (por defecto: el `.onnx` en CPU) o `rfdetr` (el `.pth` en la GPU;
+                       requiere `make setup-gpu`). Con `rfdetr`, GEPP_MODELO_VARIANTE (`nano`
+                       por defecto, `small`...)
+    GEPP_UMBRAL_CONFIANZA  corte del detector (0.25 por defecto; ver `rfdetr_comun`)
     GEPP_AVISO_CANAL + GEPP_AVISO_DESTINATARIO: si están, cada hallazgo escribe su aviso
     GEPP_MAXIMO_INTENTOS: intentos antes de dejar un video en `error` (3 por defecto)
     GEPP_VISTA_EN_VIVO=1 + GEPP_CARPETA_VIVO + GEPP_VIVO_FPS (25 por defecto): vista en
     vivo del procesamiento (apagada por defecto; ver `gepp_worker.vivo` y la excepción en
     02-privacidad-y-cumplimiento.md)
 
-Sin `GEPP_GUION_FALSO`, el detector es RF-DETR exportado a ONNX (`docs/operacion/modelo-onnx.md`).
+Sin `GEPP_GUION_FALSO`, el detector es RF-DETR (`docs/operacion/modelo-onnx.md`): el `.onnx` en
+CPU para desarrollar, o el `.pth` en la GPU para lo que se mide y se muestra (#203).
 """
 
 from __future__ import annotations
@@ -71,7 +75,7 @@ def correr_vigilante() -> None:
 
 
 def _fabrica_detector() -> Callable[[], Detector]:
-    """El guion simulado si hay uno (demostración, CI); si no, el modelo ONNX."""
+    """El guion simulado si hay uno (demostración, CI); si no, el modelo en el motor elegido."""
     from gepp_vision.detectores import DetectorFalso, DetectorOnnx, Guion
     from gepp_vision.detectores.rfdetr_comun import UMBRAL_CONFIANZA
 
@@ -86,9 +90,20 @@ def _fabrica_detector() -> Callable[[], Detector]:
         umbral = float(texto)
     except ValueError:
         sys.exit(f"GEPP_UMBRAL_CONFIANZA={texto!r} no es un número (use punto: 0.25)")
-    # Una sola sesión de ONNX Runtime para todos los videos: cargarla cuesta segundos.
-    detector = DetectorOnnx(Path(modelo), umbral=umbral)
-    return lambda: detector
+    motor = os.environ.get("GEPP_MODELO_MOTOR", "onnx")
+    if motor == "rfdetr":
+        from gepp_vision.detectores.rfdetr import VARIANTES, DetectorRFDETR
+
+        variante = os.environ.get("GEPP_MODELO_VARIANTE", "nano")
+        if variante not in VARIANTES:
+            sys.exit(f"GEPP_MODELO_VARIANTE={variante!r}: use una de {sorted(VARIANTES)}")
+        base: Detector = DetectorRFDETR(Path(modelo), variante=variante, umbral=umbral)
+    elif motor == "onnx":
+        base = DetectorOnnx(Path(modelo), umbral=umbral)
+    else:
+        sys.exit(f"GEPP_MODELO_MOTOR={motor!r}: use onnx o rfdetr")
+    # Un solo modelo cargado para todos los videos: cargarlo cuesta segundos.
+    return lambda: base
 
 
 def _carpeta_entrada() -> Path | None:
