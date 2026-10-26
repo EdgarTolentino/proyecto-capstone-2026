@@ -37,6 +37,19 @@ asignación de la issue #36, Edgar la realiza en la máquina con GPU.
 | `Fase 2/sistema/.env` | No existía al comenzar |
 | Servicios de Docker | Aún no levantados en este paso |
 
+## Paso 2 — servicios locales
+
+Se levantaron los servicios definidos en `Fase 2/sistema/docker/compose.yml` y se comprobó cada
+dependencia directamente.
+
+| Comprobación | Resultado observado | Estado |
+|---|---|---|
+| `docker compose -f docker/compose.yml up -d --wait` | PostgreSQL y Redis quedaron saludables | Pasó |
+| `pg_isready -U gepp -d gepp` | Puerto 5432: acepta conexiones | Pasó |
+| `redis-cli ping` | `PONG` | Pasó |
+
+En este paso no se creó la base `gepp_demo`, no se ejecutó el video y no se configuró Telegram.
+
 ## Avance de las pruebas
 
 | # | Prueba | Estado | Evidencia |
