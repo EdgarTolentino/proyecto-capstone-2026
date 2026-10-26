@@ -5,6 +5,7 @@ from __future__ import annotations
 from dataclasses import dataclass
 from datetime import datetime
 
+from gepp_core import ModoIncumplimiento
 from sqlalchemy import func, select, update
 from sqlalchemy.dialects.postgresql import insert
 from sqlalchemy.orm import Session
@@ -66,6 +67,18 @@ def por_hash(sesion: Session, hash_sha256: str) -> Video | None:
     return sesion.execute(
         select(Video).where(Video.hash_sha256 == hash_sha256)
     ).scalar_one_or_none()
+
+
+def modo_del_video(modo: str | None) -> ModoIncumplimiento:
+    """El modo con el que se evalúan las detecciones guardadas de un video (ADR-013).
+
+    `None` = procesado antes de existir el modo = `ausencia`. NO es el de la faena: la faena
+    dice qué modo quiere, el video guarda el que se aplicó."""
+    return ModoIncumplimiento.AUSENCIA if modo is None else ModoIncumplimiento(modo)
+
+
+def fijar_modo(sesion: Session, video_id: int, modo: ModoIncumplimiento) -> None:
+    sesion.execute(update(Video).where(Video.id == video_id).values(modo_incumplimiento=modo.value))
 
 
 def cambiar_estado(

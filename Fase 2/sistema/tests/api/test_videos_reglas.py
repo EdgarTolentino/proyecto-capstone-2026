@@ -299,6 +299,21 @@ def test_simular_sobre_lo_guardado(api: Cliente, confirmacion: float, esperados:
     assert r["alertas_por_turno_estimadas"] == esperados / 2
 
 
+def test_simular_usa_el_modo_del_video_y_no_el_de_la_faena(api: Cliente, bd: Any) -> None:
+    """ADR-013: los videos sin modo (procesados antes) se simulan en `ausencia` aunque la faena
+    pida `evidencia`; uno guardado como `evidencia` se simula por evidencia (aquí no hay
+    cabezas guardadas, así que no estima nada)."""
+    cuerpo = {"desde": "2026-09-01", "hasta": "2026-09-01", "regla": _regla()}
+    with bd.begin() as c:
+        c.execute(text("UPDATE faena SET modo_incumplimiento = 'evidencia'"))
+    r = api.llamar("simularRegla", "POST", "/reglas/1/simular", headers=ADMIN, json=cuerpo)
+    assert r["hallazgos_estimados"] == 2
+    with bd.begin() as c:
+        c.execute(text("UPDATE video SET modo_incumplimiento = 'evidencia'"))
+    r = api.llamar("simularRegla", "POST", "/reglas/1/simular", headers=ADMIN, json=cuerpo)
+    assert r["hallazgos_estimados"] == 0
+
+
 def test_simular_fuera_del_rango_no_ve_nada(api: Cliente) -> None:
     r = api.llamar(
         "simularRegla",

@@ -21,11 +21,11 @@ from __future__ import annotations
 
 import time
 from collections.abc import Iterable, Sequence
-from dataclasses import dataclass
+from dataclasses import dataclass, replace
 
 from gepp_bd.modelos import AccionCorrectiva, Evidencia, Fuente, Notificacion, Video
 from gepp_bd.modelos import Hallazgo as FilaHallazgo
-from gepp_bd.repositorios import detecciones, hallazgos, reglas
+from gepp_bd.repositorios import detecciones, hallazgos, reglas, videos
 from gepp_core import Hallazgo, Regla, agregar
 from sqlalchemy import delete, select, update
 from sqlalchemy.orm import Session
@@ -57,7 +57,10 @@ def recalcular_video(bd: Session, video: Video) -> Resultado:
     inicio = time.monotonic()
     fuente = bd.get(Fuente, video.fuente_id)
     assert fuente is not None
-    vigentes = reglas.para_fuente(bd, fuente)  # zona, horario y EPP evaluable de la cámara
+    # Zona, horario y EPP evaluable de la cámara; el modo, el que se aplicó AL VIDEO (no el de la
+    # faena de hoy): un video sin evidencia en sus detecciones no se reevalúa por evidencia.
+    modo = videos.modo_del_video(video.modo_incumplimiento)
+    vigentes = [replace(r, modo=modo) for r in reglas.para_fuente(bd, fuente)]
     nuevos = evaluar(bd, video.id, vigentes)
     existentes = list(
         bd.execute(select(FilaHallazgo).where(FilaHallazgo.video_id == video.id)).scalars()
