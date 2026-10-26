@@ -16,6 +16,14 @@ y hay que dar uno de los dos. La descripción del COCO dice `/ cuadro-entero` en
     uv run --no-sync python scripts/preetiquetar.py LOTE manifiesto.csv pesos.pth salida.coco.json \
         --variante small --clases rfdetr-s-epp-v2.clases.json --cuadro-entero
 
+Con `--motor onnx` el argumento `pesos` es el `.onnx` y corre `DetectorOnnx`, la misma clase que
+el trabajador (CPU, sin GPU). La resolución sale del propio ONNX, así que `--variante` no aplica y
+pasarla es un error. Sirve para medir lo que el sistema ve de verdad (`--cuadro-entero` y
+`--recorte` valen con los dos motores); la descripción del COCO empieza con `onnx:`:
+
+    uv run --no-sync python scripts/preetiquetar.py LOTE manifiesto.csv modelo.onnx \
+        salida.coco.json --motor onnx --umbral 0.05 --cuadro-entero
+
 Una pre-etiqueta no es verdad: quien etiqueta revisa cada caja, agrega lo que falta y fija
 los atributos (`docs/datos/guia-etiquetado.md`). El mapa de clases debe estar verificado con
 `exportar_onnx.py`: si no, las pre-etiquetas salen con la clase cambiada.
@@ -33,9 +41,11 @@ from pathlib import Path
 import cv2
 from gepp_core import Caja, ClaseDetectada
 from gepp_vision.detectores.mosaico import DetectorMosaico, Mosaico
+from gepp_vision.detectores.onnx import DetectorOnnx
 from gepp_vision.detectores.rfdetr import VARIANTES, DetectorRFDETR
 from gepp_vision.detectores.rfdetr_comun import MapaDeClases
 from gepp_vision.etiquetado import a_coco, combinar
+from gepp_vision.puertos import Detector
 
 INSTANTE = datetime(2000, 1, 1, tzinfo=UTC)
 
@@ -48,7 +58,18 @@ def main(argv: list[str] | None = None) -> int:
     )
     p.add_argument("pesos", type=Path)
     p.add_argument("salida", type=Path)
-    p.add_argument("--variante", default="nano", choices=sorted(VARIANTES))
+    p.add_argument(
+        "--motor",
+        default="rfdetr",
+        choices=("rfdetr", "onnx"),
+        help="rfdetr: pesos .pth en GPU (por defecto); onnx: el .onnx del trabajador, en CPU",
+    )
+    p.add_argument(
+        "--variante",
+        default=None,
+        choices=sorted(VARIANTES),
+        help="solo con --motor rfdetr (por defecto nano); con onnx la resolución sale del modelo",
+    )
     p.add_argument(
         "--clases",
         type=Path,
@@ -73,6 +94,8 @@ def main(argv: list[str] | None = None) -> int:
     p.add_argument("--lado", type=int, default=384)
     p.add_argument("--objeto-max-px", type=int, default=100)
     args = p.parse_args(argv)
+    if args.motor == "onnx" and args.variante is not None:
+        p.error("--variante no aplica con --motor onnx: la resolución sale del propio ONNX")
 
     with args.manifiesto.open(encoding="utf-8") as f:
         archivos = [fila["archivo"] for fila in csv.DictReader(f)]
@@ -84,7 +107,13 @@ def main(argv: list[str] | None = None) -> int:
     if not ruta_clases.exists():
         sys.exit(f"falta el mapa de clases {ruta_clases}: verifícalo con exportar_onnx.py")
     mapa = MapaDeClases.desde_json(ruta_clases)
-    base = DetectorRFDETR(args.pesos, variante=args.variante, mapa=mapa, umbral=args.umbral)
+    base: Detector
+    if args.motor == "onnx":
+        base = DetectorOnnx(args.pesos, mapa=mapa, umbral=args.umbral)
+    else:
+        base = DetectorRFDETR(
+            args.pesos, variante=args.variante or "nano", mapa=mapa, umbral=args.umbral
+        )
 
     mosaico: DetectorMosaico | None = None
     recorte: Caja | None = None
