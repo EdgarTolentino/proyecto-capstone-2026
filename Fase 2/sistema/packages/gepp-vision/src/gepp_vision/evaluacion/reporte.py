@@ -25,8 +25,10 @@ ORIGENES: tuple[str, ...] = ("con-preetiquetas", "sin-preetiquetas")
 LIMITACIONES: tuple[str, ...] = (
     "El nivel 1 mide objetos, no eventos: no hay prevalencia de incumplimiento.",
 )
-#: El nombre que `lote0.py` le pone a cada cuadro: `<archivo de video>_<índice:06d>.jpg`.
-_CUADRO = re.compile(r"^(?P<video>.+)_\d{6}\.jpg$")
+#: El nombre que `lote0.py` le pone a cada cuadro: `<archivo de video>_<índice:06d>.jpg`. `:06d`
+#: es un ancho mínimo: desde el índice 1.000.000 salen siete dígitos o más, sin cero delante.
+#: Dígitos ASCII y `fullmatch`: `\d` acepta dígitos Unicode y `$` admite un salto de línea final.
+_CUADRO = re.compile(r"(?P<video>.+)_(?:[0-9]{6}|[1-9][0-9]{6,})\.jpg")
 #: El mAP recorre la curva completa: necesita predicciones desde este score (`preetiquetar.py
 #: --umbral 0.05`). Con un mínimo más alto la curva se corta y el mAP sale bajo sin error.
 SCORE_MINIMO_MAP = 0.05
@@ -45,7 +47,7 @@ def videos_de_origen(imagenes: Sequence[str]) -> list[str] | None:
     no hay imágenes o si algún nombre no sigue el formato de `lote0.py`: entonces no se sabe."""
     videos = set()
     for nombre in imagenes:
-        m = _CUADRO.match(Path(nombre).name)
+        m = _CUADRO.fullmatch(Path(nombre).name)
         if m is None:
             return None
         videos.add(m["video"])

@@ -205,6 +205,8 @@ def test_la_tabla_del_acuerdo_dice_cuando_el_kappa_es_indefinido() -> None:
         ("celular-01_000000.jpg", "celular-01"),
         ("yt_GPCHfE_min020_000150.jpg", "yt_GPCHfE_min020"),  # el video lleva «_» en su nombre
         ("lote/celular-02_001260.jpg", "celular-02"),  # con carpeta delante
+        ("camara_999999.jpg", "camara"),  # el último índice de seis dígitos
+        ("camara_1000000.jpg", "camara"),  # `:06d` es ancho mínimo: desde aquí salen siete
     ],
 )
 def test_el_video_sale_del_nombre_que_pone_lote0(nombre: str, video: str) -> None:
@@ -213,10 +215,19 @@ def test_el_video_sale_del_nombre_que_pone_lote0(nombre: str, video: str) -> Non
 
 @pytest.mark.parametrize(
     "nombre",
-    ["celular-01_00000.jpg", "celular-01_0000000.jpg", "a.jpg", "celular-01_000000.png"],
+    [
+        "celular-01_00000.jpg",
+        "celular-01_0000000.jpg",
+        "a.jpg",
+        "celular-01_000000.png",
+        "celular-02_000000.jpg\n",
+        # dígitos de ancho completo, U+FF11 a U+FF16
+        "celular-02_\uff11\uff12\uff13\uff14\uff15\uff16.jpg",
+    ],
 )
 def test_un_nombre_fuera_del_formato_no_dice_de_que_video_sale(nombre: str) -> None:
-    # 5 y 7 dígitos a cada lado de los 6 del formato, un nombre suelto y otra extensión
+    # 5 dígitos, y 7 con cero delante, que `:06d` nunca escribe; un nombre suelto, otra
+    # extensión, un salto de línea al final y dígitos que no son ASCII
     assert videos_de_origen(["celular-01_000000.jpg", nombre]) is None
 
 
