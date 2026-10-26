@@ -277,6 +277,35 @@ Al ejecutar un ciclo del despachador se observó:
 El usuario confirmó desde el iPhone que no llegó ningún mensaje nuevo. Después de la comprobación,
 el despachador se detuvo de forma controlada.
 
+## Paso 14 — caída y recuperación del canal
+
+Se recreó `gepp_demo` con `FUENTE=2` y una notificación crítica pendiente. Para mantener la sesión
+de trabajo conectada, la caída se simuló únicamente en el proceso del despachador mediante un proxy
+HTTPS local inaccesible; no se apagó físicamente el wifi.
+
+Durante la caída controlada se observó:
+
+| Resultado | Valor |
+|---|---|
+| Avisos enviados | 0 |
+| Fallos del ciclo | 1 |
+| `notificacion.estado` | `pendiente` |
+| `notificacion.intentos` | 1 |
+| `notificacion.motivo` | `ConnectError` |
+| Reintento programado | Sí |
+| `notificacion.enviada_en` | Vacío |
+
+Después de vencer la espera de 30 segundos, se retiró el proxy y se ejecutó nuevamente el
+despachador. Informó `enviados=1` y `fallos=0`; PostgreSQL mostró `estado=enviada`, dos intentos,
+sin espera pendiente y con `enviada_en` presente. El motivo histórico `ConnectError` permaneció en
+la fila aun después del envío exitoso.
+
+El usuario confirmó en el iPhone que llegó el nuevo aviso. La
+[captura de la recuperación](2026-10-26-alerta-telegram-recuperada-redactada.jpg) muestra el aviso
+anterior de las 4:12 sin botón y el recuperado de las 4:33 con «Acuso recibo». El nombre del bot
+está oculto y la imagen no contiene metadatos GPS. Su SHA-256 es
+`22D90B0004A04954CEE8FA1A2CD603E7B85FC63B807DD0AC48C61BD721474853`.
+
 ## Avance de las pruebas
 
 | # | Prueba | Estado | Evidencia |
@@ -284,5 +313,5 @@ el despachador se detuvo de forma controlada.
 | 1 | El aviso llega | Pasó | Despachador: `enviados=1`, `fallos=0`; captura redactada |
 | 2 | El acuse vuelve a la base | Pasó | `acusados=1`; PostgreSQL en `acusada`; captura sin botón |
 | 3 | Lo corriente no avisa de inmediato | Pasó | `enviados=0`, motivo `corriente`; confirmación en iPhone |
-| 4 | Una caída temporal no pierde el aviso | Pendiente | — |
+| 4 | Una caída temporal no pierde el aviso | Pasó | Pendiente tras `ConnectError`; enviada al recuperar; captura |
 | 5 | El aviso no identifica personas | Pasó | Texto del aviso y captura redactada |
