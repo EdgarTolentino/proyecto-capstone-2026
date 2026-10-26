@@ -18,11 +18,18 @@ COMUNES = {"url": "postgresql://x/gepp_demo", "entrada": Path("/e"), "evidencia"
 def test_con_modelo_el_trabajador_no_ve_el_guion_del_env(tmp_path: Path) -> None:
     """El Makefile carga el .env, que puede traer GEPP_GUION_FALSO: con modelo, se saca."""
     modelo = tmp_path / "m.onnx"
-    base = {"GEPP_GUION_FALSO": "tests/fixtures/guion_sin_casco.json", "PATH": "/usr/bin"}
+    base = {
+        "GEPP_GUION_FALSO": "tests/fixtures/guion_sin_casco.json",
+        "GEPP_MODELO_MOTOR": "rfdetr",  # el .env de la máquina con GPU (#204)
+        "GEPP_MODELO_VARIANTE": "small",
+        "PATH": "/usr/bin",
+    }
     entorno = entorno_del_trabajador(
         base, fuente=2, guion=Path("demo/g.json"), modelo=modelo, **COMUNES
     )
     assert "GEPP_GUION_FALSO" not in entorno
+    assert entorno["GEPP_MODELO_MOTOR"] == "onnx"  # la demo recibe un .onnx
+    assert "GEPP_MODELO_VARIANTE" not in entorno
     assert entorno["GEPP_MODELO_RUTA"] == str(modelo.resolve())
     assert entorno["GEPP_FUENTE_ID"] == "2" and entorno["PATH"] == "/usr/bin"
 

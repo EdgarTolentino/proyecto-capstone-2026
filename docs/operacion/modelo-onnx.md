@@ -40,6 +40,22 @@ GEPP_UMBRAL_CONFIANZA=0.25
 
 Si el archivo no existe, el trabajador se detiene al arrancar y lo dice.
 
+## Lo que se mide y se muestra: el `.pth` en la GPU (#203)
+
+ONNX en CPU sirve para desarrollar en los portátiles. Para medir y para la demostración, el
+trabajador corre los pesos de PyTorch en la máquina con GPU (`make setup-gpu`):
+
+```
+GEPP_MODELO_MOTOR=rfdetr
+GEPP_MODELO_VARIANTE=small
+GEPP_MODELO_RUTA=/ruta/a/rfdetr-s-epp-v2.pth     # con rfdetr-s-epp-v2.clases.json al lado
+```
+
+El mapa de clases se busca con el mismo nombre que los pesos: `modelo.pth` va con
+`modelo.clases.json`. Si los pesos se llaman `checkpoint_best_total.pth`, hay que copiarlos o
+enlazarlos con el nombre del modelo. Un motor o una variante desconocidos detienen el arranque.
+Regla de ADR-010: nunca entrenar y servir a la vez en esa máquina.
+
 ## Probar un video propio
 
 ```
