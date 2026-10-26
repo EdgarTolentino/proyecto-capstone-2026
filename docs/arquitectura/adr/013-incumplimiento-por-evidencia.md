@@ -13,12 +13,14 @@ detector ve casi todos los cascos. En el CCTV de obra no los ve:
   de chaleco, cercano a 0.
 - Con el trabajador real, con mosaico en la GPU y sobre `yt_GPCHfE_min020.mp4`, en **122 de 157**
   hallazgos de casco comparables con la verdad la persona sí tiene casco (#203). Una persona con
-  casco pasa varios cuadros seguidos sin que el modelo lo vea, la racha supera
-  `confirmacion_segundos` y sale un hallazgo.
+  casco pasa varios cuadros seguidos sin que el modelo lo vea; cuando esa racha supera
+  `confirmacion_segundos`, sale un hallazgo.
 - Un modelo más grande (#31) y más fotos de internet (#31, v2) no subieron ese recall.
 
-Por ausencia, cada casco que el modelo no ve es una alerta. Mientras el recall no se acerque a
-1, el sistema alerta sobre todo a quien cumple.
+Por ausencia, cada racha de cuadros en que el modelo no ve un casco que sí está puesto, si dura
+más que `confirmacion_segundos`, se vuelve un hallazgo. Un cuadro suelto no basta, porque la
+confirmación lo filtra. Pero con un recall de 0,22, las rachas largas son la norma: mientras el
+recall no se acerque a 1, el sistema reporta sobre todo a quien cumple.
 
 ## Decisión
 
@@ -34,10 +36,22 @@ EPP, **y** ese EPP no está puesto.
 
 Un EPP sin clase de evidencia (lentes, guantes…) se sigue evaluando por ausencia.
 
-**2. El modo es de la faena**, no de cada regla. Se declara en el perfil
-(`faena.modo_incumplimiento`, ADR-011) y se guarda en `faena`. El trabajador y el recálculo sin
-GPU lo leen del mismo lugar (`reglas.en_fuente`), así que un video se evalúa igual en los dos. No
-se expone en la API: el contrato está congelado.
+**2. La faena declara el modo; el video guarda el que se usó.** Se declara en el perfil
+(`faena.modo_incumplimiento`, ADR-011) y se guarda en `faena`. Pero el modo **efectivo** se fija
+al procesar cada video, y queda guardado en el video:
+
+- El trabajador usa `evidencia` solo si la faena lo pide **y** el mapa de clases del modelo trae
+  las clases de evidencia. Si el modelo no las tiene, usa `ausencia` y lo deja escrito en su
+  salida: un modelo que no puede ver la falta no puede decidir por evidencia.
+- El recálculo sin GPU usa el modo **guardado en el video**, no el vigente de la faena. Las
+  detecciones de un video procesado por ausencia no traen `cabeza` ni `sin_chaleco`: si se
+  recalcularan por evidencia, sus hallazgos pasarían a cero en silencio (revisión de #207).
+- Cambiar el modo de la faena solo afecta a los videos que se procesen después. Para pasar los
+  anteriores a `evidencia`, hay que reprocesarlos con un modelo que tenga las clases.
+- Así, cada hallazgo se puede reconstruir con el criterio con que se decidió (ADR-004), sin
+  versionar la faena.
+
+Nada de esto se expone en la API: el contrato está congelado.
 
 **3. Las clases de evidencia solo las aprende el modelo.** Salen de datasets públicos que ya las
 traen y que tienen su fila en `07-datasets.md`:
@@ -73,6 +87,7 @@ descargadas y tienen licencia verificada.
 |---|---|---|
 | Clases del modelo | `persona`, `casco`, `chaleco` | Además `cabeza` y `sin_chaleco` |
 | Cuándo falta un EPP | No se ve puesto | Se ve la falta, y no se ve puesto (modo `evidencia`) |
+| Con qué modo se recalcula un video | — | El guardado al procesarlo, no el vigente de la faena |
 | Error dominante con un modelo débil | Falsas alarmas | Incumplimientos perdidos |
 
 **Lo que no cambia:** las reglas siguen en segundos (ADR-005), el detector y las reglas deciden
