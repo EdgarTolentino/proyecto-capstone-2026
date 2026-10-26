@@ -66,6 +66,15 @@ el intervalo del despachador. `GEPP_TELEGRAM_TOKEN` y `GEPP_AVISO_DESTINATARIO` 
 | Token de Telegram | Vacío | Espera acción del usuario |
 | Destinatario de Telegram | Vacío | Se obtiene después de iniciar el bot |
 
+## Paso 4 — bot y token local
+
+El usuario creó el bot desde Telegram en iPhone y guardó el token entregado por BotFather
+directamente en `Fase 2/sistema/.env`.
+
+La comprobación local confirmó que `GEPP_TELEGRAM_TOKEN` existe, no está vacío y cumple el formato
+básico esperado. El valor no se imprimió, no se añadió a Git y no se envió a ningún servicio en
+este paso. `GEPP_AVISO_DESTINATARIO` continúa vacío.
+
 ## Avance de las pruebas
 
 | # | Prueba | Estado | Evidencia |
