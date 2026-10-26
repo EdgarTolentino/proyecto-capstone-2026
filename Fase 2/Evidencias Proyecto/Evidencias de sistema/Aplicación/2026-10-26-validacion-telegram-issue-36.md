@@ -50,6 +50,22 @@ dependencia directamente.
 
 En este paso no se creó la base `gepp_demo`, no se ejecutó el video y no se configuró Telegram.
 
+## Paso 3 — insumos locales
+
+Se encontró `generativa.mp4` en la carpeta local de descargas. El archivo mide 4.566.510 bytes;
+no se abrió, procesó ni incorporó al repositorio en este paso.
+
+Se creó `Fase 2/sistema/.env` con la conexión local a PostgreSQL y Redis, el canal `telegram` y
+el intervalo del despachador. `GEPP_TELEGRAM_TOKEN` y `GEPP_AVISO_DESTINATARIO` quedaron vacíos.
+
+| Comprobación | Resultado | Estado |
+|---|---|---|
+| Video local disponible | `generativa.mp4`, 4.566.510 bytes | Pasó |
+| `.env` local | Existe | Pasó |
+| Protección del `.env` | `git check-ignore` lo reconoce | Pasó |
+| Token de Telegram | Vacío | Espera acción del usuario |
+| Destinatario de Telegram | Vacío | Se obtiene después de iniciar el bot |
+
 ## Avance de las pruebas
 
 | # | Prueba | Estado | Evidencia |
