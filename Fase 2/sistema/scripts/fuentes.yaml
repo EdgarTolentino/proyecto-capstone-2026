@@ -1,8 +1,9 @@
 # Datasets públicos con que se entrena el detector (#31). Cada uno tiene su fila en
 # docs/producto/07-datasets.md §2.bis, con la licencia verificada en la fuente primaria.
 #
-# clases: categoría tal como viene en el dataset -> clase propia (persona, casco, chaleco),
-#         o null para descartarla a propósito. Una categoría que no esté aquí DETIENE la
+# clases: categoría tal como viene en el dataset -> clase propia (persona, casco, chaleco,
+#         cabeza, sin_chaleco; las dos últimas son evidencia positiva, ADR-013), o null
+#         para descartarla a propósito. Una categoría que no esté aquí DETIENE la
 #         preparación: así nada entra traducido por suposición.
 # exhaustivas: clases que el dataset marca en TODAS sus imágenes. Las personas que falten
 #         las completa el detector COCO (anotación `automatica`).
@@ -18,8 +19,8 @@ fuentes:
       Hardhat: casco
       Safety Vest: chaleco
       Person: persona
-      NO-Hardhat: null      # la ausencia la deciden las reglas, no el detector (ADR-001)
-      NO-Safety Vest: null
+      NO-Hardhat: cabeza        # 402 cajas, ninguna solapa con un Hardhat (ADR-013)
+      NO-Safety Vest: sin_chaleco
       Mask: null
       NO-Mask: null
       Safety Cone: null
@@ -58,7 +59,7 @@ fuentes:
     origen: {tipo: kaggle, dataset: andrewmvd/hard-hat-detection, formato: voc}
     clases:
       helmet: casco
-      head: null
+      head: cabeza  # cabeza sin casco (ADR-013): 5.785 cajas, solo 4 solapan con un helmet
       person: persona
     exhaustivas: [casco]
 
@@ -70,7 +71,7 @@ fuentes:
     origen: {tipo: roboflow, proyecto: roboflow-universe-projects/safety-vests, version: 1}
     clases:
       Safety Vest: chaleco
-      NO-Safety Vest: null  # la ausencia la deciden las reglas (ADR-001)
+      NO-Safety Vest: sin_chaleco  # persona sin chaleco (ADR-013): 3 de 2.024 solapan con un chaleco
     exhaustivas: [chaleco]  # los cascos no tienen caja: los completa el modelo EPP
     # Hay overoles marcados como chaleco. No se filtran por forma: en una muestra de 24 cajas
     # con alto/ancho > 2,5, dos tercios eran chalecos de perfil o tapados (07-datasets).
