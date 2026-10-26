@@ -105,6 +105,29 @@ registrar el video.
 No se intentó corregir ni ejecutar una variante después del fallo. Se conserva el resultado para
 informarlo en la issue antes de modificar código, como indican las instrucciones de #36.
 
+### Borrador para la issue #36
+
+> Probé el inicio del recorrido solicitado en Windows, con el detector simulado y `FUENTE=2`.
+>
+> Comando equivalente ejecutado, porque `make` no está disponible en esta instalación:
+>
+> ```powershell
+> .\.venv\Scripts\python.exe scripts/demo.py <ruta-local>\generativa.mp4 --fuente 2
+> ```
+>
+> Resultado: ❌ la demo recreó `gepp_demo`, pero el video quedó `sin registrar`. Los procesos
+> hijos fallaron al iniciar con estos errores:
+>
+> ```text
+> AttributeError: Can't get attribute 'correr_trabajador' on <module '__main__'>
+> AttributeError: Can't get attribute 'correr_vigilante' on <module '__main__'>
+> ```
+>
+> Estado comprobado al terminar: 0 videos, 0 hallazgos y 0 avisos en el outbox. Por eso todavía
+> no ejecuté las pruebas 1–5 con el teléfono. No intenté corregir el código ni otra variante del
+> recorrido, siguiendo la instrucción de esta issue. El token, el `chat_id` y el nombre del bot
+> no se incluyeron en la evidencia.
+
 ## Avance de las pruebas
 
 | # | Prueba | Estado | Evidencia |
