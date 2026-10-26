@@ -58,6 +58,11 @@ class DetectorOnnx:
     def version(self) -> str:
         return self._version
 
+    @property
+    def lado_entrada(self) -> int | None:
+        """Lado de la entrada del modelo si es cuadrada (None si no): el `lado` del mosaico."""
+        return self._ancho if self._ancho == self._alto else None
+
     def detectar(
         self, imagen: np.ndarray, *, cuadro_idx: int, capture_ts: datetime
     ) -> list[Deteccion]:

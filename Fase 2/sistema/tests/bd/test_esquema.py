@@ -5,12 +5,14 @@ from __future__ import annotations
 import pytest
 from alembic.autogenerate import compare_metadata
 from alembic.migration import MigrationContext
+from gepp_bd import transaccion
 from gepp_bd.migrar import bajar, subir
 from gepp_bd.modelos import Base
 from sqlalchemy import Engine, create_engine, inspect, text
 from sqlalchemy.exc import IntegrityError
 
 from .conftest import TABLAS
+from .test_ingesta import PERFIL
 
 pytestmark = pytest.mark.integration
 
@@ -81,3 +83,38 @@ def test_la_regla_no_admite_umbrales_nulos_ni_sin_epp(bd: Engine) -> None:
         c.execute(text(base.format(epp="'{}'", conf="2.0")))
     with pytest.raises(IntegrityError, match="umbrales_positivos"), bd.begin() as c:
         c.execute(text(base.format(epp="'{casco}'", conf="0")))
+
+
+def test_bajar_de_0007_no_borra_una_zona_de_mosaico_que_usa_una_regla(
+    url_bd: str, bd: Engine
+) -> None:
+    """`regla.zona_id` no tiene cascada: el downgrade se niega con su motivo en vez de fallar
+    por la clave foránea o dejar la regla sin zona (revisión de #205)."""
+    from gepp_bd.semilla import cargar, leer
+
+    with transaccion(bd) as s:
+        cargar(s, leer(PERFIL))
+        s.execute(
+            text(
+                "INSERT INTO zona (area_id, fuente_id, nombre, tipo, poligono) "
+                "SELECT area_id, id, 'Foso', 'mosaico', '[[0,0],[1,0],[1,1],[0,1]]' "
+                "FROM fuente WHERE id = 1"
+            )
+        )
+        s.execute(
+            text(
+                "UPDATE regla SET zona_id = (SELECT id FROM zona WHERE tipo = 'mosaico') "
+                "WHERE id = (SELECT min(id) FROM regla)"
+            )
+        )
+    try:
+        with pytest.raises(RuntimeError, match="1 regla\\(s\\) apuntan a una zona de mosaico"):
+            bajar(url_bd, "0006")
+        with transaccion(bd) as s:  # el intento fallido no dejó nada a medias
+            assert s.execute(text("SELECT count(*) FROM zona WHERE tipo = 'mosaico'")).scalar() == 1
+            s.execute(text("UPDATE regla SET zona_id = NULL"))
+        bajar(url_bd, "0006")
+        with transaccion(bd) as s:
+            assert s.execute(text("SELECT count(*) FROM zona WHERE tipo = 'mosaico'")).scalar() == 0
+    finally:
+        subir(url_bd)

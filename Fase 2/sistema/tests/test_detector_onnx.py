@@ -177,3 +177,7 @@ def test_el_trabajador_elige_el_detector_por_el_entorno(
     monkeypatch.setenv("GEPP_MODELO_RUTA", str(modelo.with_name("no-existe.onnx")))
     with pytest.raises(SystemExit, match="Falta el modelo"):
         _fabrica_detector()
+
+
+def test_el_lado_de_entrada_sale_del_modelo(modelo: Path) -> None:
+    assert DetectorOnnx(modelo).lado_entrada == LADO  # el `lado` del mosaico (#205)

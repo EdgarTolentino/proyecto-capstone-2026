@@ -180,8 +180,12 @@ class DetectorMosaico:
         )
 
     def validar(self, ancho: int, alto: int) -> None:
-        """Falla si, para cuadros de este tamaño, la configuración pasa de `MAX_MOSAICOS`.
-        Para llamarla al abrir la fuente, antes del primer cuadro."""
+        """Falla si, para cuadros de este tamaño, el recorte no cubre ningún píxel o la
+        configuración pasa de `MAX_MOSAICOS`. Para llamarla al abrir la fuente, antes del primer
+        cuadro: `detectar` con un recorte vacío devuelve [] sin avisar."""
+        r = self._mosaico.recorte
+        if round(r.x2 * ancho) <= round(r.x1 * ancho) or round(r.y2 * alto) <= round(r.y1 * alto):
+            raise ValueError(f"el recorte {r} no cubre ningún píxel en cuadros de {ancho}x{alto}")
         _, _, columnas, filas = self._geometria(ancho, alto)
         if len(columnas) * len(filas) > MAX_MOSAICOS:
             raise ValueError(

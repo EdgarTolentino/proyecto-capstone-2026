@@ -53,8 +53,11 @@ Para eso, en la máquina con GPU (`make setup-gpu`):
 GEPP_MODELO_MOTOR=rfdetr
 GEPP_MODELO_VARIANTE=small
 GEPP_MODELO_RUTA=/ruta/a/rfdetr-s-epp-v2.pth     # con rfdetr-s-epp-v2.clases.json al lado
-GEPP_MOSAICO_LADO=512                            # la entrada del modelo: 384 el nano, 512 el small
 ```
+
+`GEPP_MOSAICO_LADO` vacío toma la entrada del modelo (384 el nano, 512 el small). Un valor
+distinto detiene el arranque: el modelo reescalaría cada mosaico y los objetos chicos llegarían
+más chicos que en la medición.
 
 El mapa de clases se busca con el mismo nombre que los pesos: `modelo.pth` va con
 `modelo.clases.json`. Si los pesos se llaman `checkpoint_best_total.pth`, hay que copiarlos o
@@ -63,8 +66,21 @@ enlazarlos con el nombre del modelo. Un motor o una variante desconocidos detien
 Además, la cámara necesita una **zona `mosaico`** en su perfil (`perfiles/construccion.yaml`
 trae un ejemplo comentado): el trabajador analiza solo la caja que encierra ese polígono,
 ampliada `GEPP_MOSAICO_FACTOR` veces y partida en mosaicos. Lo de fuera de la zona no se
-analiza. Sin la zona, el cuadro entero, como antes. A lo sumo una por cámara: con dos, el video
-queda en error con su motivo.
+analiza, y en la evidencia esa parte sale pixelada: ahí no se buscaron personas, así que no se
+sabe si hay un rostro que tapar (ADR-006). Sin la zona, el cuadro entero, como antes. A lo sumo
+una por cámara: con dos, el video queda en error con su motivo.
+
+`make semilla` no agrega zonas a una base que ya tiene faena: carga el perfil solo la primera
+vez. En una base existente, la zona se agrega a mano (coordenadas normalizadas 0..1):
+
+```sql
+INSERT INTO zona (area_id, fuente_id, nombre, tipo, poligono)
+SELECT area_id, id, 'Foso', 'mosaico',
+       '[[0.3125, 0.2037], [0.7292, 0.2037], [0.7292, 0.6759], [0.3125, 0.6759]]'::jsonb
+FROM fuente WHERE id = 1;
+```
+
+Los videos ya procesados no cambian: se reprocesan para que la zona aplique.
 
 Costo medido el 2026-10-25 sobre 24 cuadros de 1920×1080 (#203):
 
@@ -101,6 +117,7 @@ Si el video falla, igual se levantan la API y la web. El motivo queda en la cola
 | `falta el mapa de clases junto al modelo` | Falta el `.clases.json` al lado del `.onnx` | Copiarlo junto al modelo |
 | `la cámara tiene 2 zonas de mosaico; admite una` | El perfil declara más de una zona `mosaico` en esa cámara | Dejar una y usar "Reprocesar" |
 | `... mosaicos por cuadro (tope 64) ...` | La zona, el factor u `objeto_max_px` dan demasiados mosaicos | Achicar la zona o bajar `GEPP_MOSAICO_FACTOR` |
+| `el recorte ... no cubre ningún píxel ...` | La zona `mosaico` es tan chica que no llega a un píxel | Redibujarla |
 
 Un video queda en `error` después de 3 intentos. Corregida la causa, "Reprocesar" lo
 devuelve a la cola.

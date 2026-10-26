@@ -17,8 +17,8 @@ Configuración desde el entorno (ver `.env.example`):
                        por defecto, `small`...)
     GEPP_UMBRAL_CONFIANZA  corte del detector (0.25 por defecto; ver `rfdetr_comun`)
     GEPP_MOSAICO_FACTOR · GEPP_MOSAICO_LADO · GEPP_MOSAICO_OBJETO_MAX_PX: cómo se parte la zona
-                       `mosaico` de una cámara (2 · 384 · 100 por defecto; LADO = entrada del
-                       modelo: 384 el nano, 512 el small). Sin esa zona, cuadro entero (#203)
+                       `mosaico` de una cámara (2 · entrada del modelo · 100 por defecto; un LADO
+                       distinto de la entrada detiene el arranque). Sin esa zona, cuadro entero
     GEPP_AVISO_CANAL + GEPP_AVISO_DESTINATARIO: si están, cada hallazgo escribe su aviso
     GEPP_MAXIMO_INTENTOS: intentos antes de dejar un video en `error` (3 por defecto)
     GEPP_VISTA_EN_VIVO=1 + GEPP_CARPETA_VIVO + GEPP_VIVO_FPS (25 por defecto): vista en
@@ -32,6 +32,7 @@ la GPU y con la zona `mosaico` de la cámara. En CPU, el mosaico tarda segundos 
 
 from __future__ import annotations
 
+import math
 import multiprocessing as mp
 import os
 import signal
@@ -112,27 +113,33 @@ def _fabrica_detector() -> Callable[[], Detector]:
 
 
 def _numero_positivo(variable: str, defecto: float, tipo: type[float] | type[int]) -> float:
-    """El valor de `variable`, o `defecto` si no está; uno inválido detiene el arranque."""
+    """El valor de `variable`, o `defecto` si no está o está vacía; uno inválido detiene el
+    arranque."""
     texto = os.environ.get(variable)
-    if texto is None:
+    if not texto:
         return defecto
     try:
         valor = tipo(texto)
     except ValueError:
         sys.exit(f"{variable}={texto!r} no es un número válido (use punto: 2.5)")
-    if valor <= 0:
-        sys.exit(f"{variable}={texto!r} debe ser positivo")
+    if not math.isfinite(valor) or valor <= 0:
+        sys.exit(f"{variable}={texto!r} debe ser un número positivo y finito")
     return valor
 
 
-def _parametros_mosaico() -> ParametrosMosaico:
-    """Los de `GEPP_MOSAICO_*`, con los de `ParametrosMosaico` por defecto."""
+def _parametros_mosaico(entrada: int | None = None) -> ParametrosMosaico:
+    """Los de `GEPP_MOSAICO_*`, con los de `ParametrosMosaico` por defecto. `entrada` es el lado
+    de entrada del modelo, si se sabe: es el `lado` por defecto, y uno distinto detiene el
+    arranque, porque el modelo reescalaría cada mosaico sin avisar (revisión de #205)."""
     from gepp_worker.trabajador import ParametrosMosaico
 
     d = ParametrosMosaico()
+    lado = int(_numero_positivo("GEPP_MOSAICO_LADO", entrada or d.lado, int))
+    if entrada is not None and lado != entrada:
+        sys.exit(f"GEPP_MOSAICO_LADO={lado} no coincide con la entrada del modelo ({entrada})")
     return ParametrosMosaico(
         factor=_numero_positivo("GEPP_MOSAICO_FACTOR", d.factor, float),
-        lado=int(_numero_positivo("GEPP_MOSAICO_LADO", d.lado, int)),
+        lado=lado,
         objeto_max_px=int(_numero_positivo("GEPP_MOSAICO_OBJETO_MAX_PX", d.objeto_max_px, int)),
     )
 
@@ -179,7 +186,8 @@ def correr_trabajador() -> None:
         carpeta_vivo=carpeta_vivo_configurada(),
         vivo_fps=_fps_vivo(),
         carpeta_vivo_residuos=carpeta_de_residuos(),
-        mosaico=_parametros_mosaico(),
+        # El detector falso no tiene entrada fija: ahí manda GEPP_MOSAICO_LADO.
+        mosaico=_parametros_mosaico(getattr(fabrica_detector(), "lado_entrada", None)),
     )
     parar = _detenible()
     trabajador = Trabajador(crear_motor(), _cola(), fabrica_detector, config)

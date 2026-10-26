@@ -71,6 +71,12 @@ class DetectorRFDETR:
     def version(self) -> str:
         return self._version
 
+    @property
+    def lado_entrada(self) -> int:
+        """Resolución de entrada del modelo: el `lado` del mosaico. 384 el nano y 512 el small,
+        comprobado con los pesos v1 y small v2 (#205)."""
+        return int(self._modelo.model_config.resolution)
+
     def detectar(
         self, imagen: np.ndarray, *, cuadro_idx: int, capture_ts: datetime
     ) -> list[Deteccion]:

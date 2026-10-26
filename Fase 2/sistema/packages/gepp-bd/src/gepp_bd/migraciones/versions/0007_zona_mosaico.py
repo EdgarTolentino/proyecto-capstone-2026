@@ -14,6 +14,7 @@ from __future__ import annotations
 
 from collections.abc import Sequence
 
+import sqlalchemy as sa
 from alembic import op
 
 revision: str = "0007"
@@ -30,7 +31,22 @@ def upgrade() -> None:
 
 
 def downgrade() -> None:
-    # Una zona `mosaico` no cabe en el esquema anterior: se borra antes de restringir.
+    # Una zona `mosaico` no cabe en el esquema anterior: se borra antes de restringir. Si una
+    # regla apunta a ella (`regla.zona_id`, sin cascada), no se adivina qué hacer con la regla.
+    referidas = (
+        op.get_bind()
+        .execute(
+            sa.text(
+                "SELECT count(*) FROM regla r JOIN zona z ON z.id = r.zona_id "
+                "WHERE z.tipo = 'mosaico'"
+            )
+        )
+        .scalar_one()
+    )
+    if referidas:
+        raise RuntimeError(
+            f"{referidas} regla(s) apuntan a una zona de mosaico: reasígnelas antes de bajar a 0006"
+        )
     op.execute("DELETE FROM zona WHERE tipo = 'mosaico'")
     op.drop_constraint(op.f("ck_zona_tipo"), "zona", type_="check")
     op.create_check_constraint(op.f("ck_zona_tipo"), "zona", "tipo IN ('interes','privacidad')")

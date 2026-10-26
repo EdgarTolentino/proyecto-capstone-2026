@@ -43,7 +43,7 @@ from gepp_core.textos import sin_rutas
 from gepp_vision.detectores.mosaico import DetectorMosaico, Mosaico
 from gepp_vision.evidencia import EvidenciaEscrita, escribir_evidencia
 from gepp_vision.pipeline import CuadroFechado, PipelineEtapa1, ResultadoCuadro
-from gepp_vision.privacidad import MascaraPrivacidad
+from gepp_vision.privacidad import MascaraPrivacidad, difuminar_regiones
 from gepp_vision.puertos import Detector, Seguidor
 from gepp_vision.seguimiento import SeguidorByteTrack
 from sqlalchemy import Engine, select
@@ -135,6 +135,18 @@ def recorte_de_mosaico(poligonos: list[list[list[float]]]) -> Caja | None:
     if min(xs + ys) < 0 or max(xs + ys) > 1:
         raise ValueError(f"la zona de mosaico tiene vértices fuera de 0..1: {poligonos[0]}")
     return Caja(min(xs), min(ys), max(xs), max(ys))
+
+
+def fuera_del_recorte(recorte: Caja) -> list[Caja]:
+    """Las franjas del cuadro que el mosaico no analiza. En la evidencia se pixelan: ahí no se
+    buscaron personas, así que nadie sabe si hay un rostro que tapar (ADR-006, revisión de #205)."""
+    franjas = [
+        (0.0, 0.0, 1.0, recorte.y1),
+        (0.0, recorte.y2, 1.0, 1.0),
+        (0.0, recorte.y1, recorte.x1, recorte.y2),
+        (recorte.x2, recorte.y1, 1.0, recorte.y2),
+    ]
+    return [Caja(*f) for f in franjas if f[2] > f[0] and f[3] > f[1]]
 
 
 def _propiedades(ruta: Path) -> PropiedadesFuente:
@@ -410,10 +422,13 @@ class Trabajador:
         detector = self._fabrica_detector()
         if ctx.mosaico is not None:
             m = self._config.mosaico
-            # Con demasiados mosaicos, el primer cuadro falla con su motivo (`validar`).
-            detector = DetectorMosaico(
+            mosaico = DetectorMosaico(
                 detector, Mosaico(ctx.mosaico, m.factor, m.lado, m.objeto_max_px)
             )
+            # Antes del primer cuadro: un recorte sin píxeles haría que `detectar` devolviera []
+            # y el video terminaría `listo` sin haber mirado nada.
+            mosaico.validar(props.ancho, props.alto)
+            detector = mosaico
         pipeline = PipelineEtapa1(
             detector,
             self._fabrica_seguidor(),
@@ -567,7 +582,12 @@ class Trabajador:
                 if indice in faltan:
                     cuadro = fuente.recuperar()
                     if cuadro is not None:
-                        imagenes[indice] = (cuadro.capture_ts, mascara.aplicar(cuadro.imagen))
+                        imagen = mascara.aplicar(cuadro.imagen)
+                        if ctx.mosaico is not None:
+                            imagen = difuminar_regiones(
+                                imagen, fuera_del_recorte(ctx.mosaico), margen=0.0
+                            )
+                        imagenes[indice] = (cuadro.capture_ts, imagen)
                     faltan.discard(indice)
         finally:
             fuente.cerrar()

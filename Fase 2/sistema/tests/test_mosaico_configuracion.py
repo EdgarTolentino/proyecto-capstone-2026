@@ -4,7 +4,7 @@ from __future__ import annotations
 
 import pytest
 from gepp_core import Caja
-from gepp_worker.trabajador import ParametrosMosaico, recorte_de_mosaico
+from gepp_worker.trabajador import ParametrosMosaico, fuera_del_recorte, recorte_de_mosaico
 
 RECTANGULO = [[0.25, 0.25], [0.75, 0.25], [0.75, 0.5], [0.25, 0.5]]
 
@@ -63,6 +63,8 @@ def test_los_parametros_del_mosaico_salen_del_entorno(monkeypatch: pytest.Monkey
         ("GEPP_MOSAICO_FACTOR", "2,5"),  # coma decimal
         ("GEPP_MOSAICO_LADO", "512.5"),  # entero
         ("GEPP_MOSAICO_OBJETO_MAX_PX", "cien"),
+        ("GEPP_MOSAICO_FACTOR", "nan"),  # pasa `<= 0` y revienta en cada video (#205)
+        ("GEPP_MOSAICO_FACTOR", "inf"),
     ],
 )
 def test_un_parametro_invalido_detiene_el_arranque_con_su_variable(
@@ -80,3 +82,46 @@ def test_el_parametro_justo_sobre_cero_vale(monkeypatch: pytest.MonkeyPatch) -> 
 
     monkeypatch.setenv("GEPP_MOSAICO_FACTOR", "0.25")
     assert _parametros_mosaico().factor == 0.25
+
+
+def test_una_variable_vacia_vale_como_no_definida(monkeypatch: pytest.MonkeyPatch) -> None:
+    from gepp_worker.__main__ import _parametros_mosaico
+
+    monkeypatch.setenv("GEPP_MOSAICO_LADO", "")  # así viene en .env.example
+    monkeypatch.delenv("GEPP_MOSAICO_FACTOR", raising=False)
+    monkeypatch.delenv("GEPP_MOSAICO_OBJETO_MAX_PX", raising=False)
+    assert _parametros_mosaico() == ParametrosMosaico()
+
+
+def test_el_lado_por_defecto_es_la_entrada_del_modelo(monkeypatch: pytest.MonkeyPatch) -> None:
+    from gepp_worker.__main__ import _parametros_mosaico
+
+    monkeypatch.delenv("GEPP_MOSAICO_LADO", raising=False)
+    assert _parametros_mosaico(512).lado == 512
+    monkeypatch.setenv("GEPP_MOSAICO_LADO", "512")
+    assert _parametros_mosaico(512).lado == 512
+
+
+def test_un_lado_distinto_de_la_entrada_detiene_el_arranque(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    from gepp_worker.__main__ import _parametros_mosaico
+
+    monkeypatch.setenv("GEPP_MOSAICO_LADO", "384")
+    with pytest.raises(SystemExit, match="no coincide con la entrada del modelo"):
+        _parametros_mosaico(512)
+    assert _parametros_mosaico(None).lado == 384  # detector sin entrada fija: manda la variable
+
+
+def test_fuera_del_recorte_son_las_cuatro_franjas_que_lo_rodean() -> None:
+    assert fuera_del_recorte(Caja(0.25, 0.25, 0.75, 0.5)) == [
+        Caja(0.0, 0.0, 1.0, 0.25),  # arriba
+        Caja(0.0, 0.5, 1.0, 1.0),  # abajo
+        Caja(0.0, 0.25, 0.25, 0.5),  # izquierda
+        Caja(0.75, 0.25, 1.0, 0.5),  # derecha
+    ]
+
+
+def test_un_recorte_pegado_a_los_bordes_no_deja_franjas_vacias() -> None:
+    assert fuera_del_recorte(Caja(0.0, 0.0, 1.0, 1.0)) == []
+    assert fuera_del_recorte(Caja(0.0, 0.0, 0.5, 1.0)) == [Caja(0.5, 0.0, 1.0, 1.0)]
