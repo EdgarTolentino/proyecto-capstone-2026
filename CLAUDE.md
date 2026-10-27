@@ -17,7 +17,7 @@ cámbiala en ambos.
 | `Fase 2/sistema/packages/` | `gepp-core`, `gepp-bd`, `gepp-api`, `gepp-vision`, `gepp-worker` |
 | `Fase 2/sistema/apps/web/` | Frontend React + TS (Vite, Vitest, React Query) |
 | `Fase 2/sistema/contracts/openapi.yaml` | Frontera backend ↔ frontend. **Congelado**: ver CONTRIBUTING |
-| `docs/arquitectura/adr/` | ADR-001 a ADR-012 |
+| `docs/arquitectura/adr/` | ADR-001 a ADR-013 |
 | `docs/producto/02-privacidad-y-cumplimiento.md` | Lo que el sistema nunca hace con personas |
 
 ## Comandos de verificación

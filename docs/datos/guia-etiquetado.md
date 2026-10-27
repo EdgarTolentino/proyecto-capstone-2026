@@ -27,6 +27,10 @@ puesto o no lo decide el sistema al asociar el casco con la franja de la cabeza 
 (`gepp_core.asociacion`). Para medir esa asociación, cada casco lleva el atributo `puesto`
 (sección 3).
 
+Las clases `cabeza` (cabeza sin casco) y `sin_chaleco` del [ADR-013](../arquitectura/adr/013-incumplimiento-por-evidencia.md)
+**no se etiquetan aquí**. Las aprende el modelo desde datasets públicos que ya las traen. Esta
+verdad sigue marcando el objeto, para que las mediciones sigan siendo comparables.
+
 ## 3. Atributos
 
 | Clase | Atributo | Valores | Para qué |
