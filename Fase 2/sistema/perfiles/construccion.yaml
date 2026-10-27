@@ -17,6 +17,9 @@ evaluado: true
 faena:
   nombre: Obra de referencia
   zona_horaria: America/Santiago
+  # Cómo se decide que falta un EPP (ADR-013): `ausencia` = no se ve puesto; `evidencia` = el
+  # modelo vio la falta (`cabeza`, `sin_chaleco`). Se queda en `ausencia` hasta medir (#31).
+  modo_incumplimiento: ausencia
 
 areas:
   - nombre: Acceso y patio de materiales

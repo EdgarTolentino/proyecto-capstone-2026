@@ -54,6 +54,8 @@ CONVENCION_DE_NOMBRES = {
 # validen contra la misma lista que la base, en vez de copiarla.
 TIPOS_ZONA = ("interes", "privacidad", "mosaico")
 TIPOS_FUENTE = ("carpeta", "rtsp")
+#: Cómo decide la faena que falta un EPP (`gepp_core.ModoIncumplimiento`, ADR-013).
+MODOS_INCUMPLIMIENTO = ("ausencia", "evidencia")
 ORIGENES_CAPTURE_TS = ("metadatos", "mtime", "manual", "ocr")
 ESTADOS_VIDEO = ("en_cola", "procesando", "reintentando", "listo", "error")
 #: Qué está haciendo el trabajador con un video `procesando` (columna `video.avance_fase`).
@@ -83,10 +85,16 @@ TSTZ = DateTime(timezone=True)
 
 class Faena(Base):
     __tablename__ = "faena"
+    __table_args__ = (
+        CheckConstraint(
+            en("modo_incumplimiento", MODOS_INCUMPLIMIENTO), name="modo_incumplimiento"
+        ),
+    )
 
     id: Mapped[int] = mapped_column(BigInteger, primary_key=True)
     nombre: Mapped[str] = mapped_column(Text)
     zona_horaria: Mapped[str] = mapped_column(Text, server_default="America/Santiago")
+    modo_incumplimiento: Mapped[str] = mapped_column(Text, server_default="ausencia")
     creado_en: Mapped[datetime] = mapped_column(TSTZ, server_default=func.now())
 
 
@@ -147,6 +155,9 @@ class Video(Base):
         CheckConstraint(en("origen_capture_ts", ORIGENES_CAPTURE_TS), name="origen_capture_ts"),
         CheckConstraint(en("estado", ESTADOS_VIDEO), name="estado"),
         CheckConstraint(en("avance_fase", FASES_AVANCE), name="avance_fase"),
+        CheckConstraint(
+            en("modo_incumplimiento", MODOS_INCUMPLIMIENTO), name="modo_incumplimiento"
+        ),
         Index("ix_video_estado_creado_en", "estado", "creado_en"),
     )
 
@@ -170,6 +181,9 @@ class Video(Base):
     intentos: Mapped[int] = mapped_column(Integer, server_default="0")
     cuadros_analizados: Mapped[int | None] = mapped_column(Integer)
     proceso_ms: Mapped[int | None] = mapped_column(BigInteger)
+    #: Modo con el que se procesó (ADR-013): el recálculo y el simulador usan ESTE, no el de la
+    #: faena. Nulo = procesado antes de existir el modo, y se lee como `ausencia`.
+    modo_incumplimiento: Mapped[str | None] = mapped_column(Text)
     creado_en: Mapped[datetime] = mapped_column(TSTZ, server_default=func.now())
     #: Avance del análisis mientras el video está `procesando`. TELEMETRÍA del procesamiento
     #: (ADR-005): nunca fecha una detección ni un hallazgo. Todo nulo si no se está analizando.
