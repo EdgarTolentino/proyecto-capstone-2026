@@ -45,6 +45,11 @@ class ClaseDetectada(StrEnum):
     GUANTES = "guantes"
     ARNES = "arnes"
     CALZADO = "calzado"
+    #: Evidencia POSITIVA de que falta un EPP (ADR-013): una cabeza sin casco y una persona
+    #: sin chaleco. Solo las aprende el modelo, desde datasets públicos que ya las traen; la
+    #: verdad etiquetada en CVAT sigue marcando el objeto, no el cumplimiento (guía §2).
+    CABEZA = "cabeza"
+    SIN_CHALECO = "sin_chaleco"
 
 
 #: Franja vertical de la persona donde se espera cada EPP, en fracción de su alto.
