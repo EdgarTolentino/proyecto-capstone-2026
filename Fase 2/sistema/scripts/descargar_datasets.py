@@ -87,6 +87,12 @@ def descargar(fuente: Fuente, destino: Path) -> None:
         print(f"  {fuente.nombre}: ya estaba, se salta")
         return
     origen = fuente.origen
+    if origen["tipo"] == "cvat":
+        print(
+            f"  {fuente.nombre}: entrega manual, no se descarga: pon el export COCO 1.0 de CVAT en"
+        )
+        print(f"    {carpeta}/exportes y enlaza los cuadros en {carpeta}/cuadros")
+        return
     if origen["tipo"] == "roboflow":
         url, version = enlace_roboflow(
             origen["proyecto"], origen.get("version"), api_key_roboflow()

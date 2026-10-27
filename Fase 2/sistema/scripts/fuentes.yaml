@@ -75,3 +75,35 @@ fuentes:
     exhaustivas: [chaleco]  # los cascos no tienen caja: los completa el modelo EPP
     # Hay overoles marcados como chaleco. No se filtran por forma: en una muestra de 24 cajas
     # con alto/ancho > 2,5, dos tercios eran chalecos de perfil o tapados (07-datasets).
+
+  # Lote 5 (epp-v4): cuadros de 7 timelapses de obra en altura (canal «Construction Camera
+  # Swiss», 07-datasets lote 5), corregidos a mano en CVAT y exportados en COCO 1.0. Solo
+  # entrenamiento y validación: la prueba sigue siendo de los lotes 3 y 4.
+  - nombre: lote5-cctv-cc
+    licencia: CC BY (canal «Construction Camera Swiss»)  # exige atribución, ver el README
+    origen: {tipo: cvat, formato: coco-cvat}
+    clases:
+      persona: persona
+      casco: casco
+      chaleco: chaleco
+      cabeza: cabeza
+      sin_chaleco: sin_chaleco
+    # Corrección humana de las cinco clases en cada cuadro: no se completa con modelos (el
+    # modelo es justo el que falla aquí). El script no puede saber qué cuadros
+    # están sin corregir (guía §9: no entran): hay que quitarlos de la tarea antes de exportar.
+    exhaustivas: [persona, casco, chaleco, cabeza, sin_chaleco]
+    grupos:
+      - '(?i)^(.+)_\d+\.jpe?g$'  # el id del video es el nombre del cuadro sin el número
+    # Procedencia: solo estos 7 videos (07-datasets lote 5) pueden entrar; otro id detiene todo.
+    videos: [EnFcSvWYhY4, v2cCZj7g2bA, NLlyuKZKHKo, UVmFsIoasJ4, SfQxyGXQ_I0, bE9eUhZw_JQ, rwyGL9gnLh8]
+    # Etiquetas de imagen de CVAT (no son cajas): pueden figurar en el export sin anotaciones.
+    etiquetas: [tiene_pequenos, negativo_duro, grupo_denso]
+    # Un video entero por partición. Valid: NLlyuKZKHKo, la obra con más cabezas por cuadro
+    # (4,5; las otras seis, de 1,25 a 3,4): 46 de 473 cuadros (9,7 %) y 209 de 1.206 cabezas
+    # del pre-marcado (17 %), 216 personas. Cifras del pre-marcado r4, no de la corrección.
+    # La partición es por video. Los 7 son obras distintas, comprobado a ojo el 2026-10-27 con
+    # el cuadro 20 de cada uno: estación de Aarau, fachada con andamios, Adliswil, Uster, ETH,
+    # demolición en Diessenhofen y estadio SCL Tiger.
+    particion:
+      por_defecto: train
+      valid: [NLlyuKZKHKo]

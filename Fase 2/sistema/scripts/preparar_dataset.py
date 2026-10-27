@@ -18,6 +18,23 @@
 4. Escribe `SALIDA/{train,valid,test}/` en el formato que lee `rfdetr` y `resumen.json` con
    los conteos que van al manifiesto y al issue del experimento.
 
+Lote 5 (epp-v4): fuente `lote5-cctv-cc`, `origen.tipo: cvat`. Es corrección humana en CVAT de
+cuadros de video CC BY, y entra a entrenar y validar, nunca a probar. En `CRUDOS/lote5-cctv-cc/`:
+
+    exportes/   los export «COCO 1.0» de CVAT: `.zip` (uno por tarea o por proyecto) o `.json`
+                suelto. Un zip se lee sin extraerlo; solo cuenta `annotations/*.json`.
+    cuadros/    los cuadros originales, `cuadros/<id de video>/<id>_00001.jpg` (en la máquina:
+                `ln -s ~/datos/gepp/cctv-cc/cuadros CRUDOS/lote5-cctv-cc/cuadros`). El export
+                no se usa para las imágenes: se leen de aquí, a resolución original.
+
+El video sale del nombre del cuadro (`<id>_NNNNN.jpg`). Cada video va entero a una partición:
+`particion` en fuentes.yaml dice cuáles van a `valid`; el resto, a `train`. Sin completar: la
+fuente declara las cinco clases exhaustivas, así que ni COCO ni el modelo EPP proponen nada
+(y no hace falta `--pesos-epp` por ella). Las etiquetas de imagen de CVAT (`tiene_pequenos`,
+`negativo_duro`, `grupo_denso`) no son cajas: el COCO no las trae y, si una categoría sin cajas
+llegara, no se cuenta. Los atributos (`origen`, `puesto`, `ocluida`) no se usan. Un archivo del
+video de prueba (`GPCHfE_-XQE`) en cualquier fuente detiene la preparación.
+
 Todo queda fuera del repositorio. Necesita el extra `gpu` solo para completar.
 """
 
@@ -26,8 +43,10 @@ from __future__ import annotations
 import argparse
 import json
 import os
+import re
 import shutil
 import sys
+import zipfile
 from collections import Counter
 from collections.abc import Iterator
 from datetime import UTC, datetime
@@ -46,7 +65,9 @@ from gepp_vision.entrenamiento import (
     completar_clases,
     desde_coco,
     desde_voc,
+    es_del_video_de_prueba,
     grupo,
+    particion_de_video,
     particion_estable,
     quitar_fugas,
 )
@@ -56,6 +77,7 @@ if TYPE_CHECKING:
 
 RAIZ = Path(__file__).resolve().parent
 PERSONA, CASCO, CHALECO = ClaseDetectada.PERSONA, ClaseDetectada.CASCO, ClaseDetectada.CHALECO
+VALIDACION = Particion.VALIDACION
 CARPETA = {
     Particion.ENTRENAMIENTO: "train",
     Particion.VALIDACION: "valid",
@@ -70,7 +92,47 @@ INSTANTE = datetime(2000, 1, 1, tzinfo=UTC)
 Registro = tuple[Fuente, Anotada, Path, Particion, str | None]
 
 
+def _exportes_cvat(carpeta: Path) -> Iterator[dict]:
+    """Cada COCO de CVAT de `carpeta/exportes`: `.json` suelto o `annotations/*.json` de un zip."""
+    exportes = sorted((carpeta / "exportes").glob("*"))
+    if not exportes:
+        sys.exit(f"{carpeta}/exportes está vacía: deja ahí los export COCO 1.0 de CVAT")
+    for ruta in exportes:
+        if ruta.suffix == ".json":
+            yield json.loads(ruta.read_text(encoding="utf-8"))
+        elif ruta.suffix == ".zip":
+            with zipfile.ZipFile(ruta) as z:
+                nombres = [n for n in z.namelist() if re.fullmatch(r"annotations/[^/]+\.json", n)]
+                if not nombres:
+                    sys.exit(f"{ruta}: no trae annotations/*.json (¿es un export COCO 1.0?)")
+                for n in nombres:
+                    yield json.loads(z.read(n))
+
+
+def _crudos_cvat(fuente: Fuente, carpeta: Path) -> Iterator[tuple[Anotada, Path, Particion]]:
+    vistos: set[str] = set()
+    for coco in _exportes_cvat(carpeta):
+        for img in desde_coco(coco, fuente):
+            img.archivo = Path(img.archivo).name
+            m = re.search(fuente.grupos[0], img.archivo)  # el mismo patrón que `grupo`
+            if m is None:
+                sys.exit(f"{fuente.nombre}: {img.archivo} no es `<id de video>_NNNNN.jpg`")
+            if img.archivo in vistos:
+                sys.exit(
+                    f"{fuente.nombre}: {img.archivo} está en dos export (¿una tarea repetida?)"
+                )
+            vistos.add(img.archivo)
+            ruta = carpeta / "cuadros" / m.group(1) / img.archivo
+            if not ruta.exists():
+                sys.exit(f"{fuente.nombre}: falta el cuadro {ruta}")
+            # La partición real la fija `leer_fuente` por video; este valor no se usa.
+            yield img, ruta, Particion.ENTRENAMIENTO
+
+
 def _crudos(fuente: Fuente, carpeta: Path) -> Iterator[tuple[Anotada, Path, Particion]]:
+    if fuente.origen.get("tipo") == "cvat":
+        yield from _crudos_cvat(fuente, carpeta)
+        return
     if fuente.origen.get("formato") == "voc":
         for xml in sorted((carpeta / "annotations").glob("*.xml")):
             img = desde_voc(xml.read_text(encoding="utf-8"), fuente)
@@ -87,9 +149,19 @@ def _crudos(fuente: Fuente, carpeta: Path) -> Iterator[tuple[Anotada, Path, Part
 def leer_fuente(fuente: Fuente, carpeta: Path) -> Iterator[Registro]:
     """Como viene en la fuente, salvo que un video entero va a una sola partición."""
     for img, ruta, particion in _crudos(fuente, carpeta):
+        if es_del_video_de_prueba(img.archivo):
+            sys.exit(
+                f"{fuente.nombre}: {img.archivo} es del video de prueba: no entra a ningún lado"
+            )
         video = grupo(img.archivo, fuente)
+        if video is None and fuente.por_defecto is not None:
+            sys.exit(
+                f"{fuente.nombre}: {img.archivo} no dice de qué video es: no se parte por cuadro"
+            )
+        if video is not None and fuente.videos and video not in fuente.videos:
+            sys.exit(f"{fuente.nombre}: el video {video!r} no está en `videos` de fuentes.yaml")
         if video is not None:
-            particion = particion_estable(f"{fuente.nombre}/{video}")
+            particion = particion_de_video(video, fuente)
         yield fuente, img, ruta, particion, video
 
 
@@ -175,6 +247,19 @@ def main(argv: list[str] | None = None) -> int:
         )
 
     fugas = quitar_fugas([h for _, h, _ in registros], [r[3] for r, _, _ in registros])
+    if args.limite is not None:
+        print(f"  AVISO: --limite {args.limite}: preparación incompleta, no sirve para entrenar")
+    for fuente in fuentes:  # sobre lo que sobrevive a las fugas, no sobre lo leído
+        en_valid = {
+            r[4]
+            for i, (r, _, _) in enumerate(registros)
+            if i not in fugas and r[0] is fuente and r[3] is VALIDACION
+        }
+        if args.limite is None and fuente.validacion and en_valid != fuente.validacion:
+            sys.exit(
+                f"{fuente.nombre}: `valid` pide {sorted(fuente.validacion)} y quedaron "
+                f"{sorted(en_valid)} (¿fugas contra otra partición?): sin ellos no hay validación"
+            )
     conteo: Counter[str] = Counter()
     por_particion: dict[Particion, list[tuple[Anotada, str, list[tuple[ClaseDetectada, Caja]]]]] = {
         p: [] for p in CARPETA
@@ -220,6 +305,7 @@ def main(argv: list[str] | None = None) -> int:
             "modelo_epp": None if epp is None else epp.version,
             "umbral": UMBRAL_COMPLETAR,
         },
+        "limite": args.limite,  # no nulo = preparación incompleta
         "ilegibles": dict(ilegibles),
         "conteo": dict(sorted(conteo.items())),
     }
