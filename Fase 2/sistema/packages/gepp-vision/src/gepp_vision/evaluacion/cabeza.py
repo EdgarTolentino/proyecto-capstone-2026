@@ -115,6 +115,45 @@ def evaluar_cabeza(
     return salida
 
 
+def personas_sin_casco(
+    personas: Sequence[CajaPx], cascos: Sequence[CajaPx], ancho: int, alto: int
+) -> list[bool]:
+    """Por persona, ¿le falta el casco? La definición única de «sin casco asociado»: la de la
+    regla (`epp_puesto`). La usan la evaluación y el premarcado de cabezas para CVAT."""
+    dets_cascos = [
+        Deteccion(_INSTANTE, 0, ClaseDetectada.CASCO, _normalizada(c, ancho, alto), 1.0)
+        for c in cascos
+    ]
+    return [
+        TipoEPP.CASCO
+        not in epp_puesto(
+            Deteccion(_INSTANTE, 0, ClaseDetectada.PERSONA, _normalizada(p, ancho, alto), 1.0),
+            dets_cascos,
+            confianza_minima=0.0,
+        )
+        for p in personas
+    ]
+
+
+def persona_dueña(
+    personas: Sequence[CajaPx], x: float, y: float, ancho: int, alto: int
+) -> int | None:
+    """Índice de la persona a la que pertenece el punto (px): la de franja de casco más cercana
+    EN PX entre todas las que la contienen (con casco o sin él), desempate por su caja. Un solo
+    criterio para la evaluación y para el premarcado de cabezas."""
+    franjas = [_normalizada(p, ancho, alto).franja(*_FRANJA_CASCO) for p in personas]
+    dueñas = [i for i, f in enumerate(franjas) if _contiene_px(f, x, y, ancho, alto)]
+    if not dueñas:
+        return None
+    return min(
+        dueñas,
+        key=lambda i: (
+            _distancia2_px(franjas[i].centro, (x, y), ancho, alto),
+            (personas[i].x, personas[i].y, personas[i].ancho, personas[i].alto),
+        ),
+    )
+
+
 def _de_la_imagen(
     personas: Sequence[CajaPx],
     cascos: Sequence[CajaPx],
@@ -129,40 +168,20 @@ def _de_la_imagen(
     (`acierto`, `duplicada`, `falso_positivo` o `sin_persona`), en la región de la persona a
     la que cayó o, si no cayó en ninguna, en la de su propio centro.
     """
-    dets_cascos = [
-        Deteccion(_INSTANTE, 0, ClaseDetectada.CASCO, _normalizada(c, ancho, alto), 1.0)
-        for c in cascos
-    ]
-    franjas = []
-    sin_casco = []
-    for p in personas:
-        caja = _normalizada(p, ancho, alto)
-        persona = Deteccion(_INSTANTE, 0, ClaseDetectada.PERSONA, caja, 1.0)
-        sin_casco.append(
-            TipoEPP.CASCO not in epp_puesto(persona, dets_cascos, confianza_minima=0.0)
-        )
-        franjas.append(caja.franja(*_FRANJA_CASCO))
-
+    sin_casco = personas_sin_casco(personas, cascos, ancho, alto)
     adentro_p = [_dentro(p, recorte) for p in personas]
     hechos = [(a, "esperada") for a, s in zip(adentro_p, sin_casco, strict=True) if s]
 
     acertada = [False] * len(personas)
     for cabeza in sorted(cabezas, key=lambda c: -(c.score or 0.0)):
         cx, cy = cabeza.centro  # px
-        dueñas = [i for i, f in enumerate(franjas) if _contiene_px(f, cx, cy, ancho, alto)]
-        if not dueñas:
+        i = persona_dueña(personas, cx, cy, ancho, alto)
+        if i is None:
             hechos += [
                 (_dentro(cabeza, recorte), "predicha"),
                 (_dentro(cabeza, recorte), "sin_persona"),
             ]
             continue
-        i = min(
-            dueñas,
-            key=lambda i: (
-                _distancia2_px(franjas[i].centro, (cx, cy), ancho, alto),
-                (personas[i].x, personas[i].y, personas[i].ancho, personas[i].alto),
-            ),
-        )
         if not sin_casco[i]:
             resultado = "falso_positivo"
         elif acertada[i]:
