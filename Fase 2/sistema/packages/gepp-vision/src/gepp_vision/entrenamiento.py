@@ -83,6 +83,15 @@ class Fuente:
     origen: dict[str, Any] = field(default_factory=dict)
     #: Expresiones regulares cuyo primer grupo de captura identifica el video de origen.
     grupos: tuple[str, ...] = ()
+    #: Partición de los videos de esta fuente cuando se fija a mano (lote 5). `None` = por hash.
+    por_defecto: Particion | None = None
+    #: Videos (en minúsculas, como los devuelve `grupo`) que van a validación; el resto, a
+    #: `por_defecto`. Solo tiene sentido con `por_defecto`.
+    validacion: frozenset[str] = frozenset()
+    #: Procedencia (entrega manual): los únicos videos que pueden entrar. Vacío = sin lista.
+    videos: frozenset[str] = frozenset()
+    #: Etiquetas de imagen de CVAT que pueden figurar sin cajas en el export (fuentes `cvat`).
+    etiquetas: frozenset[str] = frozenset()
 
     def traducir(self, nombres: Iterable[str]) -> dict[str, ClaseDetectada | None]:
         nombres = set(nombres)
@@ -117,8 +126,43 @@ def cargar_fuentes(ruta: Path) -> list[Fuente]:
                 raise ValueError(f"{f['nombre']}: patrón de grupo inválido {patron!r}: {e}") from e
             if compilado.groups < 1:
                 raise ValueError(f"{f['nombre']}: el patrón {patron!r} no tiene grupo de captura")
-        fuentes.append(Fuente(f["nombre"], f["licencia"], clases, exhaustivas, f["origen"], grupos))
+        por_defecto, validacion = _leer_particion(f)
+        fuentes.append(
+            Fuente(
+                f["nombre"],
+                f["licencia"],
+                clases,
+                exhaustivas,
+                f["origen"],
+                grupos,
+                por_defecto,
+                validacion,
+                frozenset(str(v).lower() for v in f.get("videos", [])),
+                frozenset(f.get("etiquetas", [])),
+            )
+        )
+        if fuentes[-1].videos and not fuentes[-1].validacion <= fuentes[-1].videos:
+            raise ValueError(f"{f['nombre']}: `valid` nombra videos que no están en `videos`")
     return fuentes
+
+
+def _leer_particion(f: dict[str, Any]) -> tuple[Particion | None, frozenset[str]]:
+    """El bloque `particion` de una fuente: `por_defecto: train` y `valid: [videos]`.
+
+    Nunca `test`: la prueba sale de los lotes 3 y 4, no de una fuente de entrenamiento.
+    """
+    bloque = f.get("particion")
+    if bloque is None:
+        return None, frozenset()
+    sobran = set(bloque) - {"por_defecto", "valid"}
+    if sobran or bloque.get("por_defecto") != "train":
+        raise ValueError(
+            f"{f['nombre']}: `particion` solo admite `por_defecto: train` y `valid: [videos]` "
+            f"(la prueba no sale de una fuente de entrenamiento); recibió {bloque}"
+        )
+    if not f.get("grupos"):
+        raise ValueError(f"{f['nombre']}: `particion` fija videos y la fuente no declara `grupos`")
+    return Particion.ENTRENAMIENTO, frozenset(str(v).lower() for v in bloque.get("valid", []))
 
 
 @dataclass
@@ -142,6 +186,8 @@ def desde_coco(coco: dict[str, Any], fuente: Fuente) -> list[Anotada]:
     nombre_de = {int(c["id"]): str(c["name"]) for c in coco["categories"]}
     # Solo cuentan las categorías con cajas: Roboflow exporta una categoría padre vacía.
     usadas = {int(a["category_id"]) for a in coco["annotations"]}
+    if fuente.origen.get("tipo") == "cvat":  # aquí una categoría ajena sin cajas también se rechaza
+        fuente.traducir(set(nombre_de.values()) - fuente.etiquetas)
     traduccion = fuente.traducir(nombre_de[i] for i in usadas)
 
     imagenes = {
@@ -183,6 +229,24 @@ def grupo(nombre: str, fuente: Fuente) -> str | None:
         if m := re.search(patron, nombre):
             return m.group(1).lower()
     return None
+
+
+def particion_de_video(video: str, fuente: Fuente) -> Particion:
+    """Partición de un video entero: la fijada en `fuentes.yaml` o, si no hay, por hash."""
+    if fuente.por_defecto is None:
+        return particion_estable(f"{fuente.nombre}/{video}")
+    return Particion.VALIDACION if video in fuente.validacion else fuente.por_defecto
+
+
+#: Video de prueba (lote 3). Nada de él entra a entrenar ni a validar. `quitar_fugas` y
+#: `verificar_particion` solo comparan lo que se está preparando: no ven la prueba, que
+#: no es una fuente. Por eso el nombre se comprueba aparte.
+ID_VIDEO_DE_PRUEBA = "gpchfe"
+
+
+def es_del_video_de_prueba(nombre: str) -> bool:
+    """El archivo lleva el id del video de prueba (`GPCHfE_-XQE`, `yt_GPCHfE_min020_...`)."""
+    return ID_VIDEO_DE_PRUEBA in nombre.lower()
 
 
 def completar(
