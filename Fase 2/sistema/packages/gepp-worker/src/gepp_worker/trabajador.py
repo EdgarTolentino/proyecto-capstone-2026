@@ -38,7 +38,7 @@ from gepp_bd.modelos import Fuente, Zona
 from gepp_bd.modelos import Regla as FilaRegla
 from gepp_bd.repositorios import detecciones, evidencias, hallazgos, reglas, videos
 from gepp_bd.sesion import transaccion
-from gepp_core import Caja, ClaseDetectada, Deteccion, Hallazgo, Regla
+from gepp_core import Caja, ClaseDetectada, Deteccion, Hallazgo, ModoIncumplimiento, Regla
 from gepp_core.textos import sin_rutas
 from gepp_vision.detectores.mosaico import DetectorMosaico, Mosaico
 from gepp_vision.evidencia import EvidenciaEscrita, escribir_evidencia
@@ -120,6 +120,34 @@ class _Contexto:
     mosaico: Caja | None
     #: Las mismas reglas, tal como se aplican en esta cámara (zona, horario, evaluable).
     aplicables: list[Regla]
+
+
+#: Lo que el modelo tiene que saber ver para decidir por evidencia (ADR-013).
+CLASES_DE_EVIDENCIA = frozenset({ClaseDetectada.CABEZA, ClaseDetectada.SIN_CHALECO})
+
+
+def modo_efectivo(
+    pedido: ModoIncumplimiento, clases: frozenset[ClaseDetectada] | None
+) -> tuple[ModoIncumplimiento, str | None]:
+    """El modo con el que se evalúa un video, y por qué se bajó a `ausencia` si se bajó.
+
+    `evidencia` solo si la faena la pide Y el detector declara `cabeza` y `sin_chaleco`. Un
+    modelo sin ellas jamás trae evidencia: en `evidencia` el video saldría sin hallazgos, sin
+    que nadie lo supiera. Un detector que no declara sus clases (`None`) tampoco cuenta.
+    """
+    if pedido is not ModoIncumplimiento.EVIDENCIA:
+        return ModoIncumplimiento.AUSENCIA, None
+    if clases is None:
+        return ModoIncumplimiento.AUSENCIA, (
+            "la faena pide `evidencia` pero el detector no declara sus clases: se usa `ausencia`"
+        )
+    faltan = CLASES_DE_EVIDENCIA - clases
+    if faltan:
+        nombres = ", ".join(sorted(c.value for c in faltan))
+        return ModoIncumplimiento.AUSENCIA, (
+            f"la faena pide `evidencia` pero el modelo no trae {nombres}: se usa `ausencia`"
+        )
+    return ModoIncumplimiento.EVIDENCIA, None
 
 
 def recorte_de_mosaico(poligonos: list[list[list[float]]]) -> Caja | None:
@@ -429,10 +457,20 @@ class Trabajador:
             # y el video terminaría `listo` sin haber mirado nada.
             mosaico.validar(props.ancho, props.alto)
             detector = mosaico
+        # El modo que la faena pide solo rige si ESTE modelo sabe ver la falta (ADR-013).
+        modo, motivo = modo_efectivo(
+            ModoIncumplimiento.EVIDENCIA
+            if any(r.modo is ModoIncumplimiento.EVIDENCIA for r in ctx.aplicables)
+            else ModoIncumplimiento.AUSENCIA,
+            getattr(detector, "clases", None),
+        )
+        if motivo is not None:
+            print(f"[trabajador] video {ctx.video_id}: {motivo}", file=sys.stderr)
+        aplicables = [replace(r, modo=modo) for r in ctx.aplicables]
         pipeline = PipelineEtapa1(
             detector,
             self._fabrica_seguidor(),
-            ctx.aplicables,
+            aplicables,
             mascara=mascara,
         )
         detector_version = pipeline.version_modelo
@@ -514,6 +552,8 @@ class Trabajador:
                         capture_ts=ev.capture_ts,
                         purgar_el=ev.purgar_el,
                     )
+                # En la misma transacción que los hallazgos: el modo guardado es el que los produjo.
+                videos.fijar_modo(s, ctx.video_id, modo)
                 videos.cambiar_estado(
                     s,
                     ctx.video_id,

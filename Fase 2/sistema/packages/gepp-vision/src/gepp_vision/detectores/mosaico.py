@@ -51,7 +51,7 @@ from datetime import datetime
 
 import cv2
 import numpy as np
-from gepp_core import Caja, Deteccion
+from gepp_core import Caja, ClaseDetectada, Deteccion
 from scipy.optimize import linear_sum_assignment
 
 from gepp_vision.puertos import Detector
@@ -178,6 +178,15 @@ class DetectorMosaico:
             f"mosaico[{r.x1:.4f},{r.y1:.4f},{r.x2:.4f},{r.y2:.4f}"
             f"x{m.factor:g}/{m.lado}/{m.objeto_max_px}px]:{self._interno.version}"
         )
+
+    @property
+    def clases(self) -> frozenset[ClaseDetectada]:
+        """Las clases del detector interno. Si él no las declara, tampoco este: el que lee
+        con `getattr(detector, "clases", None)` recibe `None`, no una suposición."""
+        clases = getattr(self._interno, "clases", None)
+        if clases is None:
+            raise AttributeError("el detector interno no declara sus clases")
+        return clases  # type: ignore[no-any-return]
 
     def validar(self, ancho: int, alto: int) -> None:
         """Falla si, para cuadros de este tamaño, el recorte no cubre ningún píxel o la

@@ -15,7 +15,7 @@ from pathlib import Path
 
 import numpy as np
 import onnxruntime as ort
-from gepp_core import Deteccion
+from gepp_core import ClaseDetectada, Deteccion
 
 from gepp_vision.detectores.rfdetr_comun import (
     UMBRAL_CONFIANZA,
@@ -57,6 +57,11 @@ class DetectorOnnx:
     @property
     def version(self) -> str:
         return self._version
+
+    @property
+    def clases(self) -> frozenset[ClaseDetectada]:
+        """Las clases que este modelo sabe detectar, según su mapa."""
+        return frozenset(self._mapa.clases.values())
 
     @property
     def lado_entrada(self) -> int | None:

@@ -15,7 +15,7 @@ from typing import Any
 
 import cv2
 import numpy as np
-from gepp_core import Caja, Deteccion
+from gepp_core import Caja, ClaseDetectada, Deteccion
 
 from gepp_vision.detectores.rfdetr_comun import UMBRAL_CONFIANZA, MapaDeClases
 
@@ -70,6 +70,11 @@ class DetectorRFDETR:
     @property
     def version(self) -> str:
         return self._version
+
+    @property
+    def clases(self) -> frozenset[ClaseDetectada]:
+        """Las clases que este modelo sabe detectar, según su mapa."""
+        return frozenset(self._mapa.clases.values())
 
     @property
     def lado_entrada(self) -> int:

@@ -6,6 +6,7 @@ hallazgos viejos siguen apuntando a la versión con que se dispararon.
 
 from __future__ import annotations
 
+from dataclasses import replace
 from datetime import datetime, time, timedelta
 from typing import Any
 from zoneinfo import ZoneInfo
@@ -13,6 +14,7 @@ from zoneinfo import ZoneInfo
 from fastapi import APIRouter, Request
 from gepp_bd.modelos import Area, Fuente, Hallazgo, Regla, Video
 from gepp_bd.repositorios import auditoria, reglas
+from gepp_bd.repositorios.videos import modo_del_video
 from gepp_core import Severidad, TipoEPP
 from sqlalchemy import func, select
 from sqlalchemy.exc import IntegrityError
@@ -206,7 +208,7 @@ def simular_regla(
     desde = datetime.combine(cuerpo.desde, time(), tz)
     hasta = datetime.combine(cuerpo.hasta + timedelta(days=1), time(), tz)
     videos = bd.execute(
-        select(Video.id, Video.fuente_id)
+        select(Video.id, Video.fuente_id, Video.modo_incumplimiento)
         .join(Fuente, Fuente.id == Video.fuente_id)
         .where(
             Fuente.area_id == cuerpo.regla.area_id,
@@ -228,7 +230,8 @@ def simular_regla(
         h
         for v in videos
         if (regla := por_fuente[v.fuente_id]) is not None
-        for h in evaluar(bd, v.id, [regla])
+        # El modo con el que se procesó ESE video, no el de la faena de hoy (ADR-013).
+        for h in evaluar(bd, v.id, [replace(regla, modo=modo_del_video(v.modo_incumplimiento))])
     ]
     ids_videos = [v.id for v in videos]
     actuales = (
