@@ -6,7 +6,7 @@ import math
 
 import pytest
 from gepp_core import Caja, ClaseDetectada, Deteccion
-from gepp_vision.entrenamiento import CLASES_V1
+from gepp_vision.entrenamiento import CLASES_V1, CLASES_V3
 from gepp_vision.etiquetado import (
     MINIMO_PX,
     TOLERANCIA_PX,
@@ -103,6 +103,43 @@ def test_minimo_px_por_clase_y_clase_desconocida() -> None:
 def test_a_coco_ignora_una_clase_fuera_de_la_v1_sin_fallar() -> None:
     arnes = _d(ClaseDetectada.ARNES, 0.1, 0.1, 0.3, 0.3)
     assert a_coco([("a.jpg", 1000, 500, [arnes])])["annotations"] == []
+
+
+def test_a_coco_por_defecto_descarta_la_evidencia_para_cvat() -> None:
+    """El proyecto de CVAT no tiene `cabeza` ni `sin_chaleco`: por defecto no se escriben."""
+    cabeza = _d(ClaseDetectada.CABEZA, 0.1, 0.1, 0.2, 0.2)
+    sin_chaleco = _d(ClaseDetectada.SIN_CHALECO, 0.3, 0.3, 0.5, 0.6)
+    coco = a_coco([("a.jpg", 1000, 500, [cabeza, sin_chaleco])])
+    assert coco["annotations"] == []
+    assert [c["name"] for c in coco["categories"]] == [str(c) for c in CLASES_V1]
+
+
+def test_a_coco_con_las_clases_v3_escribe_la_evidencia_con_sus_ids() -> None:
+    cabeza = _d(ClaseDetectada.CABEZA, 0.1, 0.1, 0.2, 0.2)
+    sin_chaleco = _d(ClaseDetectada.SIN_CHALECO, 0.3, 0.3, 0.5, 0.6)
+    coco = a_coco([("a.jpg", 1000, 500, [cabeza, sin_chaleco])], CLASES_V3)
+    assert [c["name"] for c in coco["categories"]] == [str(c) for c in CLASES_V3]
+    assert [a["category_id"] for a in coco["annotations"]] == [
+        CLASES_V3[ClaseDetectada.CABEZA],
+        CLASES_V3[ClaseDetectada.SIN_CHALECO],
+    ]
+
+
+@pytest.mark.parametrize("clase", [ClaseDetectada.CABEZA, ClaseDetectada.SIN_CHALECO])
+@pytest.mark.parametrize("lado_px", [1, 7.75, 8])
+def test_a_coco_no_aplica_el_minimo_de_etiquetado_a_la_evidencia(
+    clase: ClaseDetectada, lado_px: float
+) -> None:
+    """Una cabeza de 7 px descartada contaría como perdida en `evaluar.py cabeza` (revisión de
+    Codex): el mínimo de la guía es de etiquetado y solo vale para la v1."""
+    ancho, alto = 1024, 512
+    d = _d(clase, 0.125, 0.125, 0.125 + lado_px / ancho, 0.125 + lado_px / alto)
+    assert len(a_coco([("a.jpg", ancho, alto, [d])], CLASES_V3)["annotations"]) == 1
+
+
+def test_a_coco_con_v3_mantiene_el_minimo_de_la_v1() -> None:
+    casco = _d(C, 0.125, 0.125, 0.125 + 7.75 / 1024, 0.125 + 40 / 512)
+    assert a_coco([("a.jpg", 1024, 512, [casco])], CLASES_V3)["annotations"] == []
 
 
 def test_a_coco_en_pixeles_con_las_categorias_de_la_v1() -> None:
