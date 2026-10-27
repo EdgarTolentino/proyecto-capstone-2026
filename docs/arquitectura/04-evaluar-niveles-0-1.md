@@ -119,6 +119,50 @@ con `doble_etiquetado = 1`, etiquetados desde cero).
 9. Las cajas repetidas que deja el mosaico (~1-2 %, #108) cuentan como falsos positivos. No se
    filtran: es lo que vería el sistema.
 
+## Recall de `cabeza`: `evaluar.py cabeza verdad.json predicciones.json --clases modelo.clases.json --recorte ...`
+
+ADR-013 decide el incumplimiento por evidencia positiva: el detector v3 tiene la clase `cabeza`
+(cabeza sin casco). La verdad de CVAT (`prueba-youtube-lote0`) no la trae, y no se re-etiqueta: la
+cabeza esperada se **deriva**. Reutiliza la lectura de COCO, el `--recorte` (dentro/fuera) y el
+`--umbral` del nivel 1; no mide mAP, solo el recall de una clase.
+
+1. **Cabeza esperada = toda `persona` de la verdad sin un `casco` asociado.** El casco asociado es
+   el de la regla (`gepp_core.asociacion.epp_puesto`): su centro cae en la franja
+   `FRANJA_ESPERADA[CASCO]`, el 30 % superior de la caja de la persona, a todo su ancho, borde
+   incluido. «Persona sin casco» aquí y «casco faltante» en el sistema son lo mismo.
+2. **Emparejamiento sin IoU.** La caja de cabeza es mucho más chica que la de persona. Una
+   predicción es de la persona cuya franja de casco contiene el **centro** de la predicción (borde
+   incluido, comparado en px con la tolerancia de `TOLERANCIA_PX`); si lo contienen varias, la de
+   franja con centro más cercano **en px**, y un empate exacto se resuelve por la caja de la
+   persona, no por el orden del COCO. Por persona, en orden de score:
+
+   | El centro de la predicción cae en | Cuenta como |
+   |---|---|
+   | franja de persona **sin** casco, primera (mayor score) | acierto |
+   | franja de persona sin casco, ya con acierto | duplicada |
+   | franja de persona **con** casco | falso positivo sobre persona con casco |
+   | ninguna franja | sin persona |
+
+   Recall = aciertos / cabezas esperadas. Solo cuentan predicciones con score >= `--umbral`
+   (0,45, el de la regla); un score fuera de [0, 1] o no finito detiene el script. La tabla trae `dentro`, `fuera` y `total`: una persona va a la región
+   de su centro, una predicción sin persona a la de su propio centro.
+3. **`--clases` es obligatorio** y es el `.clases.json` del modelo que predijo. Si no tiene la
+   clase `cabeza` el script se detiene: el recall no es 0, no se puede medir. También se detiene
+   si la verdad ya trae una categoría `cabeza` (entonces no se deriva, se usa la etiquetada) y si
+   las predicciones no declaran la categoría `cabeza` en `categories`.
+4. **Las predicciones salen de `preetiquetar.py --con-evidencia`.** Sin esa opción escribe solo
+   las clases del proyecto de CVAT (persona, casco y chaleco): un modelo v3 no dejaría ninguna
+   `cabeza` en el archivo y el script lo dice (punto 3) en vez de dar 0. Con la opción y un modelo
+   sin `cabeza` ni `sin_chaleco`, es `preetiquetar.py` el que se detiene.
+5. **Limitación declarada:** la cabeza esperada es una estimación con dos sesgos, no una cota.
+   A la baja: una persona cuyo casco no se etiquetó (lejana, de menos de 8 px: guía de etiquetado
+   §4 y §7) figura como cabeza esperada aunque lleve casco, y el modelo no la verá. Al alza: un
+   casco que cae en la franja de dos personas encimadas las da a las dos por protegidas, y si a
+   una le faltaba, esa cabeza no entra al denominador (revisión de Codex, 2026-10-26). En los 240 cuadros de la verdad
+   hay 2446 personas y 1600 cascos; el script deriva 912 cabezas esperadas (738 dentro del
+   recorte 600,220,1400,730 y 174 fuera), comprobado el 26-oct con la exportación del 15-oct. Cuántas
+   son personas con el casco sin etiquetar no se sabe sin revisarlas a mano.
+
 ## Salida
 
 Un JSON con las métricas y lo necesario para reproducirlas, como pide el `CLAUDE.md`:
@@ -149,7 +193,7 @@ Además imprime una tabla en Markdown para pegarla en el #31.
 | `gepp_vision/evaluacion/deteccion.py` | mAP con pycocotools; precisión y recall al umbral |
 | `gepp_vision/evaluacion/reporte.py` | Procedencia (commit, SHA-256), JSON y tabla Markdown |
 | `gepp_vision/evaluacion/acuerdo.py` | Kappa de Cohen e IoU medio. Python puro, sin pycocotools |
-| `scripts/evaluar.py` | Subcomandos `deteccion` y `acuerdo` |
+| `scripts/evaluar.py` | Subcomandos `deteccion`, `acuerdo` y `cabeza` |
 | `packages/gepp-vision/pyproject.toml` | `pycocotools` como dependencia (BSD; ya está en `uv.lock` por RF-DETR; no está en la lista de prohibidas del CI) |
 | `tests/test_evaluacion_*.py` | Ver abajo |
 

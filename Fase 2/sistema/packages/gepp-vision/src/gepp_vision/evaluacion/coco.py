@@ -11,11 +11,17 @@ from collections.abc import Iterable, Mapping
 from dataclasses import dataclass
 from typing import Any
 
-from gepp_vision.entrenamiento import CLASES_V1
+from gepp_vision.entrenamiento import CLASES_EVIDENCIA, CLASES_V1
 from gepp_vision.etiquetado import ETIQUETAS_IMAGEN
 
 #: Clases que se evalúan, en el orden de `CLASES_V1`.
 CLASES: tuple[str, ...] = tuple(str(c) for c in CLASES_V1)
+
+#: Evidencia positiva de ADR-013 (`cabeza`, `sin_chaleco`). Se leen aparte, en
+#: `ArchivoCoco.evidencia`: el nivel 1 (`CLASES`) no las mide y no debe verlas en `cajas`.
+#: Ojo: `etiquetado.a_coco` (el de `preetiquetar.py`) solo escribe las clases de `CLASES_V1`;
+#: `entrenamiento.a_coco` (el del dataset) lista las cinco.
+CLASES_DE_EVIDENCIA: tuple[str, ...] = tuple(str(c) for c in CLASES_EVIDENCIA)
 
 #: Etiquetas de imagen (tags) de CVAT: la exportación COCO 1.0 las trae en `categories`, sin
 #: cajas (comprobado el 4-oct con la tarea `prueba-youtube-lote0` y `tiene_pequenos`). Salen de
@@ -62,6 +68,10 @@ class ArchivoCoco:
     imagenes: dict[str, tuple[int, int]]  # file_name -> (ancho, alto)
     cajas: tuple[CajaPx, ...]
     descripcion: str  # `info.description`: en las predicciones, la versión del modelo
+    #: Cajas de `CLASES_DE_EVIDENCIA`, fuera de `cajas`: el nivel 1 no las mide.
+    evidencia: tuple[CajaPx, ...] = ()
+    #: Clases de `categories` que declara el archivo, sin las etiquetas de imagen.
+    categorias: frozenset[str] = frozenset()
 
 
 def leer_coco(datos: Mapping[str, Any], *, predicciones: bool) -> ArchivoCoco:
@@ -70,7 +80,7 @@ def leer_coco(datos: Mapping[str, Any], *, predicciones: bool) -> ArchivoCoco:
     nombres: dict[int, str] = {}
     for categoria in datos["categories"]:
         nombre = str(categoria["name"])
-        if nombre not in CLASES and nombre not in IGNORADAS:
+        if nombre not in CLASES and nombre not in CLASES_DE_EVIDENCIA and nombre not in IGNORADAS:
             raise EntradaInvalida(f"categoría desconocida: {nombre!r}")
         nombres[categoria["id"]] = nombre
 
@@ -84,6 +94,7 @@ def leer_coco(datos: Mapping[str, Any], *, predicciones: bool) -> ArchivoCoco:
         archivo_de[imagen["id"]] = archivo
 
     cajas: list[CajaPx] = []
+    evidencia: list[CajaPx] = []
     for anotacion in datos["annotations"]:
         if anotacion["category_id"] not in nombres:
             raise EntradaInvalida(f"anotación {anotacion['id']}: categoría inexistente")
@@ -101,12 +112,17 @@ def leer_coco(datos: Mapping[str, Any], *, predicciones: bool) -> ArchivoCoco:
             raise EntradaInvalida(
                 f"{archivo}: predicción sin score. ¿Pasaste la verdad como predicciones?"
             )
-        cajas.append(
-            CajaPx(archivo, clase, x, y, ancho, alto, float(score) if predicciones else None)
-        )
+        caja = CajaPx(archivo, clase, x, y, ancho, alto, float(score) if predicciones else None)
+        (evidencia if clase in CLASES_DE_EVIDENCIA else cajas).append(caja)
 
     info = datos.get("info") or {}
-    return ArchivoCoco(imagenes, tuple(cajas), str(info.get("description", "")))
+    return ArchivoCoco(
+        imagenes,
+        tuple(cajas),
+        str(info.get("description", "")),
+        tuple(evidencia),
+        frozenset(n for n in nombres.values() if n not in IGNORADAS),
+    )
 
 
 def imagenes_comunes(

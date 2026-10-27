@@ -3,6 +3,12 @@
     uv run python scripts/evaluar.py deteccion verdad.coco.json predicciones.coco.json \
         --recorte 600,220,1400,730 --origen-verdad con-preetiquetas --salida metricas.json
 
+Recall de `cabeza` (ADR-013) con la cabeza esperada DERIVADA de la verdad (persona sin casco).
+Las predicciones de un modelo v3 salen de `preetiquetar.py --con-evidencia`:
+
+    uv run python scripts/evaluar.py cabeza verdad.coco.json predicciones.coco.json \
+        --clases modelo.clases.json --recorte 600,220,1400,730 --salida cabeza.json
+
 Nivel 0, el acuerdo entre las dos personas que etiquetaron los mismos cuadros:
 
     uv run python scripts/evaluar.py acuerdo primera.json segunda.json --salida metricas.json
@@ -23,6 +29,8 @@ import sys
 from collections.abc import Iterable
 from pathlib import Path
 
+from gepp_core import ClaseDetectada
+from gepp_vision.detectores.rfdetr_comun import MapaDeClases
 from gepp_vision.evaluacion import (
     ORIGENES,
     UMBRAL_REGLA,
@@ -31,12 +39,15 @@ from gepp_vision.evaluacion import (
     Recorte,
     acuerdo,
     estado_git,
+    evaluar_cabeza,
     evaluar_regiones,
     imagenes_comunes,
     leer_coco,
     reporte,
     reporte_acuerdo,
+    reporte_cabeza,
     tabla_acuerdo,
+    tabla_cabeza,
     tabla_markdown,
 )
 
@@ -57,6 +68,25 @@ def main(argv: list[str] | None = None) -> int:
         help=f"confianza mínima, la misma para las tres clases (la de la regla: {UMBRAL_REGLA})",
     )
     d.add_argument("--salida", type=Path, required=True)
+    c = niveles.add_parser("cabeza", help="recall de `cabeza`, con la verdad derivada (ADR-013)")
+    c.add_argument("verdad", type=Path, help="exportación COCO 1.0 de CVAT (sin cabeza)")
+    c.add_argument("predicciones", type=Path, help="salida de preetiquetar.py --umbral 0.05")
+    c.add_argument(
+        "--clases",
+        type=Path,
+        required=True,
+        help="mapa de clases del modelo que predijo (el .clases.json de sus pesos): sin la clase "
+        "`cabeza` no hay nada que medir y el script se detiene en vez de dar 0",
+    )
+    c.add_argument("--recorte", required=True, help="x1,y1,x2,y2 en px del cuadro: el foso")
+    c.add_argument("--imagenes-de", type=Path, help="evalúa solo las imágenes de este COCO")
+    c.add_argument(
+        "--umbral",
+        type=float,
+        default=UMBRAL_REGLA,
+        help=f"confianza mínima de la predicción (la de la regla: {UMBRAL_REGLA})",
+    )
+    c.add_argument("--salida", type=Path, required=True)
     k = niveles.add_parser("acuerdo", help="nivel 0: ¿coinciden los dos etiquetadores?")
     k.add_argument("primera", type=Path, help="exportación COCO 1.0 de la tarea completa")
     k.add_argument("segunda", type=Path, help="exportación de doble-etiquetado-24")
@@ -64,6 +94,8 @@ def main(argv: list[str] | None = None) -> int:
     args = p.parse_args(argv)
     if args.nivel == "acuerdo":
         return _acuerdo(args)
+    if args.nivel == "cabeza":
+        return _cabeza(args)
 
     try:
         recorte = _recorte(args.recorte)
@@ -97,6 +129,67 @@ def main(argv: list[str] | None = None) -> int:
     )
     args.salida.write_text(json.dumps(datos, ensure_ascii=False, indent=2), encoding="utf-8")
     print(tabla_markdown(datos))
+    return 0
+
+
+def _cabeza(args: argparse.Namespace) -> int:
+    try:
+        mapa = MapaDeClases.desde_json(args.clases)
+    except (OSError, ValueError, KeyError) as e:
+        sys.exit(f"error: {args.clases}: {e}")
+    if ClaseDetectada.CABEZA not in mapa.clases.values():
+        sys.exit(
+            f"error: el modelo {mapa.version} ({args.clases}) no tiene la clase `cabeza`: el "
+            "recall no se puede medir (no es 0, no hay nada que acertar). Usa un modelo v3."
+        )
+    try:
+        recorte = _recorte(args.recorte)
+        verdad = _leer(args.verdad, predicciones=False)
+        predichas = _leer(args.predicciones, predicciones=True)
+        solo = _leer(args.imagenes_de, predicciones=False).imagenes if args.imagenes_de else None
+        if "cabeza" not in predichas.categorias:
+            # Sin `--con-evidencia`, `preetiquetar.py` escribe solo las clases de CVAT y no declara
+            # la categoría: sin ella, «0 cabezas» sería un artefacto del archivo.
+            sys.exit(
+                f"error: {args.predicciones} no declara la categoría `cabeza`: quien lo escribió "
+                "la descartó (¿falta `preetiquetar.py --con-evidencia`?). El recall saldría 0 sin "
+                "que el modelo tenga la culpa."
+            )
+        if "cabeza" in verdad.categorias:  # aunque no traiga anotaciones (revisión de Codex)
+            sys.exit(
+                f"error: {args.verdad} ya trae la categoría `cabeza`: la verdad no se deriva, "
+                "se usa la etiquetada. Este comando no lo cubre."
+            )
+        imagenes = imagenes_comunes(verdad, predichas, solo)
+        tamanos = {a: verdad.imagenes[a] for a in imagenes}
+        regiones = evaluar_cabeza(
+            [c for c in verdad.cajas if c.archivo in tamanos],
+            [c for c in predichas.evidencia if c.archivo in tamanos],
+            tamanos,
+            recorte,
+            args.umbral,
+        )
+    except (EntradaInvalida, ValueError) as e:
+        sys.exit(f"error: {e}")
+
+    aviso = _aviso_recorte(predichas.descripcion, recorte, set(tamanos.values()))
+    if aviso:
+        print(aviso, file=sys.stderr)
+    entradas = {"verdad": args.verdad, "predicciones": args.predicciones, "clases": args.clases}
+    if args.imagenes_de:
+        entradas["imagenes_de"] = args.imagenes_de
+    datos = reporte_cabeza(
+        regiones,
+        modelo=predichas.descripcion,
+        clases=args.clases,
+        imagenes=imagenes,
+        recorte=recorte,
+        umbral=args.umbral,
+        entradas=entradas,
+        git=estado_git(Path(__file__).resolve().parent),
+    )
+    args.salida.write_text(json.dumps(datos, ensure_ascii=False, indent=2), encoding="utf-8")
+    print(tabla_cabeza(datos))
     return 0
 
 
