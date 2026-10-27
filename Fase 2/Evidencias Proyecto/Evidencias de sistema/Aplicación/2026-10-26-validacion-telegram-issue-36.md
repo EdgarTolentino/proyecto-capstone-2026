@@ -330,26 +330,35 @@ está oculto y la imagen no contiene metadatos GPS. Su SHA-256 es
 
 ## Paso 15 — verificación completa
 
-Con PostgreSQL y Redis arriba se ejecutaron los controles completos de backend y frontend.
+Con PostgreSQL y Redis saludables se ejecutaron los controles completos sobre el último commit.
+Comandos y fragmentos de salida relevantes (se omiten solo los tiempos variables):
 
-| Control | Resultado copiado de la salida |
-|---|---|
-| Ruff | `All checks passed!` |
-| Formato Python | 185 archivos ya formateados |
-| Mypy estricto | Sin problemas en 94 archivos fuente |
-| Pytest | 1.414 aprobadas, 1 omitida por requerir GPU, 7 advertencias |
-| ESLint | Aprobado sin advertencias |
-| TypeScript | Aprobado |
-| Vitest | 25 archivos y 363 pruebas aprobadas |
-| Build | 1.972 módulos transformados |
+```text
+$ make up
+Container guardian-epp-postgres-1 Healthy
+Container guardian-epp-redis-1 Healthy
+$ make lint
+All checks passed!
+185 files already formatted
+$ make tipos
+Success: no issues found in 94 source files
+$ GEPP_EXIGIR_BD=1 make test
+1414 passed, 1 skipped, 7 warnings
 
-La primera ejecución de Vitest dentro del sandbox falló al leer archivos temporales internos de
-`AppData/Local/Packages/sandbox...` (`ENOENT` en 21 suites). Lint y tipos ya habían aprobado. La
-suite se repitió fuera del sandbox y aprobó completa; el primer resultado fue una limitación del
-entorno, no una aserción del proyecto.
+$ npm run lint
+eslint . --max-warnings 0
+$ npm run typecheck
+tsc -b --pretty false
+$ npm test -- --maxWorkers=8 --reporter=dot
+Test Files  25 passed (25)
+Tests       363 passed (363)
+$ npm run build
+✓ 1972 modules transformed.
+✓ built
+```
 
-Se omiten los tiempos porque varían por corrida. Los conteos se verificarán sobre el último commit
-del PR y se copiarán en su descripción junto con los comandos y la salida final.
+El test omitido requiere el extra GPU (`tests/test_detector_rfdetr.py:29`). La descripción del PR
+incluye el commit comprobado y la salida de la misma corrida.
 
 ## Avance de las pruebas
 
