@@ -8,10 +8,10 @@ persona que etiqueta revisa cada caja, agrega lo que falta y fija los atributos 
 
 from __future__ import annotations
 
-from collections.abc import Iterable, Sequence
+from collections.abc import Iterable, Mapping, Sequence
 from typing import Any
 
-from gepp_core import Caja, Deteccion
+from gepp_core import Caja, ClaseDetectada, Deteccion
 
 from gepp_vision.entrenamiento import CLASES_V1
 
@@ -61,12 +61,19 @@ def combinar(
     return [*del_mosaico, *fuera]
 
 
-def a_coco(imagenes: Iterable[tuple[str, int, int, Sequence[Deteccion]]]) -> dict[str, Any]:
-    """COCO 1.0 para importar en CVAT. Cada tupla: (archivo, ancho, alto, detecciones)."""
+def a_coco(
+    imagenes: Iterable[tuple[str, int, int, Sequence[Deteccion]]],
+    clases: Mapping[ClaseDetectada, int] = CLASES_V1,
+) -> dict[str, Any]:
+    """COCO 1.0. Cada tupla: (archivo, ancho, alto, detecciones). Con las `clases` por defecto
+    (v1) se importa en CVAT, cuyo proyecto no tiene las clases de evidencia; con `CLASES_V3` sirve
+    para medir `cabeza` y `sin_chaleco` (`evaluar.py`). Lo que no esté en `clases` se descarta.
+
+    El mínimo de la guía (§4) es de etiquetado y vale para las clases de la v1. Las de evidencia
+    no se etiquetan y pasan sin mínimo: la cabeza esperada se deriva de personas de cualquier
+    tamaño, y descartar una cabeza chica predicha la contaría como perdida (ADR-013)."""
     salida: dict[str, Any] = {
-        "categories": [
-            {"id": i, "name": str(c), "supercategory": ""} for c, i in CLASES_V1.items()
-        ],
+        "categories": [{"id": i, "name": str(c), "supercategory": ""} for c, i in clases.items()],
         "images": [],
         "annotations": [],
     }
@@ -76,13 +83,13 @@ def a_coco(imagenes: Iterable[tuple[str, int, int, Sequence[Deteccion]]]) -> dic
         )
         for d in detecciones:
             w, h = d.caja.ancho * ancho, d.caja.alto * alto
-            if d.clase not in CLASES_V1 or bajo_minimo(w, h, d.clase):
+            if d.clase not in clases or (d.clase in CLASES_V1 and bajo_minimo(w, h, d.clase)):
                 continue
             salida["annotations"].append(
                 {
                     "id": len(salida["annotations"]) + 1,
                     "image_id": img_id,
-                    "category_id": CLASES_V1[d.clase],
+                    "category_id": clases[d.clase],
                     "bbox": [d.caja.x1 * ancho, d.caja.y1 * alto, w, h],
                     "area": w * h,
                     "iscrowd": 0,

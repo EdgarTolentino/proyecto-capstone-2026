@@ -27,6 +27,11 @@ pasarla es un error. Sirve para medir lo que el sistema ve de verdad (`--cuadro-
 Una pre-etiqueta no es verdad: quien etiqueta revisa cada caja, agrega lo que falta y fija
 los atributos (`docs/datos/guia-etiquetado.md`). El mapa de clases debe estar verificado con
 `exportar_onnx.py`: si no, las pre-etiquetas salen con la clase cambiada.
+
+Por defecto solo salen persona, casco y chaleco, las clases del proyecto de CVAT. Para medir un
+modelo v3 (ADR-013) con `evaluar.py cabeza`, `--con-evidencia` escribe también `cabeza` y
+`sin_chaleco`; ese archivo no es para CVAT. Con un modelo que no tiene esas clases es un error,
+no un archivo sin ellas: un recall de 0 por eso diría que el modelo falla cuando no se midió.
 """
 
 from __future__ import annotations
@@ -44,6 +49,7 @@ from gepp_vision.detectores.mosaico import DetectorMosaico, Mosaico
 from gepp_vision.detectores.onnx import DetectorOnnx
 from gepp_vision.detectores.rfdetr import VARIANTES, DetectorRFDETR
 from gepp_vision.detectores.rfdetr_comun import MapaDeClases
+from gepp_vision.entrenamiento import CLASES_EVIDENCIA, CLASES_V1, CLASES_V3
 from gepp_vision.etiquetado import a_coco, combinar
 from gepp_vision.puertos import Detector
 
@@ -90,6 +96,11 @@ def main(argv: list[str] | None = None) -> int:
         action="store_true",
         help="solo el modelo sobre el cuadro completo, sin mosaico (imágenes de cerca)",
     )
+    p.add_argument(
+        "--con-evidencia",
+        action="store_true",
+        help="escribe también cabeza y sin_chaleco (modelo v3, para evaluar.py; no para CVAT)",
+    )
     p.add_argument("--factor", type=float, default=2.0)
     p.add_argument("--lado", type=int, default=384)
     p.add_argument("--objeto-max-px", type=int, default=100)
@@ -107,6 +118,10 @@ def main(argv: list[str] | None = None) -> int:
     if not ruta_clases.exists():
         sys.exit(f"falta el mapa de clases {ruta_clases}: verifícalo con exportar_onnx.py")
     mapa = MapaDeClases.desde_json(ruta_clases)
+    if args.con_evidencia:
+        faltan_clases = sorted(str(c) for c in CLASES_EVIDENCIA.keys() - mapa.clases.values())
+        if faltan_clases:
+            sys.exit(f"--con-evidencia: el modelo {mapa.version} no tiene {faltan_clases}")
     base: Detector
     if args.motor == "onnx":
         base = DetectorOnnx(args.pesos, mapa=mapa, umbral=args.umbral)
@@ -147,7 +162,7 @@ def main(argv: list[str] | None = None) -> int:
         if n % 20 == 0:
             print(f"  {n}/{len(archivos)}", flush=True)
 
-    coco = a_coco(imagenes)
+    coco = a_coco(imagenes, CLASES_V3 if args.con_evidencia else CLASES_V1)
     detector = "cuadro-entero" if mosaico is None else mosaico.version
     coco["info"] = {"description": f"pre-etiquetas {base.version} / {detector}"}
     args.salida.write_text(json.dumps(coco), encoding="utf-8")
