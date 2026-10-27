@@ -516,6 +516,31 @@ it("un pedido que ya llega registrado tras pedirlo también actualiza la tabla",
   expect(await screen.findByRole("table", { name: "Cola de videos" })).toBeVisible();
 });
 
+// Issue #153: la primera lectura de los pedidos sigue retenida cuando el POST responde 202; al liberarla
+// llega vacía. El pedido recién creado debe verse igual (la invalidación no puede reutilizar esa lectura).
+it("si la primera lectura de pedidos sigue retenida al responder el POST, el pedido creado aparece igual", async () => {
+  vi.mocked(api.listarVideos).mockResolvedValue({ items: [] });
+  vi.mocked(api.listarEntradaVideos).mockResolvedValue(ENTRADA as Awaited<ReturnType<typeof api.listarEntradaVideos>>);
+  let liberarVacia: (v: { items: Pedido[] }) => void = () => {};
+  vi.mocked(api.listarPedidos)
+    .mockImplementationOnce(() => new Promise((resolve) => { liberarVacia = resolve; }))
+    .mockResolvedValue({ items: [pedido("pendiente")] });
+  vi.mocked(api.pedirIngesta).mockResolvedValue(pedido("pendiente"));
+  renderizar();
+  const { dialogo } = await abrir();
+  await elegir(dialogo);
+  expect(api.listarPedidos).toHaveBeenCalledTimes(1);
+
+  fireEvent.click(within(dialogo).getByRole("button", { name: "Procesar" }));
+  await waitFor(() => expect(api.pedirIngesta).toHaveBeenCalledTimes(1));
+  await waitFor(() => expect(api.listarPedidos).toHaveBeenCalledTimes(2));
+  liberarVacia({ items: [] });
+
+  const panel = await screen.findByRole("region", { name: "Pedidos de procesamiento" });
+  expect(within(panel).getByText("CAM-03_08-00.mp4")).toBeVisible();
+  expect(within(panel).getByText("Pedido pendiente")).toBeVisible();
+});
+
 it("al cargar la página con pedidos ya registrados no vuelve a pedir la tabla de videos", async () => {
   vi.mocked(api.listarVideos).mockResolvedValue({ items: [{ ...video(9, "a.mp4"), estado: "listo" }] });
   vi.mocked(api.listarPedidos).mockResolvedValue({ items: [pedido("registrado", { video_id: 9 })] });
