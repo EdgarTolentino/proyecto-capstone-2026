@@ -10,7 +10,9 @@ entrenamiento corre igual y nadie se entera:
 2. **Una clase que la fuente no etiqueta en todas sus imágenes deja falsos negativos:** una
    persona o un casco sin caja es, para el modelo, fondo. `completar_clases` agrega lo que
    proponen los detectores (COCO para personas, el modelo EPP para casco y chaleco), marcado
-   como `automatica` para poder auditarlo.
+   como `automatica` para poder auditarlo. `cabeza` y `sin_chaleco` (ADR-013) vienen solo de
+   las categorías `head`, `NO-Hardhat` y `NO-Safety Vest`; las fuentes que no las marcan las
+   dejan como fondo (ver 07-datasets: etiquetado parcial).
 3. **Los cuadros de un mismo video no se reparten entre particiones.** Roboflow parte por
    cuadro; `grupo` reconoce el video en el nombre del archivo (patrones de `fuentes.yaml`) y
    todo el grupo va a una sola partición. Las casi copias que quedan sin grupo las saca
@@ -45,6 +47,20 @@ CLASES_V1: dict[ClaseDetectada, int] = {
     ClaseDetectada.CASCO: 2,
     ClaseDetectada.CHALECO: 3,
 }
+
+#: Evidencia positiva de que falta un EPP (ADR-013). Solo salen de las categorías `head`,
+#: `NO-Hardhat` y `NO-Safety Vest` de los datasets públicos, nunca de un detector que las
+#: invente: `completar_clases` no las propone (usa `CLASES_V1`).
+CLASES_EVIDENCIA: dict[ClaseDetectada, int] = {
+    ClaseDetectada.CABEZA: 4,
+    ClaseDetectada.SIN_CHALECO: 5,
+}
+
+#: Las clases con que se entrena el modelo v3: las de la v1 y la evidencia positiva. Los ids
+#: de la v1 no se mueven. `CLASES_V1` se queda como está porque la evaluación contra la verdad
+#: de CVAT y el preetiquetado (`evaluacion/coco.py`, `etiquetado.py`) marcan el objeto, no el
+#: cumplimiento (dominio.py), y rechazan una categoría que no conocen.
+CLASES_V3: dict[ClaseDetectada, int] = {**CLASES_V1, **CLASES_EVIDENCIA}
 
 #: Una propuesta del detector que se solapa así con una caja existente ya está etiquetada.
 UMBRAL_IOU_EXISTENTE = 0.5
@@ -91,8 +107,8 @@ def cargar_fuentes(ruta: Path) -> list[Fuente]:
         except ValueError as e:
             raise ValueError(f"{f['nombre']}: {e}") from e
         fuera = {c for c in clases.values() if c is not None} | exhaustivas
-        if not fuera <= CLASES_V1.keys():
-            raise ValueError(f"{f['nombre']}: clases fuera de la v1: {sorted(fuera)}")
+        if not fuera <= CLASES_V3.keys():
+            raise ValueError(f"{f['nombre']}: clases fuera de la v3: {sorted(fuera)}")
         grupos = tuple(f.get("grupos", []))
         for patron in grupos:
             try:
@@ -184,6 +200,8 @@ def completar_clases(
     """Las propuestas de las clases que la fuente no marca siempre, sin las ya etiquetadas.
 
     Se compara con las cajas de la misma clase: un casco no tapa a la persona que lo lleva.
+    Las clases de evidencia (`CLASES_EVIDENCIA`) nunca se completan: una cabeza o una persona
+    sin chaleco "propuesta" por un modelo sería una conjetura entrenando al próximo modelo.
     """
     por_clase: dict[ClaseDetectada, list[Caja]] = {}
     for clase, caja in propuestas:
@@ -238,7 +256,7 @@ def a_coco(
 ) -> dict[str, Any]:
     """COCO de salida. Cada tupla: (imagen, nombre de archivo nuevo, cajas automáticas)."""
     salida: dict[str, Any] = {
-        "categories": [{"id": i, "name": str(c)} for c, i in CLASES_V1.items()],
+        "categories": [{"id": i, "name": str(c)} for c, i in CLASES_V3.items()],
         "images": [],
         "annotations": [],
     }
@@ -254,7 +272,7 @@ def a_coco(
                 {
                     "id": len(salida["annotations"]) + 1,
                     "image_id": img_id,
-                    "category_id": CLASES_V1[clase],
+                    "category_id": CLASES_V3[clase],
                     "bbox": [caja.x1 * img.ancho, caja.y1 * img.alto, w, h],
                     "area": w * h,
                     "iscrowd": 0,
@@ -337,7 +355,7 @@ def muestra_estratificada[K](
     orden = list(range(len(imagenes)))
     random.Random(semilla).shuffle(orden)
     elegidas: list[int] = []
-    for clase in CLASES_V1:
+    for clase in CLASES_V3:
         con_clase = [i for i in orden if clase in imagenes[i][1] and i not in elegidas]
         ya = sum(1 for i in elegidas if clase in imagenes[i][1])
         elegidas += con_clase[: max(minimo_por_clase - ya, 0)]
