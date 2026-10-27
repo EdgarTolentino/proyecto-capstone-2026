@@ -9,6 +9,12 @@ from gepp_vision.evaluacion.acuerdo import (
     imagenes_de_la_segunda,
     kappa_cohen,
 )
+from gepp_vision.evaluacion.cabeza import (
+    MetricasCabeza,
+    evaluar_cabeza,
+    reporte_cabeza,
+    tabla_cabeza,
+)
 from gepp_vision.evaluacion.coco import (
     CLASES,
     ArchivoCoco,
@@ -54,6 +60,7 @@ __all__ = [
     "ArchivoCoco",
     "CajaPx",
     "EntradaInvalida",
+    "MetricasCabeza",
     "MetricasClase",
     "MetricasRegion",
     "Recorte",
@@ -62,6 +69,7 @@ __all__ = [
     "en_region",
     "estado_git",
     "evaluar",
+    "evaluar_cabeza",
     "evaluar_regiones",
     "imagenes_comunes",
     "imagenes_de_la_segunda",
@@ -69,7 +77,9 @@ __all__ = [
     "leer_coco",
     "reporte",
     "reporte_acuerdo",
+    "reporte_cabeza",
     "sha256",
     "tabla_acuerdo",
+    "tabla_cabeza",
     "tabla_markdown",
 ]
