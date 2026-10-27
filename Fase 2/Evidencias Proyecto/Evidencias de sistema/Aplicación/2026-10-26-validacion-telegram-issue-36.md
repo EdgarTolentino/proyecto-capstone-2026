@@ -1,7 +1,7 @@
 # Validación operativa de alertas por Telegram — issue #36
 
 Validación manual del ciclo real de alertas de Guardián EPP con un teléfono. Se sigue
-[`docs/operacion/alertas-telegram.md`](../../../../../docs/operacion/alertas-telegram.md) y la
+[`docs/operacion/alertas-telegram.md`](../../../../docs/operacion/alertas-telegram.md) y la
 instrucción registrada en la issue #36. El detector es simulado y no requiere GPU.
 
 ## Alcance
@@ -295,10 +295,47 @@ Durante la caída controlada se observó:
 | Reintento programado | Sí |
 | `notificacion.enviada_en` | Vacío |
 
+Comando usado para aislar la salida HTTPS del despachador, sin cortar PostgreSQL:
+
+```bash
+HTTPS_PROXY=http://127.0.0.1:1 \
+NO_PROXY=localhost,127.0.0.1 \
+UV_PROJECT_ENVIRONMENT=/tmp/gepp-issue36-venv \
+UV_PYTHON=3.13 UV_FROZEN=1 \
+timeout --signal=INT 8s make \
+  GEPP_BD_URL=postgresql+psycopg://gepp:gepp_dev@localhost:5432/gepp_demo \
+  despachador
+```
+
+Consulta usada después del fallo:
+
+```sql
+select estado, intentos, motivo,
+       reintentar_despues is not null as tiene_reintento,
+       enviada_en is null as sin_envio
+from notificacion order by id;
+```
+
 Después de vencer la espera de 30 segundos, se retiró el proxy y se ejecutó nuevamente el
 despachador. Informó `enviados=1` y `fallos=0`; PostgreSQL mostró `estado=enviada`, dos intentos,
 sin espera pendiente y con `enviada_en` presente. El motivo histórico `ConnectError` permaneció en
 la fila aun después del envío exitoso.
+
+Comandos de recuperación y comprobación:
+
+```bash
+UV_PROJECT_ENVIRONMENT=/tmp/gepp-issue36-venv \
+UV_PYTHON=3.13 UV_FROZEN=1 \
+make GEPP_BD_URL=postgresql+psycopg://gepp:gepp_dev@localhost:5432/gepp_demo \
+  despachador
+```
+
+```sql
+select estado, intentos, motivo,
+       reintentar_despues is null as sin_reintento,
+       enviada_en is not null as tiene_envio
+from notificacion order by id;
+```
 
 El usuario confirmó en el iPhone que llegó el nuevo aviso. La
 [captura de la recuperación](2026-10-26-alerta-telegram-recuperada-redactada.jpg) muestra el aviso
@@ -315,20 +352,19 @@ Con PostgreSQL y Redis arriba se ejecutaron los controles completos de backend y
 | Ruff | `All checks passed!` |
 | Formato Python | 185 archivos ya formateados |
 | Mypy estricto | Sin problemas en 94 archivos fuente |
-| Pytest | 1.414 aprobadas, 1 omitida por requerir GPU, 7 advertencias, 252,43 s |
+| Pytest | 1.414 aprobadas, 1 omitida por requerir GPU, 7 advertencias, 232,54 s |
 | ESLint | Aprobado sin advertencias |
 | TypeScript | Aprobado |
-| Vitest | 25 archivos y 363 pruebas aprobadas, 15,94 s |
-| Build | 1.972 módulos transformados, 1,72 s |
+| Vitest | 25 archivos y 363 pruebas aprobadas, 14,37 s |
+| Build | 1.972 módulos transformados, 783 ms |
 
 La primera ejecución de Vitest dentro del sandbox falló al leer archivos temporales internos de
 `AppData/Local/Packages/sandbox...` (`ENOENT` en 21 suites). Lint y tipos ya habían aprobado. La
 suite se repitió fuera del sandbox y aprobó completa; el primer resultado fue una limitación del
 entorno, no una aserción del proyecto.
 
-Esta sección modifica la documentación después de la corrida. Para cumplir la regla de que la
-suite pase sobre el último commit, los mismos controles deben repetirse después del commit que
-incorpore este registro.
+Los controles se repitieron sobre `be407bc`, después de incorporar el primer registro de la suite;
+las cifras de la tabla corresponden a esa segunda corrida.
 
 ## Avance de las pruebas
 
