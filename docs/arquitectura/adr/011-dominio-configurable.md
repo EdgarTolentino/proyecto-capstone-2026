@@ -97,3 +97,15 @@ que la arquitectura estaba bien separada.
 **El perfil minero no estará medido.** Se puede afirmar que el sistema *opera* en minería; no se
 puede afirmar con qué exactitud. Decirlo en el informe y en la defensa cuesta una frase; que lo
 descubra la comisión cuesta la nota.
+
+## Nota (2026-10-27): video público de cámaras en altura entra a entrenar
+
+La tabla «El corpus se parte por función» (decisión 5) dice que el entrenamiento sale de «Datasets
+públicos de imágenes». Edgar Tolentino decide el 2026-10-27 sumar **video público con licencia CC
+BY de cámaras de obra en altura**, solo para entrenamiento, pre-marcado con el modelo y corregido a
+mano en CVAT, para enseñar la `cabeza` (persona sin casco, ADR-013) desde esa perspectiva. Queda
+registrado como lote 5 de [`07-datasets.md`](../../producto/07-datasets.md).
+
+Lo que **no** cambia: el video de prueba (lote 3, y el lote 4 como medición aparte) nunca entra a
+entrenar, la partición es por video y escena, ningún dato entra sin fila en `07-datasets.md`, y
+nada de esto va al repositorio.

@@ -103,3 +103,15 @@ casco es un objeto, no una persona identificada: no se infiere quién es ni ning
   justamente lo que importa: cuántas alertas son falsas.
 - **Si no se cumple la meta, no hay segundo intento.** Queda la regla por ausencia, el informe lo
   dice con sus cifras y este ADR pasa a «descartada».
+
+## Nota (2026-10-27): el lote 5 también enseña las clases de evidencia
+
+El punto 3 de la decisión dice que las clases de evidencia «solo las aprende el modelo» desde
+datasets públicos de imágenes. Edgar Tolentino decide el 2026-10-27 sumar el lote 5 de
+[`07-datasets.md`](../../producto/07-datasets.md) (video público CC BY de cámaras en altura), en el
+que **sí** se corrigen `cabeza` y `sin_chaleco` a mano en CVAT, partiendo del pre-marcado con
+epp-v3. Es solo entrenamiento, en un proyecto de CVAT aparte
+([`guia-etiquetado.md`](../../datos/guia-etiquetado.md), sección 9).
+
+Lo que no cambia: la verdad de prueba que etiqueta el equipo (lotes 3 y 4) sigue sin `cabeza` ni
+`sin_chaleco`, así que las mediciones de #31 y #203 siguen siendo comparables.

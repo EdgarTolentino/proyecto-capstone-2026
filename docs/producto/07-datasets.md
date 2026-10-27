@@ -14,20 +14,23 @@ Sale del [ADR-011](../arquitectura/adr/011-dominio-configurable.md) y no se nego
 | | Origen | Tipo | Para qué |
 |---|---|---|---|
 | **Entrenamiento** | Datasets públicos | Imágenes | Preentrenar el detector de persona / casco / chaleco |
+| **Entrenamiento, escena de obra** | Video público CC BY (lote 5) | Video | Enseñar `cabeza` desde una cámara en altura (decisión de Edgar, 2026-10-27) |
 | **Prueba y demostración** | Grabación propia en obra | **Video** | Conjunto de prueba, tracks, eventos, defensa de S15 |
 
 **Por qué importa la columna "tipo":** un dataset de imágenes sueltas no tiene tiempo. No produce
 tracks, no permite reglas en segundos, no puede correr
 `test_la_regla_en_segundos_es_invariante_a_la_cadencia` y no evalúa un solo evento. Es material de
-entrenamiento y **jamás** conjunto de prueba. Confundir las dos cosas es el error que dejaría el
+entrenamiento y **jamás** conjunto de prueba. El video del lote 5 también es entrenamiento, por
+decisión aparte, y tampoco es prueba. Confundir las dos cosas es el error que dejaría el
 proyecto sin nada que defender.
 
 ### Decisión del 2026-10-01: no hay grabación propia
 
 El equipo decidió **no grabar en obra** (#10 se cierra). Un video de YouTube (2 h 32 min, lote 3)
 ocupa el lugar de la grabación propia, con una regla que no cambia: **se usa solo para prueba y
-demostración, nunca para entrenar.** El detector se entrena únicamente con los datasets públicos
-de §2.bis. Lo que sale de esta decisión:
+demostración, nunca para entrenar.** El detector se entrena con los datasets públicos de §2.bis
+y, desde el 2026-10-27 (decisión de Edgar), con el video público CC BY del lote 5; el video de
+este lote 3 nunca entra a entrenar. Lo que sale de esta decisión:
 
 - La métrica de prueba se mide en una escena que el modelo no vio. Es más débil que una
   grabación propia, porque es una sola escena y una sola cámara, y así se declara en el informe.
@@ -158,6 +161,90 @@ quedan fuera del repositorio): 115 cuadros, uno cada 3 s, todos en la partición
 (`celular-01.mp4` 43, `celular-02.mp4` 28, `celular-03.mp4` 44), con `lote0.py
 --sin-deduplicar`. Se etiquetan **sin pre-etiquetas**, para que la verdad no herede los
 errores del modelo que se va a medir.
+
+### Lote 5 — 2026-10-27 · video público de cámaras de obra en altura · **solo entrenamiento**
+
+Decisión de Edgar del 2026-10-27, para enseñarle al modelo la `cabeza` (persona sin casco,
+[ADR-013](../arquitectura/adr/013-incumplimiento-por-evidencia.md)) vista desde una cámara de obra
+en altura: epp-v3 la aprendió de fotos de cerca y su recall de `cabeza` en el video del lote 3 es
+0,008. El lote 3 sigue siendo solo prueba.
+
+| Campo | Valor |
+|---|---|
+| Fecha de descarga | 2026-10-27, a `~/datos/gepp/cctv-cc/` (fuera del repositorio) |
+| Licencia | **Creative Commons Attribution (CC BY)**, la que YouTube muestra como «Creative Commons Attribution license (reuse allowed)». Verificada el 2026-10-27 video por video con `yt-dlp --print "%(license)s"`. Solo se usan los videos que la declaran |
+| Atribución | CC BY exige citar al autor. Se cita en el README del repositorio (sección «Atribución del video público CC BY»), junto a los datasets CC BY de §2.bis, y en el informe final, con canal, título, URL y licencia de cada video. Los videos no se redistribuyen: no están en el repositorio |
+| Uso | **Solo entrenamiento. Nunca prueba**: la cifra que se reporta sigue saliendo de los lotes 3 y 4 |
+
+**Fuente: canal «Construction Camera Swiss»**
+(<https://www.youtube.com/channel/UCK04-wLgybCNo869wlT2pAQ>).
+
+| Campo | Valor |
+|---|---|
+| Autor | Canal «Construction Camera Swiss» |
+| Técnica | Timelapses de obra: 14 videos en 2160p (4K) y 4 en 1080p, de 58 a 191 s. 18 videos, 3,2 GB (`cat *.mp4 \| wc -c` = 3.190.956.212 bytes) |
+| Cámara | Fija, en altura, sobre obras en Suiza. Por ser timelapse, las personas aparecen a saltos y no hay tracks continuos: sirve para enseñar apariencia, no para reglas en segundos |
+| Selección | El canal tiene 116 videos y solo **18** declaran CC BY; el resto no se usa. Se evaluó también «Giga Berlin Timelapse» (Tobias Lindh): casi todos sus videos tienen licencia estándar de YouTube, así que no se usa |
+| Cuadros | **1171**, uno cada 2 s, con `ffmpeg -vf fps=1/2 -q:v 2` (`ls ~/datos/gepp/cctv-cc/cuadros/*/ \| grep -c jpg` = 1171) |
+| Pre-marcado | epp-v3 en mosaico. En 4K: `--recorte 0,300,3840,2160 --factor 0.5 --lado 384 --objeto-max-px 300`. En 1080p: `--recorte 0,150,1920,1080 --factor 1 --objeto-max-px 150`. El alto mediano de la persona detectada va de 47 a 108 px según el video |
+| Descartados | 3 videos con poca gente (mediana de 0 personas por cuadro): quedan 1013 cuadros para entrenamiento de los 1171 |
+
+| Id | Título | Altura | seg | Cuadros | Uso |
+|---|---|---|---|---|---|
+| `UVmFsIoasJ4` | Time-Lapse City Uster Seerestaurant | 2160p | 142 | 71 | entrenamiento |
+| `EnFcSvWYhY4` | Construction Camera for Image Filme | 2160p | 81 | 41 | entrenamiento |
+| `N2Wsw7qDjxQ` | Construction Camera for new Hospital Building | 2160p | 124 | 62 | entrenamiento |
+| `bE9eUhZw_JQ` | Construction Camera new School Diessenhofen | 2160p | 144 | 72 | entrenamiento |
+| `v2cCZj7g2bA` | Baustellenkamera Zeitraffer Adliswil MERBAG über 4 Jahre | 2160p | 191 | 96 | entrenamiento |
+| `IEtIzcHoMOw` | Construction Camera for Time-Lapse | 2160p | 124 | 62 | entrenamiento |
+| `NLlyuKZKHKo` | Construction Camera Aarau | 2160p | 92 | 46 | entrenamiento |
+| `rwyGL9gnLh8` | Time-Lapse SCL Tiger Campus | 2160p | 151 | 76 | entrenamiento |
+| `SfQxyGXQ_I0` | Time-Lapse Zurich ETH | 2160p | 142 | 71 | entrenamiento |
+| `2qXEZOPxZlg` | Construction Camera Company Swiss | 2160p | 102 | 51 | entrenamiento |
+| `oHFGGpv2GM8` | Construction Site Camera for Time-Lapse | 2160p | 126 | 63 | descartado: poca gente |
+| `qZEmbu7WaBM` | Construction Camera for Time-Lapse | 2160p | 118 | 59 | entrenamiento |
+| `02FPXXYmp6I` | Construction Site Camera | 2160p | 123 | 61 | entrenamiento |
+| `HqpU2xb-wXs` | Construction Camera Canon EOS Mobile 4 G | 1080p | 173 | 86 | entrenamiento |
+| `F-ocdGvR-f8` | Time-Lapse | 2160p | 148 | 74 | entrenamiento |
+| `ovkTck6svQQ` | Construction Camera for Time-Lapse | 1080p | 131 | 66 | descartado: poca gente |
+| `H5y1reMnDoE` | Time-Lapse Flaach Brige Construction Camera | 1080p | 58 | 29 | descartado: poca gente |
+| `EgGT0mkdsQU` | Construction Camera for Construction | 1080p | 170 | 85 | entrenamiento |
+
+**Partición por video y escena.** Nunca por cuadro: los cuadros de un video van enteros a una sola
+partición. Para agrupar por obra solo hay el título; no se miraron encuadres ni fechas.
+
+| Grupo (obra o escena) | Videos | Con qué se agrupó |
+|---|---|---|
+| Uster, Seerestaurant | `UVmFsIoasJ4` | Título |
+| Hospital | `N2Wsw7qDjxQ` | Título |
+| Escuela Diessenhofen | `bE9eUhZw_JQ` | Título |
+| Adliswil, MERBAG | `v2cCZj7g2bA` | Título |
+| Aarau | `NLlyuKZKHKo` | Título |
+| SCL Tiger Campus | `rwyGL9gnLh8` | Título |
+| ETH Zúrich | `SfQxyGXQ_I0` | Título |
+| Puente de Flaach | `H5y1reMnDoE` | Título |
+| **Obra desconocida** | `EnFcSvWYhY4`, `IEtIzcHoMOw`, `2qXEZOPxZlg`, `oHFGGpv2GM8`, `qZEmbu7WaBM`, `02FPXXYmp6I`, `HqpU2xb-wXs`, `F-ocdGvR-f8`, `ovkTck6svQQ`, `EgGT0mkdsQU` | **No se sabe.** Sus títulos son genéricos y pueden repetir obra entre sí o con las nombradas. Van juntos como un solo grupo, a una sola partición, hasta mirar un cuadro de cada uno |
+
+Pendiente: confirmar a ojo qué videos del grupo desconocido son la misma obra, y fijar qué
+partición (entrenamiento o validación) recibe cada grupo.
+
+**Cómo se etiqueta.** Se pre-marca cada cuadro con epp-v3 y una persona corrige a mano en CVAT. La
+`cabeza` se sugiere en las personas sin casco asociado, y el humano la confirma, la mueve o la
+borra. Lo que propone el modelo no es verdad hasta que alguien lo revisa, y un cuadro sin corregir
+no entra al entrenamiento. Aquí sí se corrigen `cabeza` y `sin_chaleco`, en un proyecto de CVAT aparte; la verdad de prueba (lotes 3 y 4) sigue sin ellas. Detalle en la sección 9 de [`guia-etiquetado.md`](../datos/guia-etiquetado.md).
+
+**Privacidad ([ADR-006](../arquitectura/adr/006-sin-identificacion.md)).** Los videos muestran
+personas, y algunos rostros pueden ser visibles. Nada de este lote entra al repositorio: ni los
+videos, ni los cuadros, ni los recortes. Todo recorte que se escriba lleva el rostro difuminado
+antes. No se identifica a nadie ni se infiere ningún atributo: la `cabeza` es un objeto, no una
+persona. Desde la altura de estas cámaras la mayoría de los rostros no deberían ser legibles, pero
+no se da por supuesto: se revisa al etiquetar.
+
+**Salvedad de la licencia.** CC BY es lo que declara cada canal en YouTube, y la plataforma no
+verifica que quien la marca sea el titular de todo lo que sale en el video (música, logos, personas
+filmadas). Es una declaración, no una garantía, y los videos no declaran el consentimiento de las
+personas que aparecen. Por eso el uso es académico y los archivos quedan fuera del repositorio,
+igual que en el lote 3; sigue aplicando el ADR-006.
 
 ## 2.bis Datasets públicos de imágenes — para entrenar (PT-03)
 
