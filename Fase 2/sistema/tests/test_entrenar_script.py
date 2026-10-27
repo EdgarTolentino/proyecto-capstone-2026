@@ -10,7 +10,7 @@ from typing import Any
 
 import pytest
 from gepp_vision.detectores.rfdetr import VARIANTES
-from gepp_vision.entrenamiento import CLASES_V1
+from gepp_vision.entrenamiento import CLASES_V3
 
 import scripts.entrenar as entrenar  # type: ignore[import-not-found]
 from scripts.entrenar import (  # type: ignore[import-not-found]
@@ -19,6 +19,7 @@ from scripts.entrenar import (  # type: ignore[import-not-found]
     huella_anotaciones,
     main,
     parametros_distintos,
+    verificar_dataset,
 )
 
 PARAMETROS = {
@@ -33,13 +34,13 @@ PARAMETROS = {
 
 
 def _dataset(raiz: Path) -> Path:
-    """Un COCO mínimo con las tres clases v1 en train y en valid."""
+    """Un COCO mínimo con las cinco clases v3 en train y en valid."""
     coco = {
-        "categories": [{"id": i, "name": str(c)} for c, i in CLASES_V1.items()],
+        "categories": [{"id": i, "name": str(c)} for c, i in CLASES_V3.items()],
         "images": [{"id": 1, "file_name": "a.jpg", "width": 10, "height": 10}],
         "annotations": [
             {"id": i, "image_id": 1, "category_id": i, "bbox": [0, 0, 5, 5]}
-            for i in CLASES_V1.values()
+            for i in CLASES_V3.values()
         ],
     }
     for carpeta in ("train", "valid"):
@@ -60,6 +61,31 @@ def _corrida(salida: Path, dataset: Path, **extra: Any) -> Path:
     }
     (salida / "procedencia.json").write_text(json.dumps(procedencia))
     return salida
+
+
+def test_un_dataset_de_tres_clases_no_sirve_para_la_v3(tmp_path: Path) -> None:
+    dataset = _dataset(tmp_path / "ds")
+    for carpeta in ("train", "valid"):
+        ruta = dataset / carpeta / "_annotations.coco.json"
+        coco = json.loads(ruta.read_text())
+        coco["categories"] = coco["categories"][:3]
+        ruta.write_text(json.dumps(coco))
+    with pytest.raises(SystemExit, match="categorías"):
+        verificar_dataset(dataset)
+
+
+def test_un_train_sin_cajas_de_una_clase_nueva_se_detiene(tmp_path: Path) -> None:
+    dataset = _dataset(tmp_path / "ds")
+    ruta = dataset / "train/_annotations.coco.json"
+    coco = json.loads(ruta.read_text())
+    coco["annotations"] = [a for a in coco["annotations"] if a["category_id"] != 5]
+    ruta.write_text(json.dumps(coco))
+    with pytest.raises(SystemExit, match="sin_chaleco"):
+        verificar_dataset(dataset)
+
+
+def test_un_dataset_de_cinco_clases_pasa(tmp_path: Path) -> None:
+    verificar_dataset(_dataset(tmp_path / "ds"))
 
 
 def test_una_corrida_cortada_se_puede_reanudar(tmp_path: Path) -> None:

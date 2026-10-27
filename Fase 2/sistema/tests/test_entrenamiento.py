@@ -15,7 +15,7 @@ import pytest
 from gepp_core import Caja, ClaseDetectada, Deteccion
 from gepp_vision.dataset import UMBRAL_DUPLICADO, Particion
 from gepp_vision.entrenamiento import (
-    CLASES_V1,
+    CLASES_V3,
     Anotada,
     CategoriaDesconocida,
     Fuente,
@@ -126,12 +126,32 @@ def test_voc_con_una_clase_no_declarada_detiene_todo() -> None:
 # --- archivo de fuentes ---------------------------------------------------------------
 
 
+def test_las_fuentes_del_repo_traducen_la_evidencia_positiva() -> None:
+    # Medido el 2026-10-26: estas categorías no se solapan con casco ni chaleco (cabeza SIN
+    # casco, persona SIN chaleco). Si se pasan a null, el modelo v3 sale sin dos clases.
+    fuentes = {
+        f.nombre: f
+        for f in cargar_fuentes(Path(__file__).resolve().parents[1] / "scripts/fuentes.yaml")
+    }
+    cabeza, sin_chaleco = ClaseDetectada.CABEZA, ClaseDetectada.SIN_CHALECO
+    assert fuentes["hard-hat-detection"].clases["head"] is cabeza
+    assert fuentes["construction-site-safety"].clases["NO-Hardhat"] is cabeza
+    assert fuentes["construction-site-safety"].clases["NO-Safety Vest"] is sin_chaleco
+    assert fuentes["safety-vests"].clases["NO-Safety Vest"] is sin_chaleco
+
+
+def test_voc_traduce_head_a_cabeza() -> None:
+    cabeza = ClaseDetectada.CABEZA
+    fuente = Fuente("hhd", "CC0 1.0", {"helmet": C, "head": cabeza}, frozenset({C}))
+    assert desde_voc(VOC, fuente).cajas[1] == (cabeza, Caja(0.0, 0.0, 0.025, 0.05))
+
+
 def test_el_archivo_de_fuentes_del_repo_es_valido() -> None:
     fuentes = cargar_fuentes(Path(__file__).resolve().parents[1] / "scripts/fuentes.yaml")
     assert fuentes, "sin fuentes no hay entrenamiento"
     for f in fuentes:
         assert f.licencia, f"{f.nombre} sin licencia: no entra (07-datasets)"
-        assert set(f.clases.values()) - {None} <= set(CLASES_V1)
+        assert set(f.clases.values()) - {None} <= set(CLASES_V3)
 
 
 def test_una_clase_propia_inexistente_en_el_archivo_falla(tmp_path: Path) -> None:
@@ -217,6 +237,15 @@ def test_completar_clases_ignora_una_clase_fuera_de_la_v1() -> None:
     assert completar_clases(_img_con(), [arnes], frozenset()) == []
 
 
+def test_completar_clases_nunca_propone_cabeza_ni_sin_chaleco() -> None:
+    # ADR-013: la evidencia positiva sale de las etiquetas de los datasets, no de un modelo.
+    propuestas = [
+        (ClaseDetectada.CABEZA, Caja(0.1, 0.0, 0.3, 0.2)),
+        (ClaseDetectada.SIN_CHALECO, Caja(0.1, 0.2, 0.4, 0.7)),
+    ]
+    assert completar_clases(_img_con(), propuestas, frozenset()) == []
+
+
 # --- fugas entre particiones ----------------------------------------------------------
 
 
@@ -262,21 +291,41 @@ def test_la_particion_estable_no_depende_del_orden_ni_de_la_corrida() -> None:
     assert 0.07 < proporcion[PR] < 0.13
 
 
-def test_a_coco_usa_las_tres_clases_v1_y_marca_lo_automatico() -> None:
+def test_a_coco_usa_las_cinco_clases_v3_y_marca_lo_automatico() -> None:
     [img] = desde_coco(_coco((1, [20, 10, 40, 30])), FUENTE)
     automaticas = [(P, Caja(0.5, 0.5, 1.0, 1.0)), (V, Caja(0.0, 0.5, 0.25, 1.0))]
     coco = a_coco([(img, "css__a.jpg", automaticas)])
-    assert [c["name"] for c in coco["categories"]] == ["persona", "casco", "chaleco"]
+    assert [c["name"] for c in coco["categories"]] == [
+        "persona",
+        "casco",
+        "chaleco",
+        "cabeza",
+        "sin_chaleco",
+    ]
     casco, persona, chaleco = coco["annotations"]
-    assert chaleco["category_id"] == CLASES_V1[V]
+    assert chaleco["category_id"] == CLASES_V3[V]
     assert chaleco["automatica"] is True
     assert casco["bbox"] == pytest.approx([20, 10, 40, 30])
-    assert casco["category_id"] == CLASES_V1[C]
+    assert casco["category_id"] == CLASES_V3[C]
     assert casco["automatica"] is False
-    assert persona["category_id"] == CLASES_V1[P]
+    assert persona["category_id"] == CLASES_V3[P]
     assert persona["automatica"] is True
     assert persona["area"] == pytest.approx(100 * 50)
     assert coco["images"] == [{"id": 1, "file_name": "css__a.jpg", "width": 200, "height": 100}]
+
+
+def test_a_coco_escribe_cabeza_y_sin_chaleco_con_sus_ids() -> None:
+    cabeza, sin_chaleco = ClaseDetectada.CABEZA, ClaseDetectada.SIN_CHALECO
+    img = Anotada(
+        "a.jpg",
+        200,
+        100,
+        [(cabeza, Caja(0.0, 0.0, 0.5, 0.5)), (sin_chaleco, Caja(0.5, 0.5, 1.0, 1.0))],
+    )
+    coco = a_coco([(img, "x__a.jpg", [])])
+    ids = {c["name"]: c["id"] for c in coco["categories"]}
+    assert ids == {"persona": 1, "casco": 2, "chaleco": 3, "cabeza": 4, "sin_chaleco": 5}
+    assert [a["category_id"] for a in coco["annotations"]] == [4, 5]
 
 
 # --- grupos de imágenes que vienen del mismo video -------------------------------------
@@ -412,6 +461,15 @@ def test_muestra_estratificada_cubre_cada_clase() -> None:
     clases = {c for _, cs in imagenes if _ in elegidas for c in cs}
     assert clases == {P, C, V}
     assert len(elegidas) == 10
+
+
+def test_muestra_estratificada_cubre_tambien_la_evidencia_positiva() -> None:
+    # exportar_onnx.py exige cajas de validación de cada clase: sin esto, las dos nuevas
+    # quedarían fuera de la muestra y el mapa no se verificaría.
+    cabeza, sin_chaleco = ClaseDetectada.CABEZA, ClaseDetectada.SIN_CHALECO
+    imagenes = [(f"c{i}", [C]) for i in range(100)] + [("h", [cabeza]), ("s", [sin_chaleco])]
+    elegidas = muestra_estratificada(imagenes, n=10, minimo_por_clase=1)
+    assert {"h", "s"} <= set(elegidas)
 
 
 def test_muestra_estratificada_es_reproducible() -> None:
