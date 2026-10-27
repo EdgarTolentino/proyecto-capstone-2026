@@ -105,33 +105,13 @@ registrar el video.
 No se intentó corregir ni ejecutar una variante después del fallo. Se conserva el resultado para
 informarlo en la issue antes de modificar código, como indican las instrucciones de #36.
 
-### Borrador para la issue #36
-
-> Probé el inicio del recorrido solicitado en Windows, con el detector simulado y `FUENTE=2`.
->
-> Comando equivalente ejecutado, porque `make` no está disponible en esta instalación:
->
-> ```powershell
-> .\.venv\Scripts\python.exe scripts/demo.py <ruta-local>\generativa.mp4 --fuente 2
-> ```
->
-> Resultado: ❌ la demo recreó `gepp_demo`, pero el video quedó `sin registrar`. Los procesos
-> hijos fallaron al iniciar con estos errores:
->
-> ```text
-> AttributeError: Can't get attribute 'correr_trabajador' on <module '__main__'>
-> AttributeError: Can't get attribute 'correr_vigilante' on <module '__main__'>
-> ```
->
-> Estado comprobado al terminar: 0 videos, 0 hallazgos y 0 avisos en el outbox. Por eso todavía
-> no ejecuté las pruebas 1–5 con el teléfono. No intenté corregir el código ni otra variante del
-> recorrido, siguiendo la instrucción de esta issue. El token, el `chat_id` y el nombre del bot
-> no se incluyeron en la evidencia.
-
 ## Paso 7 — reporte y diagnóstico
 
 El fallo se publicó en la issue #36:
 <https://github.com/EdgarTolentino/proyecto-capstone-2026/issues/36#issuecomment-6424417137>.
+Su corrección tiene seguimiento independiente en la
+[issue #225](https://github.com/EdgarTolentino/proyecto-capstone-2026/issues/225); la solución
+propuesta abajo aún no se ha implementado ni probado.
 
 La causa está en la combinación de tres hechos:
 
@@ -229,6 +209,14 @@ corrida prepara la prueba de llegada al teléfono pero aún no la acredita.
 Se inició el despachador contra `gepp_demo`. Informó `enviados=1` y `fallos=0`. El usuario confirmó
 en un iPhone que llegó un mensaje con:
 
+```text
+Despachador, campos registrados: enviados=1; fallos=0
+PostgreSQL: la marca enviada_en se comprobó en la consulta posterior al acuse (paso 12)
+```
+
+Esos campos se anotaron durante la prueba; no se conservó el log textual completo del proceso ni
+una consulta individual de PostgreSQL antes del acuse.
+
 - «Frente de obra gruesa · turno A»;
 - una persona sin casco ni chaleco;
 - «Indicio automatizado. Requiere validación humana.»;
@@ -248,12 +236,11 @@ mensaje sin el botón y con el nombre del bot oculto. No contiene metadatos GPS.
 
 El despachador informó `acusados=1` y `fallos=0`. La consulta de PostgreSQL devolvió una fila con:
 
-| Campo | Resultado |
-|---|---|
-| `estado` | `acusada` |
-| `enviada_en` | Presente |
-| `acusada_en` | Presente |
-| Orden temporal | `acusada_en >= enviada_en` |
+```text
+Despachador, campos registrados: acusados=1; fallos=0
+PostgreSQL, campos registrados: estado=acusada; enviada_en=presente;
+acusada_en=presente; acusada_en >= enviada_en
+```
 
 Después de comprobar el resultado, el despachador se detuvo de forma controlada.
 
@@ -264,24 +251,22 @@ quedó `listo` y produjo un hallazgo de severidad 3, con una notificación inici
 
 Al ejecutar un ciclo del despachador se observó:
 
-| Resultado | Valor |
-|---|---|
-| Avisos enviados | 0 |
-| Filas enviadas al resumen | 1 |
-| Fallos | 0 |
-| `notificacion.tipo` | `resumen_turno` |
-| `notificacion.estado` | `pendiente` |
-| `notificacion.motivo` | `corriente` |
-| `notificacion.enviada_en` | Vacío |
+```text
+Despachador, campos registrados: enviados=0; al_resumen=1; fallos=0
+PostgreSQL, campos registrados: tipo=resumen_turno; estado=pendiente;
+motivo=corriente; enviada_en=vacío
+```
 
-El usuario confirmó desde el iPhone que no llegó ningún mensaje nuevo. Después de la comprobación,
+La ausencia de un mensaje nuevo se constató manualmente en el iPhone; no es una medición de la API
+de Telegram. Después de la comprobación,
 el despachador se detuvo de forma controlada.
 
 ## Paso 14 — caída y recuperación del canal
 
 Se recreó `gepp_demo` con `FUENTE=2` y una notificación crítica pendiente. Para mantener la sesión
 de trabajo conectada, la caída se simuló únicamente en el proceso del despachador mediante un proxy
-HTTPS local inaccesible; no se apagó físicamente el wifi.
+HTTPS local inaccesible (`HTTPS_PROXY=http://127.0.0.1:1`); no hubo una pérdida real de red ni se
+apagó físicamente el wifi.
 
 Durante la caída controlada se observó:
 
@@ -352,19 +337,19 @@ Con PostgreSQL y Redis arriba se ejecutaron los controles completos de backend y
 | Ruff | `All checks passed!` |
 | Formato Python | 185 archivos ya formateados |
 | Mypy estricto | Sin problemas en 94 archivos fuente |
-| Pytest | 1.414 aprobadas, 1 omitida por requerir GPU, 7 advertencias, 232,54 s |
+| Pytest | 1.414 aprobadas, 1 omitida por requerir GPU, 7 advertencias |
 | ESLint | Aprobado sin advertencias |
 | TypeScript | Aprobado |
-| Vitest | 25 archivos y 363 pruebas aprobadas, 14,37 s |
-| Build | 1.972 módulos transformados, 783 ms |
+| Vitest | 25 archivos y 363 pruebas aprobadas |
+| Build | 1.972 módulos transformados |
 
 La primera ejecución de Vitest dentro del sandbox falló al leer archivos temporales internos de
 `AppData/Local/Packages/sandbox...` (`ENOENT` en 21 suites). Lint y tipos ya habían aprobado. La
 suite se repitió fuera del sandbox y aprobó completa; el primer resultado fue una limitación del
 entorno, no una aserción del proyecto.
 
-Los controles se repitieron sobre `be407bc`, después de incorporar el primer registro de la suite;
-las cifras de la tabla corresponden a esa segunda corrida.
+Se omiten los tiempos porque varían por corrida. Los conteos se verificarán sobre el último commit
+del PR y se copiarán en su descripción junto con los comandos y la salida final.
 
 ## Avance de las pruebas
 
@@ -375,3 +360,5 @@ las cifras de la tabla corresponden a esa segunda corrida.
 | 3 | Lo corriente no avisa de inmediato | Pasó | `enviados=0`, motivo `corriente`; confirmación en iPhone |
 | 4 | Una caída temporal no pierde el aviso | Pasó | Pendiente tras `ConnectError`; enviada al recuperar; captura |
 | 5 | El aviso no identifica personas | Pasó | Texto del aviso y captura redactada |
+| 6 | Presupuesto de 6 avisos por turno | Pendiente | Edgar lo medirá en la máquina con GPU, según #36 |
+| 7 | Supresión por cámara y agrupación | Pendiente | No se ejecutaron en esta validación manual |

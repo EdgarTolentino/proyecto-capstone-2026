@@ -26,6 +26,17 @@ git checkout v0.1.0-avance
 
 ### Evidencia final actualizada
 
+La [validación operativa de Telegram de la issue #36](2026-10-26-validacion-telegram-issue-36.md)
+registró entrega y acuse en un iPhone real, supresión de un hallazgo corriente y recuperación ante
+una caída HTTPS simulada con el detector de demostración. Quedaron pendientes el presupuesto de
+seis avisos por turno, la supresión por cámara y la agrupación.
+
+| Captura redactada | Qué acredita |
+|---|---|
+| [Aviso recibido](2026-10-26-alerta-telegram-telefono-redactada.jpg) | Mensaje crítico recibido con «Acuso recibo» |
+| [Acuse confirmado](2026-10-26-acuse-telegram-boton-retirado-redactada.jpg) | El mismo aviso después de desaparecer el botón |
+| [Aviso recuperado](2026-10-26-alerta-telegram-recuperada-redactada.jpg) | Nuevo mensaje tras restablecer la salida HTTPS |
+
 La [prueba final de Ayuda global en Windows](2026-10-20-ayuda-global-main/verificacion.html)
 se ejecutó sobre `main` en `71bd454`, después de fusionar #194 y #196. Registra el acceso desde
 «?», el PDF, la Guía, Tab, Escape y una ventana de 390 × 844. La protección c/x con visor en
