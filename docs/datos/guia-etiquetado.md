@@ -28,8 +28,10 @@ puesto o no lo decide el sistema al asociar el casco con la franja de la cabeza 
 (sección 3).
 
 Las clases `cabeza` (cabeza sin casco) y `sin_chaleco` del [ADR-013](../arquitectura/adr/013-incumplimiento-por-evidencia.md)
-**no se etiquetan aquí**. Las aprende el modelo desde datasets públicos que ya las traen. Esta
-verdad sigue marcando el objeto, para que las mediciones sigan siendo comparables.
+**no se etiquetan en la verdad de prueba** (lotes 3 y 4, proyecto `guardian-epp-v01`). Esa verdad
+sigue marcando el objeto, para que las mediciones sigan siendo comparables. Las aprende el modelo
+desde datasets públicos que ya las traen y, desde el 2026-10-27, también desde el lote 5, que se
+etiqueta aparte y solo para entrenar (sección 9).
 
 ## 3. Atributos
 
@@ -135,3 +137,55 @@ un video o una escena aparecen en dos particiones.
 uv run python scripts/lote0.py ~/datos/videos ~/datos/lote0 \
     --particion ~/datos/particion.yaml --manifiesto datos/lote0.csv
 ```
+
+## 9. Lote 5: etiquetado de entrenamiento (2026-10-27)
+
+El lote 5 de [`07-datasets.md`](../producto/07-datasets.md) (video público CC BY de cámaras en
+altura) es **solo entrenamiento**. Por eso aquí **sí** se corrigen `cabeza` y `sin_chaleco`, que en
+la verdad de prueba (secciones 2 a 8) no se etiquetan. Las dos cosas no se mezclan:
+
+| | Verdad de prueba (lotes 3 y 4) | Entrenamiento del lote 5 |
+|---|---|---|
+| Proyecto CVAT | `guardian-epp-v01` | **Otro, separado**: `guardian-epp-lote5-entrenamiento` (nombre propuesto; Edgar puede cambiarlo) |
+| Clases | `persona`, `casco`, `chaleco` | Esas tres más `cabeza` y `sin_chaleco` |
+| Punto de partida | Sin pre-etiquetas (lote 4) | Pre-marcado con epp-v3 |
+| Para qué | Medir | Entrenar |
+
+**Por qué un proyecto separado.** La verdad de prueba no debe heredar el pre-marcado: el lote 4
+ya se etiqueta «sin pre-etiquetas» para no heredar los errores del modelo que se mide. Y
+`guardian-epp-v01` tiene solo las tres clases; importar una `cabeza` ahí falla con
+`Label 'cabeza' is not registered`.
+
+**Configuración del proyecto del lote 5.** Lleva **todo lo de `guardian-epp-v01`** más lo nuevo.
+Si falta algo, CVAT descarta el atributo o rechaza la etiqueta al importar (por ejemplo
+`Label 'tiene_pequenos' is not registered`).
+
+| Qué | Cómo se llama | Origen |
+|---|---|---|
+| Etiquetas de objeto | `persona`, `casco`, `chaleco` | Las de `guardian-epp-v01` |
+| Etiquetas de objeto | `cabeza`, `sin_chaleco` | Nuevas del lote 5 (ADR-013) |
+| Atributo `puesto` (`si` · `no`) | En `casco` y en `chaleco` | Sección 3 |
+| Atributo `ocluida` (`no` · `parcial` · `mayor`) | En `persona` | Sección 3 |
+| Atributo `origen` (`manual` · `sugerida` · `predicha`, por defecto `manual`) | En las cinco etiquetas de objeto. Una caja dibujada a mano queda `manual`, no `sugerida` | Nuevo del lote 5 |
+| Etiquetas de imagen | `tiene_pequenos` (sección 4.2), `negativo_duro` y `grupo_denso` (sección 5) | Las que pide la guía. La instalación de CVAT (sección 6) solo registra `tiene_pequenos` en `guardian-epp-v01`; si `negativo_duro` y `grupo_denso` no existen allí, se crean en el proyecto del lote 5 igual |
+
+Las etiquetas hay que crearlas **con** sus atributos: CVAT descarta al importar un atributo que la
+etiqueta no declara. `cabeza` y `sin_chaleco` no llevan `puesto` ni `ocluida`.
+
+**Las secciones 4 y 5 valen enteras.** No hay ninguna regla que se deje fuera para el lote 5. Dos
+puntos que conviene tener presentes: el mínimo de 10 px (8 px el casco) de la sección 4.2 se mide
+en el cuadro original, y en cuadros de cámara en altura habrá muchas personas y cascos bajo ese
+mínimo, que se dejan sin caja con `tiene_pequenos`; y el caso de la persona lejana de la sección 5
+(`persona` sí, casco no) será frecuente. Ambos se aplican como están.
+
+**Cómo se corrige.**
+- La `cabeza` se sugiere en las personas sin casco asociado; quien etiqueta la confirma, la mueve o
+  la borra, y agrega las que falten. Misma idea con `sin_chaleco`.
+- Las demás reglas de caja (sección 4) y los casos de la sección 5 valen igual.
+- Un cuadro sin corregir no entra al entrenamiento.
+
+**Cómo llega el pre-marcado.** (1) `preetiquetar.py --umbral 0.05 --con-evidencia` saca las
+predicciones crudas, que no van a CVAT. (2) `premarcar_cabezas.py PRED.coco.json MODELO.clases.json
+SALIDA.coco.json` filtra con el umbral de la regla, sugiere las cabezas y escribe `origen` en
+`attributes`; esa SALIDA es la que se importa. El paso 2 llega con el PR de `premarcar_cabezas.py`
+(rama `feat/premarcar-cabezas`): hasta entonces no existe en `main`.

@@ -187,8 +187,8 @@ público es un incidente de datos personales.
 
 ### Datasets públicos con que se entrena el detector
 
-El detector se entrena solo con datasets públicos; el video de prueba nunca entra a
-entrenamiento. Licencias verificadas en
+El detector se entrena con datasets públicos y, desde el 2026-10-27, con video público CC BY
+(lote 5, más abajo); el video de prueba nunca entra a entrenamiento. Licencias verificadas en
 [`07-datasets.md`](docs/producto/07-datasets.md) y fuentes fijadas en
 [`fuentes.yaml`](Fase%202/sistema/scripts/fuentes.yaml).
 
@@ -197,6 +197,42 @@ entrenamiento. Licencias verificadas en
 | [Hard Hat Detection](https://www.kaggle.com/datasets/andrewmvd/hard-hat-detection) | andrewmvd (Kaggle), imágenes de Hard Hat Workers (Roboflow) | CC0 1.0 |
 | [Construction Site Safety](https://universe.roboflow.com/roboflow-universe-projects/construction-site-safety), versión 30 | Roboflow Universe Projects | [CC BY 4.0](https://creativecommons.org/licenses/by/4.0/) |
 | [Safety Vests](https://universe.roboflow.com/roboflow-universe-projects/safety-vests), versión 1 | Roboflow Universe Projects | [CC BY 4.0](https://creativecommons.org/licenses/by/4.0/) |
+
+### Atribución del video público CC BY
+
+Videos de YouTube con licencia «Creative Commons Attribution» (CC BY), usados **solo para
+entrenar** (lote 5 de [`07-datasets.md`](docs/producto/07-datasets.md)). Se descargan fuera del
+repositorio y no se redistribuyen. La licencia es la que declara cada canal en YouTube: la opción
+«Creative Commons Attribution» de YouTube enlaza a
+[CC BY](https://creativecommons.org/licenses/by/4.0/). La versión exacta de cada video no se pudo
+verificar; el enlace es el que YouTube asocia a esa opción.
+
+**Cambios:** se extraen cuadros y se anotan; los videos no se redistribuyen.
+
+**Canal «Construction Camera Swiss»**
+(<https://www.youtube.com/channel/UCK04-wLgybCNo869wlT2pAQ>), licencia CC BY. Enlace de cada
+video: `https://www.youtube.com/watch?v=<id>`.
+
+| Id | Título |
+|---|---|
+| `UVmFsIoasJ4` | Time-Lapse City Uster Seerestaurant |
+| `EnFcSvWYhY4` | Construction Camera for Image Filme |
+| `N2Wsw7qDjxQ` | Construction Camera for new Hospital Building |
+| `bE9eUhZw_JQ` | Construction Camera new School Diessenhofen |
+| `v2cCZj7g2bA` | Baustellenkamera Zeitraffer Adliswil MERBAG über 4 Jahre |
+| `IEtIzcHoMOw` | Construction Camera for Time-Lapse |
+| `NLlyuKZKHKo` | Construction Camera Aarau |
+| `rwyGL9gnLh8` | Time-Lapse SCL Tiger Campus |
+| `SfQxyGXQ_I0` | Time-Lapse Zurich ETH |
+| `2qXEZOPxZlg` | Construction Camera Company Swiss |
+| `oHFGGpv2GM8` | Construction Site Camera for Time-Lapse |
+| `qZEmbu7WaBM` | Construction Camera for Time-Lapse |
+| `02FPXXYmp6I` | Construction Site Camera |
+| `HqpU2xb-wXs` | Construction Camera Canon EOS Mobile 4 G |
+| `F-ocdGvR-f8` | Time-Lapse |
+| `ovkTck6svQQ` | Construction Camera for Time-Lapse |
+| `H5y1reMnDoE` | Time-Lapse Flaach Brige Construction Camera |
+| `EgGT0mkdsQU` | Construction Camera for Construction |
 
 ## Licencia
 

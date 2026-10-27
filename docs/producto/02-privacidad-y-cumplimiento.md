@@ -186,6 +186,12 @@ Medidas asociadas:
 - Se registra **procedencia, licencia y alcance de uso** de cada imagen en la propia base de
   datos. Es trivial ahora e imposible de reconstruir después.
 - Ninguna imagen de trabajador real entra al repositorio público.
+- Video público de terceros (lote 5 de [`07-datasets.md`](07-datasets.md)): la licencia CC BY
+  autoriza reutilizar el video, no tratar los datos de las personas que aparecen. Se usa solo para
+  entrenar, con finalidad académica, fuera del repositorio, etiquetado en CVAT autoalojado y sin
+  identificar a nadie (ADR-006). Los cuadros no se publican ni se comparten, y el rostro va
+  difuminado en todo recorte que se escriba. Base: uso académico de una fuente pública, sin
+  identificación, el mismo criterio que el video del lote 3 (decisión de Edgar, 2026-10-27).
 
 ## 7. Marco en movimiento — qué reverificar antes de entregar
 
