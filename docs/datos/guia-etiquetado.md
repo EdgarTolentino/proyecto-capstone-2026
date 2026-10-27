@@ -166,7 +166,7 @@ Si falta algo, CVAT descarta el atributo o rechaza la etiqueta al importar (por 
 | Etiquetas de objeto | `cabeza`, `sin_chaleco` | Nuevas del lote 5 (ADR-013) |
 | Atributo `puesto` (`si` · `no`) | En `casco` y en `chaleco` | Sección 3 |
 | Atributo `ocluida` (`no` · `parcial` · `mayor`) | En `persona` | Sección 3 |
-| Atributo `origen` (`sugerida` · `predicha`) | En las cinco etiquetas de objeto | Nuevo del lote 5 |
+| Atributo `origen` (`manual` · `sugerida` · `predicha`, por defecto `manual`) | En las cinco etiquetas de objeto. Una caja dibujada a mano queda `manual`, no `sugerida` | Nuevo del lote 5 |
 | Etiquetas de imagen | `tiene_pequenos` (sección 4.2), `negativo_duro` y `grupo_denso` (sección 5) | Las que pide la guía. La instalación de CVAT (sección 6) solo registra `tiene_pequenos` en `guardian-epp-v01`; si `negativo_duro` y `grupo_denso` no existen allí, se crean en el proyecto del lote 5 igual |
 
 Las etiquetas hay que crearlas **con** sus atributos: CVAT descarta al importar un atributo que la
