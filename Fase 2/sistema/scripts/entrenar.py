@@ -32,7 +32,7 @@ from pathlib import Path
 from typing import Any
 
 from gepp_vision.detectores.rfdetr import VARIANTES
-from gepp_vision.entrenamiento import CLASES_V1
+from gepp_vision.entrenamiento import CLASES_V3
 
 RAIZ = Path(__file__).resolve().parent
 
@@ -74,18 +74,18 @@ def huella_anotaciones(dataset: Path) -> dict[str, str]:
 
 
 def verificar_dataset(dataset: Path) -> dict[str, object]:
-    """Falla antes de reservar la GPU si el dataset no es el que espera la v1."""
+    """Falla antes de reservar la GPU si el dataset no es el que espera la v3."""
     for carpeta in ("train", "valid"):
         if not (dataset / carpeta / "_annotations.coco.json").exists():
             sys.exit(
                 f"{dataset}/{carpeta} no tiene _annotations.coco.json (corre preparar_dataset)"
             )
-    esperadas = {i: str(c) for c, i in CLASES_V1.items()}
+    esperadas = {i: str(c) for c, i in CLASES_V3.items()}
     for carpeta in ("train", "valid"):
         anotaciones = json.loads((dataset / carpeta / "_annotations.coco.json").read_text("utf-8"))
         categorias = {int(c["id"]): str(c["name"]) for c in anotaciones["categories"]}
         if categorias != esperadas:
-            sys.exit(f"{carpeta}: categorías {categorias} distintas de las de la v1 {esperadas}")
+            sys.exit(f"{carpeta}: categorías {categorias} distintas de las de la v3 {esperadas}")
     coco = json.loads((dataset / "train/_annotations.coco.json").read_text(encoding="utf-8"))
     usadas = {int(a["category_id"]) for a in coco["annotations"]}
     sin_cajas = [esperadas[i] for i in esperadas if i not in usadas]

@@ -127,6 +127,9 @@ export function VideosPage({ puedeProcesar = false, puedeVerEvidencia = false, c
       const texto = `El archivo ${resultado.archivo} quedó pedido; se registrará cuando el trabajador lo tome.`;
       setMensaje(texto);
       setAnuncio({ pedidoId: resultado.id, texto });
+      // Una lectura inicial aún en vuelo (sin datos) no la cancela `invalidateQueries`: se reutilizaría y su
+      // respuesta, anterior al POST, llegaría sin el pedido nuevo. Se cancela antes para forzar una lectura posterior.
+      await queryClient.cancelQueries({ queryKey: ["videos-pedidos"] });
       await queryClient.invalidateQueries({ queryKey: ["videos-pedidos"] });
     },
     onError: (error, { peticion, apertura: deEsteEnvio }) => {
