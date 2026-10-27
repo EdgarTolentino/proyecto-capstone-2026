@@ -204,9 +204,9 @@ con la versión y el sha256.
 
 | Fuente | Estado | Lo que se verificó al descargar |
 |---|---|---|
-| Hard Hat Detection (Kaggle) | Descargado el 2026-10-01 | 5000 imágenes `hard_hat_workers*.png`: son las de **Hard Hat Workers**, que por eso no se baja aparte. Categorías `helmet` (18.966), `head` (5.785) y `person` (751, en solo 158 imágenes) |
-| Construction Site Safety (Roboflow) | Descargado el 2026-10-01, **versión 30** (fijada en `fuentes.yaml`) | 717 imágenes, licencia CC BY 4.0 en su `README.dataset.txt`. Trae 25 categorías: entran `Hardhat`, `Safety Vest` y `Person`; las otras 22 se descartan a propósito |
-| Safety Vests (Roboflow) | Descargado el 2026-10-15, **versión 1**, sha256 del zip `fd553b25cb6d…`, fijada en `fuentes.yaml` | 3.897 imágenes (2.728 / 779 / 390), sin aumento y sin redimensionar; las versiones 2, 3, 5, 8, 9, 13 y 14 traen 9.353 o 14.809 imágenes aumentadas, y la 6 y la 7 están redimensionadas o con clases renombradas. Licencia CC BY 4.0 en su `README.dataset.txt`. Categorías de la v1: `Safety Vest` (6.448 cajas), `NO-Safety Vest` (2.024) y la supercategoría `vest-ppe`; la ficha web muestra otros nombres (`safety_vest`, `no_safety_vest`), y manda lo descargado |
+| Hard Hat Detection (Kaggle) | Descargado el 2026-10-01 | 5000 imágenes `hard_hat_workers*.png`: son las de **Hard Hat Workers**, que por eso no se baja aparte. Categorías `helmet` (18.966), `head` (5.785) y `person` (751, en solo 158 imágenes). Entran `helmet` y `person`; `head` entra como `cabeza` desde epp-v3 (ADR-013) |
+| Construction Site Safety (Roboflow) | Descargado el 2026-10-01, **versión 30** (fijada en `fuentes.yaml`) | 717 imágenes, licencia CC BY 4.0 en su `README.dataset.txt`. Trae 25 categorías: entran `Hardhat`, `Safety Vest` y `Person`, y desde epp-v3 también `NO-Hardhat` como `cabeza` y `NO-Safety Vest` como `sin_chaleco` (ADR-013); las otras 20 se descartan a propósito |
+| Safety Vests (Roboflow) | Descargado el 2026-10-15, **versión 1**, sha256 del zip `fd553b25cb6d…`, fijada en `fuentes.yaml` | 3.897 imágenes (2.728 / 779 / 390), sin aumento y sin redimensionar; las versiones 2, 3, 5, 8, 9, 13 y 14 traen 9.353 o 14.809 imágenes aumentadas, y la 6 y la 7 están redimensionadas o con clases renombradas. Licencia CC BY 4.0 en su `README.dataset.txt`. Categorías de la v1: `Safety Vest` (6.448 cajas), `NO-Safety Vest` (2.024) y la supercategoría `vest-ppe`; la ficha web muestra otros nombres (`safety_vest`, `no_safety_vest`), y manda lo descargado. Entra `Safety Vest`; `NO-Safety Vest` entra como `sin_chaleco` desde epp-v3 (ADR-013) |
 
 **Personas completadas automáticamente.** Una persona sin caja le enseña al modelo que es
 fondo. En las fuentes que no marcan a todas las personas, el RF-DETR Medium preentrenado en
@@ -245,6 +245,23 @@ de arriba. Reemplaza a la decisión propuesta del 2026-09-22 (Hard Hat Workers +
 Safety + SHWD): Hard Hat Detection ya trae las imágenes de Hard Hat Workers. SHWD, *Safety Vests*
 y Helmet Detection quedan para la segunda ronda (#37), si falta volumen de casco o de chaleco.
 Las atribuciones de los CC BY van en el README del repositorio y en el informe final.
+
+**epp-v3, 2026-10-26: evidencia positiva (ADR-013).** Las categorías de cabeza sin casco y de
+persona sin chaleco, que hasta la v2 se descartaban, se mapean a `cabeza` y `sin_chaleco`. Antes
+de mapearlas se midió cuánto solapan con el EPP de la misma imagen: `head` 4 de 5.785 cajas,
+`NO-Hardhat` ninguna de 402 y `NO-Safety Vest` 3 de 2.024 (Safety Vests), así que no son cascos ni
+chalecos mal etiquetados. Conteo del dataset armado (`resumen.json` de epp-v3):
+
+| Partición | Imágenes | `persona` | `casco` | `chaleco` | `cabeza` | `sin_chaleco` |
+|---|---|---|---|---|---|---|
+| Entrenamiento | 6.765 | 20.435 | 18.597 | 4.346 | 4.747 | 1.759 |
+| Validación | 1.239 | 3.669 | 3.032 | 1.182 | 701 | 404 |
+| Prueba | 957 | 3.007 | 2.507 | 709 | 716 | 309 |
+
+Etiquetado parcial conocido: Hard Hat Detection no marca `sin_chaleco` y Safety Vests no marca
+`cabeza`, y nada las completa (`completar_clases` no completa clases de evidencia). Una persona
+sin chaleco de Hard Hat Detection enseña que eso es fondo. Se entrena una vez tal cual y se mide
+sobre el video de prueba antes de corregirlo (#31).
 
 ## 3. El video propio
 
