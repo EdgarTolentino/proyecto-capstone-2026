@@ -231,7 +231,7 @@ Condiciones (todas, no una a elección):
 | 3 | **Solo material de demostración**: la cámara de la sala con su autorización, o un video ya autorizado en `07-datasets.md`. Nunca video de faena |
 | 4 | **Identidad por persona en el nginx**: la puerta de la tailnet traduce la identidad de Tailscale a un token propio de cada integrante. Sin identidad, o con una fuera de la lista, responde 403. Ningún token por persona va en el JavaScript, y el nginx escucha solo en loopback |
 | 5 | **Rol con `ver_evidencia` explícito** (condición 2 de la vista en vivo). Para Miguel, `auditor`, asignado solo en la base de la demo |
-| 6 | **El espejo pasa solo por el nginx, con la misma identidad.** La clave de lectura de MediaMTX nunca llega al navegador. **El espejo no se graba** (HLS, RTMP y SRT apagados; la única grabación es la de los trozos del trabajador, con su borrado), no lleva audio y existe solo cuando se arma la demo con la cámara |
+| 6 | **El espejo pasa solo por el nginx.** Lo ven el proyector, desde la puerta local del portátil, y los integrantes nombrados, desde la puerta de la tailnet y con su identidad. En las dos, el nginx pregunta a la API por `ver_evidencia` antes de entregarlo. La clave de lectura de MediaMTX nunca llega al navegador. **El espejo no se graba** (HLS, RTMP y SRT apagados; la única grabación es la de los trozos del trabajador, con su borrado), existe solo cuando se arma la demo con la cámara y **no lleva audio**: el cliente pide solo video, y el celular publica con «audio device: none». Si por error se publica audio, va en el trozo y se borra con él |
 
 Límites que se aceptan y se declaran:
 

@@ -78,6 +78,6 @@ difuminado. Lo nuevo es que existe video crudo de personas en la sala durante un
 memoria y con autorización escrita de quienes aparecen. Condiciones en
 [`02-privacidad-y-cumplimiento.md`](../../producto/02-privacidad-y-cumplimiento.md), sección
 «Excepción: cámara de demostración en la sala». El mismo día se amplió a los ensayos y a los
-integrantes nombrados, y se autorizó el espejo: el video crudo de esa cámara, visto sin grabarse y
-solo por integrantes nombrados a través de la tailnet (sección «Acceso de integrantes por la
+integrantes nombrados, y se autorizó el espejo: el video crudo de esa cámara, visto sin grabarse, sin audio,
+en el proyector de la sala y por integrantes nombrados a través de la tailnet (sección «Acceso de integrantes por la
 tailnet y espejo de la cámara»).

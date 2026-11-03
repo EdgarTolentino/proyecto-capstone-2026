@@ -84,6 +84,8 @@ su login de Tailscale no es el de la semilla): se crea con el mismo correo de `D
 
 El rol se lee en cada petición: no hace falta reiniciar la API. **Se repite** después de
 `rearmar-demo` o de `down -v`, que recrean la base: la semilla vuelve a dejar `administrador`.
+Mientras no se repita, Miguel no ve ni la vista en vivo ni el espejo: el nginx pregunta a la API
+por `ver_evidencia` antes de entregar el espejo (S1).
 
 **c) Publicar las dos puertas** (`! tailscale serve status` debe listar solo estas dos):
 
@@ -107,8 +109,10 @@ Con la demo levantada por Edgar con `TS_IP=$(tailscale ip -4)` (sin ella el tel�
 
 1. En el teléfono, con Tailscale conectado: `https://<portátil>.<tailnet>.ts.net/camara/publish`.
 2. Usuario `publicador` y la clave `CAMARA_CLAVE`, que Edgar le pasa por un canal privado.
-3. Códec **H264** (con AV1 el trabajador no decodifica y el PR 7 deja ese video en `error`),
-   «publish» y permitir la cámara.
+3. Códec **H264** (con AV1 el trabajador no decodifica y el PR 7 deja ese video en `error`).
+4. **«audio device»: `none`.** La página de MediaMTX elige el primer micrófono por defecto, y
+   elegir H264 no lo apaga. Sin este paso, el trozo graba audio de la sala.
+5. «publish» y permitir solo la cámara.
 
 ### 6. Ver la Sala en vivo
 
