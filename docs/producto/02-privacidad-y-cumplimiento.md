@@ -113,7 +113,7 @@ incumplimiento, ese hallazgo **sí** es accionable.
 |---|---|
 | **Anonimización por defecto** | El recorte se escribe con el rostro difuminado de forma irreversible. No existe en disco una versión con rostro visible. |
 | **Zonas de privacidad** | Polígonos por cámara, aplicados **antes** de la inferencia. |
-| **Minimización** | Solo se guardan recortes de evidencia, nunca cuadros completos "por si acaso". Una sola excepción, acotada: la vista en vivo del procesamiento (ver «Excepción: vista en vivo del procesamiento», más abajo). |
+| **Minimización** | Solo se guardan recortes de evidencia, nunca cuadros completos "por si acaso". Dos excepciones, acotadas: la vista en vivo del procesamiento y la cámara de demostración en la sala (ver sus secciones, más abajo). |
 | **Retención en tres anillos** | Recortes 30 días · hallazgos y detecciones 12 meses · agregados anonimizados, indefinido. Purgado como tarea programada con su propio registro. |
 | **Control de acceso** | Cuatro roles. El administrador configura pero **no** ve evidencia; el supervisor solo ve su área. El administrador y el prevencionista pueden procesar videos (`procesar_videos`); procesar no da acceso a la evidencia. Ningún rol tiene descarga masiva. |
 | **Registro de auditoría** | Tabla *append-only* con reglas que impiden `UPDATE` y `DELETE`. |
@@ -175,6 +175,36 @@ Límites que se aceptan y se declaran:
 - La vista parte de la imagen **con los polígonos de privacidad aplicados**, la misma que vio el
   detector: lo que se ennegrece antes de inferir no reaparece en la vista.
 - La evidencia persistida no cambia: sigue siendo el recorte con el rostro difuminado.
+
+### Excepción: cámara de demostración en la sala (2026-11-03, decide Edgar Tolentino)
+
+Para la presentación académica, el celular de Edgar hace de cámara y transmite a MediaMTX en el
+portátil, que graba **trozos cortos de video** para que el trabajador los procese como videos
+archivados ([`spec-en-vivo.md`](../operacion/despliegue/spec-en-vivo.md), §5). Es video **nuevo**
+de personas reales, grabado en la sala, y la excepción anterior no lo cubre: esa excepción solo
+autoriza mostrar en memoria cuadros de un video que ya estaba archivado. Edgar aprobó esta
+excepción el 2026-11-03 (decisión D4 del spec).
+
+Condiciones (todas, no una a elección):
+
+| # | Condición |
+|---|---|
+| 1 | **Solo en la demostración académica, en el portátil.** No en un despliegue de cliente ni en la nube (ADR-010) |
+| 2 | **Autorización por escrito y aviso completo.** Solo se pone frente a la cámara quien firma antes una autorización breve. Se pide por escrito porque hasta el 30-11-2026 rige la Ley 19.628, y desde el 1-12-2026 la Ley 21.719: lo escrito sirve para las dos. El aviso dice: **finalidad** solo académica (la presentación del capstone); **responsable** Edgar Tolentino, a quien se pide todo; **quién ve** a la persona: el proyector y la vista en vivo muestran la cara **nítida** a los asistentes mientras dura la demo, y el video crudo no lo ve nadie más; **qué queda**: hallazgos y recortes con el rostro difuminado en la base de la demo, que se borran con `rearmar-demo` y al terminar la presentación; y **cómo retirarse**: se avisa a Edgar y se borra lo suyo en ese momento |
+| 3 | **Los trozos viven solo en memoria (tmpfs)**, nunca en un disco persistente: MediaMTX graba en una carpeta en curso y, al cerrarse el trozo, lo mueve a la carpeta vigilada |
+| 4 | **Borrado aunque algo falle.** MediaMTX borra la carpeta en curso por antigüedad (`recordDeleteAfter`, limpieza periódica, así que el plazo no es exacto). El borrador elimina un trozo vigilado cuando su video queda `listo` o `error`, o al vencer su plazo, **aunque el trabajador o la base estén caídos**. Un trozo que vence sin procesarse **se borra igual**: el atraso significa descarte, nunca conservar más. **La cámara no se usa hasta que el PR del celular acredite este borrado con el trabajador y PostgreSQL detenidos** |
+| 5 | **Un tope de cuánto video existe a la vez**: la antigüedad de MediaMTX más el plazo del borrador más el intervalo de cada barrido. Se declara en el README del despliegue con los valores que se usan |
+| 6 | **Al terminar la demostración se apaga todo**: el compose baja y el tmpfs desaparece con él. `rearmar-demo` vacía también las dos carpetas |
+| 7 | **La evidencia persistida no cambia**: sigue siendo el recorte con el rostro difuminado. La vista en vivo sigue las condiciones de la excepción anterior |
+
+Límites que se aceptan y se declaran:
+
+- **tmpfs puede ir a swap**, igual que el anillo de la vista. Los trozos no están pixelados.
+- **Con la cola atrasada se pierden trozos sin procesar**, porque vencen y se borran (condición
+  4). Con CPU la cola no da abasto; por eso la demo usa la GPU y no se entrena durante la
+  presentación (decisión D3).
+- **Plan B:** si el celular o la red fallan, se reproduce un video de prueba ya autorizado
+  (`07-datasets.md`) por el mismo camino, sin grabar a nadie.
 
 ## 6. El punto ciego clásico: el dataset
 
