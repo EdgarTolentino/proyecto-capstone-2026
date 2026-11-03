@@ -1,14 +1,19 @@
 import { ApiError } from "./client";
-import type { EstadoPedido, PaginaVideos, Pedido, Video } from "./types";
+import type { EstadoPedido, PaginaVideos, Pedido } from "./types";
 
 export const INTERVALO_REFRESCO_MS = 10_000;
 export const INTERVALO_AVANCE_MS = 3_000;
+// Cada cuánto se vuelven a pedir la bandeja, el panel, el estado y la cola de videos: durante una
+// demostración entran videos (cada trozo de la cámara es uno) y hallazgos sin que nadie recargue.
+// React Query no consulta con la pestaña oculta (`refetchIntervalInBackground` es falso).
+export const INTERVALO_BANDEJA_MS = 5_000;
+// La sala en vivo pide solo los videos `procesando` (una consulta chica): un trozo de 5 s con GPU
+// se procesa en 2-3 s y cada 5 s podría no verse nunca.
+export const INTERVALO_SALA_MS = 1_000;
 // Mínimo entre el inicio de dos pedidos de cuadros en vivo (cada pedido trae hasta 30 cuadros).
 export const INTERVALO_VIVO_MS = 500;
 // Sin cuadro (404) o con un error: no se golpea la API cuatro veces por segundo.
 export const ESPERA_VIVO_SIN_CUADRO_MS = 1_000;
-
-const estadosPendientes: ReadonlySet<Video["estado"]> = new Set(["en_cola", "procesando", "reintentando"]);
 
 const SIN_CARPETA = "El servidor no tiene configurada la carpeta de entrada.";
 const SIN_PERMISO = "No tienes permiso para procesar videos.";
@@ -53,10 +58,18 @@ export function intervaloDePedidos(pedidos: Pedido[] | undefined): number | fals
   return pedidos?.some((pedido) => pedidosAbiertos.has(pedido.estado)) ? INTERVALO_REFRESCO_MS : false;
 }
 
-// La cola se vuelve a pedir solo mientras algún video puede cambiar de estado. Con uno
-// procesando se pide más seguido, para que la barra de avance se mueva.
-export function intervaloDeRefresco(paginas: PaginaVideos[] | undefined): number | false {
-  const videos = paginas?.flatMap((pagina) => pagina.items) ?? [];
-  if (videos.some((video) => video.estado === "procesando")) return INTERVALO_AVANCE_MS;
-  return videos.some((video) => estadosPendientes.has(video.estado)) ? INTERVALO_REFRESCO_MS : false;
+// La cola se vuelve a pedir siempre: aunque esté vacía o todo haya terminado, puede llegar un video
+// nuevo. Con uno procesando se pide más seguido, para que la barra de avance se mueva. Cada
+// refresco repide TODAS las páginas cargadas: con más de una («Cargar más»), el ritmo baja a
+// INTERVALO_REFRESCO_MS para no multiplicar las consultas.
+export function intervaloDeRefresco(paginas: PaginaVideos[] | undefined): number {
+  if ((paginas?.length ?? 0) > 1) return INTERVALO_REFRESCO_MS;
+  const hayProcesando = paginas?.some((pagina) => pagina.items.some((video) => video.estado === "procesando"));
+  return hayProcesando ? INTERVALO_AVANCE_MS : INTERVALO_BANDEJA_MS;
+}
+
+// Tras un error la cola sigue intentando, más despacio: una caída corta de la API no debe dejarla
+// vieja hasta que alguien pulse «Reintentar». Con 401 o 403 no: reintentar sin permiso no sirve.
+export function intervaloTrasError(error: unknown): number | false {
+  return error instanceof ApiError && [401, 403].includes(error.status) ? false : INTERVALO_REFRESCO_MS;
 }

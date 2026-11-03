@@ -40,6 +40,7 @@ vi.mock("./api/client", () => ({
   triarHallazgo: vi.fn(async () => ({})),
   triarLote: vi.fn(async () => ({})),
 }));
+vi.mock("./hooks/useEspejoWhep", () => ({ useEspejoWhep: () => ({ estado: "apagada", videoRef: { current: null } }) }));
 vi.mock("./components/HallazgoFilters", () => ({ HallazgoFilters: () => null }));
 vi.mock("./components/TriageTabs", () => ({ TriageTabs: () => null }));
 vi.mock("./components/ReglasPage", () => ({ ReglasPage: () => <section><h2>Reglas de seguridad</h2></section> }));
@@ -356,4 +357,18 @@ it("el prevencionista procesa y mira la vista del modelo en la misma página", a
 
   expect(await screen.findByRole("button", { name: "Procesar video" })).toBeVisible();
   expect(await screen.findByRole("region", { name: "Vista del modelo de video.mp4" })).toBeVisible();
+});
+
+it.each([401, 403, 503])("entrando directo a /sala, si /yo responde %i, lo dice y «Reintentar» vuelve a pedir la sesión", async (estado) => {
+  window.history.replaceState({}, "", "/sala");
+  vi.mocked(api.obtenerSesion).mockRejectedValueOnce(new api.ApiError("no", estado));
+  const client = new QueryClient({ defaultOptions: { queries: { retry: false } } });
+  render(<QueryClientProvider client={client}><App /></QueryClientProvider>);
+
+  expect(await screen.findByRole("alert")).toHaveTextContent("No fue posible validar tu sesión");
+  expect(screen.queryByRole("heading", { name: "Cámara en vivo" })).not.toBeInTheDocument();
+  fireEvent.click(screen.getByRole("button", { name: "Reintentar" }));
+  expect(await screen.findByRole("heading", { name: "Cámara en vivo" })).toBeVisible();
+  expect(api.obtenerSesion).toHaveBeenCalledTimes(2);
+  expect(screen.queryByText("No fue posible validar tu sesión")).not.toBeInTheDocument();
 });

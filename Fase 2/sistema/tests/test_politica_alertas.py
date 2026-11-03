@@ -105,7 +105,7 @@ def test_el_aviso_nombra_area_y_turno_nunca_a_una_persona() -> None:
     titulo, cuerpo = texto_inmediato(g, "B", TZ)
     assert titulo == "Acceso · turno B"
     # T0 = 22:10 en Santiago; el segundo termina 4 min 30 s después.
-    assert cuerpo.startswith("2 personas sin casco entre 22:10 y 22:14.")
+    assert cuerpo.startswith("2 incumplimientos sin casco entre 22:10 y 22:14.")
     assert "Requiere validación humana" in cuerpo
     Aviso(titulo, cuerpo, "t")  # respeta los límites del canal más restrictivo
 
