@@ -165,7 +165,7 @@ Condiciones (todas, no una a elección):
 | 4 | **Un anillo de hasta 60 cuadros por video, en memoria**: `<GEPP_CARPETA_VIVO>/<video_id>/<seq>_<pos_ms>.jpg`, por defecto en `/dev/shm/gepp-vivo`, subcarpeta 0700, cada cuadro escrito atómico y los más viejos borrados. `GEPP_CARPETA_VIVO` tiene que estar en memoria (tmpfs): el sistema **no lo comprueba**, y apuntarla a un disco rompe esta condición |
 | 5 | **Borrado al terminar** el intento (la subcarpeta entera, sea listo, error o reintento) y, al arrancar el trabajador, **con la vista prendida o apagada**, borrado de las subcarpetas del anillo (`<video_id>`, nombre todo dígitos). Lo que no sea del anillo no se toca y se avisa: una `GEPP_CARPETA_VIVO` mal apuntada no puede costar datos |
 | 6 | **10 s de vigencia**: un cuadro más viejo que eso no se sirve |
-| 7 | **Solo clientes dentro de la infraestructura controlada** (ADR-010). Con cómputo en la nube el video de obra saldría de ella; la vista no se habilita en ese despliegue |
+| 7 | **Solo clientes dentro de la infraestructura controlada** (ADR-010). Con cómputo en la nube el video de obra saldría de ella; la vista no se habilita en ese despliegue. La tailnet del equipo cuenta como infraestructura controlada **solo** con las condiciones de «Acceso de integrantes por la tailnet y espejo de la cámara» (2026-11-03) |
 
 Límites que se aceptan y se declaran:
 
@@ -178,19 +178,20 @@ Límites que se aceptan y se declaran:
 
 ### Excepción: cámara de demostración en la sala (2026-11-03, decide Edgar Tolentino)
 
-Para la presentación académica, el celular de Edgar hace de cámara y transmite a MediaMTX en el
+Para la presentación académica, el celular de un integrante nombrado en la sección siguiente hace de cámara y transmite a MediaMTX en el
 portátil, que graba **trozos cortos de video** para que el trabajador los procese como videos
 archivados ([`spec-en-vivo.md`](../operacion/despliegue/spec-en-vivo.md), §5). Es video **nuevo**
 de personas reales, grabado en la sala, y la excepción anterior no lo cubre: esa excepción solo
 autoriza mostrar en memoria cuadros de un video que ya estaba archivado. Edgar aprobó esta
-excepción el 2026-11-03 (decisión D4 del spec).
+excepción el 2026-11-03 (decisión D4 del spec) y ese mismo día la amplió a los integrantes nombrados
+y a los ensayos del equipo (decisión E4).
 
 Condiciones (todas, no una a elección):
 
 | # | Condición |
 |---|---|
-| 1 | **Solo en la demostración académica, en el portátil.** No en un despliegue de cliente ni en la nube (ADR-010) |
-| 2 | **Autorización por escrito y aviso completo.** Solo se pone frente a la cámara quien firma antes una autorización breve. Se pide por escrito porque hasta el 30-11-2026 rige la Ley 19.628, y desde el 1-12-2026 la Ley 21.719: lo escrito sirve para las dos. El aviso dice: **finalidad** solo académica (la presentación del capstone); **responsable** Edgar Tolentino, a quien se pide todo; **quién ve** a la persona: el proyector y la vista en vivo muestran la cara **nítida** a los asistentes mientras dura la demo, y el video crudo no lo ve nadie más; **qué queda**: hallazgos y recortes con el rostro difuminado en la base de la demo, que se borran con `rearmar-demo` y al terminar la presentación; y **cómo retirarse**: se avisa a Edgar y se borra lo suyo en ese momento |
+| 1 | **Solo en la demostración académica y en los ensayos del equipo, en el portátil.** No en un despliegue de cliente ni en la nube (ADR-010) |
+| 2 | **Autorización por escrito y aviso completo.** Solo se pone frente a la cámara quien firma antes una autorización breve. Se pide por escrito porque hasta el 30-11-2026 rige la Ley 19.628, y desde el 1-12-2026 la Ley 21.719: lo escrito sirve para las dos. El aviso dice: **finalidad** solo académica (la presentación del capstone); **responsable** Edgar Tolentino, a quien se pide todo; **quién ve** a la persona: el proyector y la vista en vivo muestran la cara **nítida** a los asistentes mientras dura la demo, y el video crudo lo ven solo el proyector y los integrantes nombrados por el espejo (sección siguiente), sin grabarse; **qué queda**: hallazgos y recortes con el rostro difuminado en la base de la demo, que se borran con `rearmar-demo` y al terminar la presentación; y **cómo retirarse**: se avisa a Edgar y se borra lo suyo en ese momento |
 | 3 | **Los trozos viven solo en memoria (tmpfs)**, nunca en un disco persistente: MediaMTX graba en una carpeta en curso y, al cerrarse el trozo, lo mueve a la carpeta vigilada |
 | 4 | **Borrado aunque algo falle.** MediaMTX borra la carpeta en curso por antigüedad (`recordDeleteAfter`, limpieza periódica, así que el plazo no es exacto). El borrador elimina un trozo vigilado cuando su video queda `listo` o `error`, o al vencer su plazo, **aunque el trabajador o la base estén caídos**. Un trozo que vence sin procesarse **se borra igual**: el atraso significa descarte, nunca conservar más. **La cámara no se usa hasta que el PR del celular acredite este borrado con el trabajador y PostgreSQL detenidos** |
 | 5 | **Un tope de cuánto video existe a la vez**: la antigüedad de MediaMTX más el plazo del borrador más el intervalo de cada barrido. Se declara en el README del despliegue con los valores que se usan |
@@ -205,6 +206,41 @@ Límites que se aceptan y se declaran:
   presentación (decisión D3).
 - **Plan B:** si el celular o la red fallan, se reproduce un video de prueba ya autorizado
   (`07-datasets.md`) por el mismo camino, sin grabar a nadie.
+- **Un borrador colgado después de arrancar no detiene a MediaMTX** (aceptado por Edgar Tolentino
+  el 2026-11-03). Su chequeo de salud lo marca enfermo, pero MediaMTX sigue grabando: los trozos
+  cerrados se acumulan en la carpeta vigilada y el tope de la condición 5 deja de valer hasta que
+  baja el compose. Por eso, antes de cada ensayo y de la demo, `docker compose ps` tiene que mostrar
+  el `borrador` sano; si no, se baja todo.
+- **Un trabajador colgado retiene el trozo que está leyendo** (aceptado el mismo día). El borrador
+  lo saca de la carpeta al vencer, pero mientras el trabajador lo tenga abierto el contenido sigue en
+  memoria. Se libera cuando el trabajador se reinicia o baja el compose.
+
+### Acceso de integrantes por la tailnet y espejo de la cámara (2026-11-03, decide Edgar Tolentino)
+
+Para que un integrante vea la demo desde su equipo y use su celular como cámara, la tailnet del
+equipo cuenta como «infraestructura controlada» (condición 7 de la vista en vivo), y la página puede
+mostrar el **espejo**: el video crudo de la cámara de la sala, sin pasar por el modelo. Decisiones
+E1 a E5 de [`acceso-equipo-y-espejo.md`](../operacion/despliegue/acceso-equipo-y-espejo.md).
+
+Condiciones (todas, no una a elección):
+
+| # | Condición |
+|---|---|
+| 1 | **Solo integrantes nombrados**: Edgar Tolentino y Miguel Ortega. Otro integrante se agrega aquí antes de entrar |
+| 2 | **Una regla de acceso (ACL) de la tailnet limita el portátil a esos integrantes.** El portátil no se comparte con nadie ajeno a la tailnet, y cada integrante entra con un dispositivo propio de usuario (sin etiqueta) |
+| 3 | **Solo material de demostración**: la cámara de la sala con su autorización, o un video ya autorizado en `07-datasets.md`. Nunca video de faena |
+| 4 | **Identidad por persona en el nginx**: la puerta de la tailnet traduce la identidad de Tailscale a un token propio de cada integrante. Sin identidad, o con una fuera de la lista, responde 403. Ningún token por persona va en el JavaScript, y el nginx escucha solo en loopback |
+| 5 | **Rol con `ver_evidencia` explícito** (condición 2 de la vista en vivo). Para Miguel, `auditor`, asignado solo en la base de la demo |
+| 6 | **El espejo pasa solo por el nginx, con la misma identidad.** La clave de lectura de MediaMTX nunca llega al navegador. **El espejo no se graba** (HLS, RTMP y SRT apagados; la única grabación es la de los trozos del trabajador, con su borrado), no lleva audio y existe solo cuando se arma la demo con la cámara |
+
+Límites que se aceptan y se declaran:
+
+- **El equipo del integrante no es del proyecto** y una captura de pantalla no se puede impedir.
+  Lo cubren la autorización escrita y la lista de integrantes nombrados.
+- **El puerto UDP de los medios WebRTC es alcanzable desde la tailnet**: el video se entrega solo
+  tras una señalización autenticada, y la ACL de la condición 2 limita quién llega.
+- **El espejo muestra el instante real y la vista procesada va unos 10 s atrás.** La página los
+  rotula por separado para que nadie crea que muestran el mismo momento.
 
 ## 6. El punto ciego clásico: el dataset
 
