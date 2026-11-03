@@ -1,0 +1,88 @@
+# Celular como cámara: se SUMA al compose de la demo local (PR 1). El orden de los -f importa: las rutas
+# relativas se resuelven desde la carpeta del PRIMER archivo (por eso `../celular/...`).
+#
+#   export CAMARA_CLAVE=$(openssl rand -hex 12)     # clave del usuario `publicador` (solo publica `camara`)
+#   TS_IP=<IP de Tailscale del portátil> SEGMENTO=5s docker compose -p gepp-demo \
+#     -f despliegue/local/compose.yml -f despliegue/celular/compose.yml up -d --build --wait
+#   # plan B, sin celular: ffmpeg publica un video autorizado a la misma ruta
+#   VIDEO=/ruta/al/video.mp4 docker compose -p gepp-demo -f ... -f ... --profile plan-b up -d captura
+#
+# Si ya se había levantado la demo sin cámara: `down -v` primero (el volumen `vigilada` cambia de
+# disco a tmpfs). Sin TS_IP los medios WebRTC quedan en loopback y el teléfono no conecta.
+# Privacidad: ver docs/operacion/despliegue/celular-como-camara.md (§5) y la excepción D4.
+services:
+  mediamtx:
+    image: bluenviron/mediamtx:latest-ffmpeg
+    environment:
+      - MTX_PATHDEFAULTS_RECORDSEGMENTDURATION=${SEGMENTO:-5s}
+      - MTX_WEBRTCADDITIONALHOSTS=${TS_IP:-127.0.0.1}
+      # Clave del usuario `publicador` (solo publica en `camara`). Obligatoria y no vacía: con la clave
+      # vacía MediaMTX aceptaría al usuario sin contraseña (probado).
+      - MTX_AUTHINTERNALUSERS_0_PASS=${CAMARA_CLAVE:?define CAMARA_CLAVE}
+    volumes:
+      - ../celular/mediamtx.yml:/mediamtx.yml:ro
+      - vigilada:/grabaciones
+    # RTSP (8554) NO se publica al host: el plan B entra por la red interna de compose.
+    ports:
+      - "127.0.0.1:18889:8889"       # HTTP: `tailscale serve` lo publica como HTTPS (README)
+      - "${TS_IP:-127.0.0.1}:18189:18189/udp"
+      - "${TS_IP:-127.0.0.1}:18189:18189/tcp"
+    # No se graba sin quien aplique el TTL: el borrador tiene que estar SANO (su latido al día), no solo
+    # arrancado. Con un TTL inválido el borrador cae y MediaMTX no arranca.
+    depends_on: {borrador: {condition: service_healthy}}
+    restart: unless-stopped
+
+  # Plan B: un video autorizado, re-codificado con un cuadro clave por segundo y sin B-frames (como un celular).
+  captura:
+    # La misma imagen de MediaMTX trae ffmpeg con libx264: existe siempre (no depende de la imagen del trabajador).
+    image: bluenviron/mediamtx:latest-ffmpeg
+    profiles: [plan-b]
+    environment:
+      - "CAMARA_CLAVE=${CAMARA_CLAVE:?define CAMARA_CLAVE}"
+      - "BUCLE=${BUCLE:--1}"     # -1 = en bucle; 0 = una pasada
+    entrypoint:
+      - sh
+      - -c
+      - exec ffmpeg -nostdin -loglevel warning -re -stream_loop "$$BUCLE" -i /video.mp4 -an
+        -c:v libx264 -preset ultrafast -tune zerolatency -g 25 -bf 0
+        -f rtsp -rtsp_transport tcp "rtsp://publicador:$$CAMARA_CLAVE@mediamtx:8554/camara"
+    volumes: ["${VIDEO:-/dev/null}:/video.mp4:ro"]
+    depends_on: [mediamtx]
+
+  # Borra cada segmento al vencer (SIN base) o al quedar su video listo/error (con límite duro). Root: el
+  # tmpfs lo crea root. NO espera a PostgreSQL (ni a `preparar`): el TTL no la necesita. Vuelve solo si cae.
+  borrador:
+    image: gepp-api:demo
+    user: root
+    command: ["python", "/borrador.py"]
+    # Sano = el bucle tocó /tmp/latido hace menos de 15 s (un barrido dura ≤ ~5 s + 2 s de espera).
+    healthcheck:
+      test: ["CMD", "python", "-c", "import os,sys,time; sys.exit(0 if time.time()-os.path.getmtime('/tmp/latido')<15 else 1)"]
+      interval: 3s
+      timeout: 3s
+      retries: 3
+      start_period: 5s
+    environment:
+      - GEPP_BD_URL=postgresql+psycopg://gepp:${DEMO_PG_PASSWORD:?define DEMO_PG_PASSWORD}@postgres:5432/gepp
+      - GEPP_CARPETA_GRABACION=/grabaciones
+      - GEPP_TTL_SEGMENTO_S=${TTL_SEGMENTO_S:-60}
+      - GEPP_CONSULTA_LIMITE_S=3     # límite duro de CADA consulta
+      - GEPP_PRESUPUESTO_CONSULTAS_S=3   # y presupuesto TOTAL de consultas por barrido
+      - PGCONNECT_TIMEOUT=3
+      - PGOPTIONS=-c statement_timeout=3000
+    volumes:
+      - ../celular/borrador.py:/borrador.py:ro
+      - vigilada:/grabaciones
+    restart: unless-stopped
+
+  trabajador:
+    depends_on: {borrador: {condition: service_healthy}}
+
+  trabajador-cpu:
+    depends_on: {borrador: {condition: service_healthy}}
+
+volumes:
+  # tmpfs: `en-curso` y la raíz comparten sistema de archivos, así el `mv` del hook es un rename atómico.
+  vigilada:
+    driver: local
+    driver_opts: {type: tmpfs, device: tmpfs, o: "size=512m,mode=0755"}
