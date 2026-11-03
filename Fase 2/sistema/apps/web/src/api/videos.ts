@@ -7,6 +7,9 @@ export const INTERVALO_AVANCE_MS = 3_000;
 // demostración entran videos (cada trozo de la cámara es uno) y hallazgos sin que nadie recargue.
 // React Query no consulta con la pestaña oculta (`refetchIntervalInBackground` es falso).
 export const INTERVALO_BANDEJA_MS = 5_000;
+// La sala en vivo pide solo los videos `procesando` (una consulta chica): un trozo de 5 s con GPU
+// se procesa en 2-3 s y cada 5 s podría no verse nunca.
+export const INTERVALO_SALA_MS = 1_000;
 // Mínimo entre el inicio de dos pedidos de cuadros en vivo (cada pedido trae hasta 30 cuadros).
 export const INTERVALO_VIVO_MS = 500;
 // Sin cuadro (404) o con un error: no se golpea la API cuatro veces por segundo.
