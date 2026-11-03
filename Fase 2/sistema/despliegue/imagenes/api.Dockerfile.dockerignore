@@ -1,0 +1,19 @@
+# Contexto = "Fase 2/sistema". Fuera todo lo que no es código: pesos, video, datos, entornos.
+.venv
+.git
+**/__pycache__
+**/.pytest_cache
+.mypy_cache
+.ruff_cache
+.env
+.env.*
+!.env.example
+datos
+apps/web/node_modules
+apps/web/dist
+tests
+scripts
+demo
+*.mp4
+*.onnx
+*.pth
