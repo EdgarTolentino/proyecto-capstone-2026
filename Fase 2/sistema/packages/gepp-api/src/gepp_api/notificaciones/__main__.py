@@ -43,8 +43,10 @@ def main() -> int:
     signal.signal(signal.SIGINT, detener)
     print(f"[despachador] Telegram, cada {intervalo:g} s", flush=True)
     error_visto: str | None = None
+    bd_vista: str | None = None
     while seguir:
         r = despachador.ciclo()
+        bd_vista = anunciar_cambio("base", bd_vista, r.error_bd)
         error_visto = anunciar_cambio("acuses", error_visto, canal.ultimo_error)
         if not r.vacio:
             print(
