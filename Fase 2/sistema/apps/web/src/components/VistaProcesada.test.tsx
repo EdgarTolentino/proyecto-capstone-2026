@@ -236,3 +236,23 @@ it("un fallo pasajero no borra el último video bueno: se ve el aviso y el video
     vi.useRealTimers();
   }
 });
+
+it("«Reintentar» remonta la vista del modelo del mismo video: con 401 quedó bloqueada y no se recupera sola", async () => {
+  vi.useFakeTimers();
+  try {
+    montajes.length = 0;
+    vi.mocked(api.listarVideos).mockResolvedValueOnce(procesando(8));
+    vi.mocked(api.listarVideos).mockRejectedValueOnce(new api.ApiError("no", 401));
+    dibujar(true);
+    await avanzar(1_050);
+    expect(screen.getByText("Sesión no válida")).toBeInTheDocument();
+    expect(montajes).toEqual([8]); // la vista sigue montada, y bloqueada en la realidad
+    vi.mocked(api.listarVideos).mockResolvedValue(procesando(8)); // vuelve la autorización: el mismo video
+    act(() => screen.getByRole("button", { name: "Reintentar" }).click());
+    await avanzar(50);
+    expect(screen.getByTestId("vivo")).toHaveTextContent("vivo 8");
+    expect(montajes).toEqual([8, 8]);
+  } finally {
+    vi.useRealTimers();
+  }
+});
