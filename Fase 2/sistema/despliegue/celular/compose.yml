@@ -27,13 +27,15 @@ services:
       - "127.0.0.1:18889:8889"       # HTTP: `tailscale serve` lo publica como HTTPS (README)
       - "${TS_IP:-127.0.0.1}:18189:18189/udp"
       - "${TS_IP:-127.0.0.1}:18189:18189/tcp"
-    # No se graba sin quien aplique el TTL: el borrador (sin base) tiene que estar arriba.
-    depends_on: {borrador: {condition: service_started}}
+    # No se graba sin quien aplique el TTL: el borrador tiene que estar SANO (su latido al día), no solo
+    # arrancado. Con un TTL inválido el borrador cae y MediaMTX no arranca.
+    depends_on: {borrador: {condition: service_healthy}}
     restart: unless-stopped
 
   # Plan B: un video autorizado, re-codificado con un cuadro clave por segundo y sin B-frames (como un celular).
   captura:
-    image: gepp-worker:demo-cpu
+    # La misma imagen de MediaMTX trae ffmpeg con libx264: existe siempre (no depende de la imagen del trabajador).
+    image: bluenviron/mediamtx:latest-ffmpeg
     profiles: [plan-b]
     environment:
       - "CAMARA_CLAVE=${CAMARA_CLAVE:?define CAMARA_CLAVE}"
@@ -53,12 +55,19 @@ services:
     image: gepp-api:demo
     user: root
     command: ["python", "/borrador.py"]
-    healthcheck: {disable: true}   # el de la imagen mira el puerto de la API
+    # Sano = el bucle tocó /tmp/latido hace menos de 15 s (un barrido dura ≤ ~5 s + 2 s de espera).
+    healthcheck:
+      test: ["CMD", "python", "-c", "import os,sys,time; sys.exit(0 if time.time()-os.path.getmtime('/tmp/latido')<15 else 1)"]
+      interval: 3s
+      timeout: 3s
+      retries: 3
+      start_period: 5s
     environment:
       - GEPP_BD_URL=postgresql+psycopg://gepp:${DEMO_PG_PASSWORD:?define DEMO_PG_PASSWORD}@postgres:5432/gepp
       - GEPP_CARPETA_GRABACION=/grabaciones
       - GEPP_TTL_SEGMENTO_S=${TTL_SEGMENTO_S:-60}
-      - GEPP_CONSULTA_LIMITE_S=3     # límite duro de la consulta (el TTL ya se aplicó antes)
+      - GEPP_CONSULTA_LIMITE_S=3     # límite duro de CADA consulta
+      - GEPP_PRESUPUESTO_CONSULTAS_S=3   # y presupuesto TOTAL de consultas por barrido
       - PGCONNECT_TIMEOUT=3
       - PGOPTIONS=-c statement_timeout=3000
     volumes:
@@ -67,10 +76,10 @@ services:
     restart: unless-stopped
 
   trabajador:
-    depends_on: {borrador: {condition: service_started}}
+    depends_on: {borrador: {condition: service_healthy}}
 
   trabajador-cpu:
-    depends_on: {borrador: {condition: service_started}}
+    depends_on: {borrador: {condition: service_healthy}}
 
 volumes:
   # tmpfs: `en-curso` y la raíz comparten sistema de archivos, así el `mv` del hook es un rename atómico.

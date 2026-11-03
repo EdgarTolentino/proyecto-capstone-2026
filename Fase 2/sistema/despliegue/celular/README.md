@@ -15,11 +15,14 @@ aviso verbal no basta. Sin esto, plan B: un video ya autorizado (`07-datasets.md
 
 ## Tope de video que existe a la vez (nominal, no una garantía)
 
-Los segmentos viven solo en memoria (tmpfs). **Tope declarado: 30 s (`recordDeleteAfter`) + 30 s (barrido de
-MediaMTX) + 60 s (`TTL_SEGMENTO_S`) + 2 s (barrido del borrador) = 122 s (~2 min)**; en el camino normal, ~67 s.
-No es una garantía: un segmento abierto sin cuadro clave puede durar más de los 5 s pedidos (no medido con un celular
-real). **El atraso es descarte**: un segmento que vence sin procesarse se borra; no se sube el TTL por una cola
-atrasada. El borrado no depende de PostgreSQL (probado con la base detenida y trabada).
+Los segmentos viven solo en memoria (tmpfs). **Tope declarado: 30 s (`recordDeleteAfter`) + 15 s (MediaMTX
+limpia `en-curso` cada ~15 s; medido: 6–13 s en 4 pruebas) + 60 s (`TTL_SEGMENTO_S`) + 2 s (barrido del borrador)
++ 3 s (presupuesto TOTAL de consultas a la base por barrido) = 110 s**; en el camino normal, ~67 s. El
+presupuesto de 3 s es de TODO el barrido (no por archivo) y el vencimiento se reevalúa antes de cada consulta y al
+final, así que una base lenta no alarga el tope más que eso. No es una garantía: un segmento abierto sin cuadro
+clave puede durar más de los 5 s pedidos (no medido con un celular real) y tmpfs puede ir a swap. **El atraso es
+descarte**: un segmento que vence sin procesarse se borra; no se sube el TTL por una cola atrasada. El borrado no
+depende de PostgreSQL (probado con la base detenida y trabada).
 
 ## Levantar
 
@@ -34,9 +37,10 @@ VIDEO=<ruta al video> BUCLE=0 $C --profile plan-b up -d captura     # BUCLE=-1 (
 $C --profile plan-b down -v                    # al terminar
 ```
 
-Servicios que agrega: `mediamtx`, `borrador`, `captura` (perfil `plan-b`); el override cambia el volumen
-`vigilada` a **tmpfs**. `mediamtx` espera al `borrador` (no se graba sin quien borra) y el `borrador` no espera a
-PostgreSQL. Si la demo ya estaba levantada sin cámara, `down -v` primero. Sin `TS_IP`, los medios WebRTC quedan en
+Servicios que agrega: `mediamtx`, `borrador`, `captura` (perfil `plan-b`, con el ffmpeg de la propia imagen de
+MediaMTX: no depende de la imagen del trabajador); el override cambia el volumen `vigilada` a **tmpfs**. `mediamtx`
+y los trabajadores esperan a que el `borrador` esté **sano** (su latido al día: con un TTL inválido el borrador cae y
+MediaMTX NO arranca) y el `borrador` no espera a PostgreSQL. Si la demo ya estaba levantada sin cámara, `down -v` primero. Sin `TS_IP`, los medios WebRTC quedan en
 loopback. **RTSP no se publica al host.**
 
 ## Sin celular: Chromium headless con cámara falsa
