@@ -25,7 +25,7 @@ el proyector y los celulares es el mismo evento.
 |---|---|---|
 | Proyector | Panel, bandeja y vista en vivo con las cajas | Navegador del portátil. La vista en vivo está permitida porque el cliente está dentro de la infraestructura controlada (condición 7) |
 | Celulares de los profesores | **La alerta de Telegram** con el botón «Acuso recibo» | Telegram. No se publica ninguna URL del panel |
-| Cámara | El celular de Edgar, o un video de respaldo | Navegador → MediaMTX (sección 5) |
+| Cámara | El celular de un integrante nombrado (E4), o un video de respaldo | Navegador → MediaMTX (sección 5) |
 
 **Por qué no hay panel público.** Un panel abierto a los celulares de los profesores choca con
 tres cosas a la vez:
@@ -122,7 +122,7 @@ proceso.
   el trozo `listo` con **0 cuadros, sin error**: el panel diría que todo está bien sin haber
   mirado nada. En el celular hay que elegir H264. Que el trabajador falle con 0 cuadros es un
   arreglo aparte (PR 7).
-- **Solo el celular de Edgar.** El HTTPS y el video van por Tailscale, así que solo llega un
+- **Solo el celular de un integrante nombrado** (E4). El HTTPS y el video van por Tailscale, así que solo llega un
   teléfono dentro del tailnet. El de un profesor no conecta.
 
 **Lo que Edgar tiene que hacer una vez:**
@@ -149,6 +149,19 @@ publicado a MediaMTX con ffmpeg. Es el mismo camino, sin cámara.
 | D6 | **`RtspFrameSource` real y escritura incremental** (más de 400 líneas, toca la regla del reloj) | Después de la presentación |
 | D7 | **Mostrar el acuse en la web** (endpoint nuevo; contrato congelado) | No por ahora: se ve en Telegram y queda en la base |
 
+Segunda ronda, aprobada por Edgar el 2026-11-03 («sí a todo»). Detalle y pasos en
+[`acceso-equipo-y-espejo.md`](acceso-equipo-y-espejo.md); condiciones en `02-privacidad`, sección
+«Acceso de integrantes por la tailnet y espejo de la cámara».
+
+| # | Decisión | Queda así |
+|---|---|---|
+| E1 | ¿La tailnet del equipo es «infraestructura controlada»? | Sí, con integrantes nombrados, una ACL que limita el portátil, solo material de demostración y dispositivos propios |
+| E2 | Rol de Miguel en la demo | `auditor`, asignado solo en la base de la demo |
+| E3 | Cómo entra cada integrante sin token en el JavaScript | Una puerta del nginx para la tailnet traduce la identidad de Tailscale a un token por persona; sin identidad, 403 |
+| E4 | Celular de otro integrante como cámara | Sí: D4 vale para los integrantes nombrados y para los ensayos |
+| E5 | Espejo de la cámara en la página | Sí, por el nginx y con la misma identidad, sin grabarse |
+| E6 | Pantalla «Sala en vivo» antes de los KPI | Sí: espejo, vista procesada y hallazgos recientes, sin tocar el contrato. Las alertas con su acuse siguen en D7 |
+
 ## 7. Lo que nadie comprobó
 
 - **GCP real:** ningún tripulante corrió `gcloud`, así que no hay VM, cuota ni precio de VM
@@ -173,6 +186,8 @@ publicado a MediaMTX con ffmpeg. Es el mismo camino, sin cámara.
 | 5 | Celular como cámara, según D4. El vencimiento a 180 s del borrador no puede depender de la base, y el borrador se reinicia solo |
 | 6 | Docs: `02-privacidad` (D4) y el guion de la presentación con su plan B |
 | 7 | El trabajador marca `error`, no `listo`, un video del que no pudo leer ningún cuadro (caso AV1) |
+| S1 | nginx: puerta de la tailnet con token por persona y `/espejo/` hacia MediaMTX con un usuario de solo lectura (E1, E3, E5) |
+| S2 | Web: página «Sala en vivo» con el espejo, la vista procesada con un cartel entre trozos y los hallazgos recientes (E6) |
 
 ## 9. Qué cambió con la revisión de Codex
 
