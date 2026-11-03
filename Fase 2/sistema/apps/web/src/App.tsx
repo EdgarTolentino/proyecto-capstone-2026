@@ -13,6 +13,7 @@ import {
   triarLote,
 } from "./api/client";
 import type { DecisionTriage } from "./api/types";
+import { INTERVALO_BANDEJA_MS } from "./api/videos";
 import { AppShell } from "./components/AppShell";
 import { BulkActionsBar } from "./components/BulkActionsBar";
 import { EvidenceDrawer } from "./components/EvidenceDrawer";
@@ -40,12 +41,13 @@ export default function App() {
 
   const sesion = useQuery({ queryKey: ["sesion"], queryFn: obtenerSesion });
   const catalogos = useQuery({ queryKey: ["catalogos"], queryFn: obtenerCatalogos, staleTime: Infinity });
-  const estado = useQuery({ queryKey: ["estado"], queryFn: obtenerEstado, refetchInterval: 5_000 });
+  const estado = useQuery({ queryKey: ["estado"], queryFn: obtenerEstado, refetchInterval: INTERVALO_BANDEJA_MS });
   const panel = useQuery({
     queryKey: ["panel", filtrosPanel],
     queryFn: () => obtenerPanel(filtrosPanel),
     enabled: seccion === "panel" && (sesion.data?.permisos?.includes("ver_hallazgos") ?? false),
     placeholderData: keepPreviousData,
+    refetchInterval: INTERVALO_BANDEJA_MS,
   });
   const panelSinPermiso = panel.error instanceof ApiError && [401, 403].includes(panel.error.status);
   const mostrarAvisoObraSinFiltro = seccion === "hallazgos"
@@ -56,6 +58,7 @@ export default function App() {
     queryKey: ["hallazgos", filtrosLista],
     queryFn: () => listarHallazgos(filtrosLista),
     enabled: seccion === "hallazgos" && (sesion.data?.permisos?.includes("ver_hallazgos") ?? false),
+    refetchInterval: INTERVALO_BANDEJA_MS,
   });
 
   const hallazgos = useMemo(() => pagina.data?.items ?? [], [pagina.data]);
