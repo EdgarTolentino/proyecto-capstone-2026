@@ -109,10 +109,16 @@ no_pude_leer() {
 }
 if [[ $SIMULAR -eq 1 ]]; then
   corriendo=("${CAMARA_SERVICIOS[@]}")
+  TODOS_DEF=("${CAMARA_SERVICIOS[@]}" "${APAGAR_SERVICIOS[@]}")
   ARRANCAR=("<todos los servicios menos ${CAMARA_SERVICIOS[*]} y el trabajador que no corría>")
 else
-  texto="$("${TODOS[@]}" ps --status running --services)" || no_pude_leer "lo que está corriendo"
+  # «Corriendo» = no detenido: running, restarting o paused (para saber qué trabajador había).
+  texto="$("${TODOS[@]}" ps --status running --status restarting --status paused --services)" ||
+    no_pude_leer "lo que está corriendo"
   mapfile -t corriendo <<< "$texto"
+  # Todos los servicios de los archivos, con cualquier perfil: solo a esos se les puede pedir `stop`.
+  texto="$("${TODOS[@]}" config --services)" || no_pude_leer "la lista completa de servicios"
+  mapfile -t TODOS_DEF <<< "$texto"
   texto="$("${COMPOSE[@]}" config --services)" || no_pude_leer "la lista de servicios del compose"
   mapfile -t DEFINIDOS <<< "$texto"
 
@@ -151,8 +157,14 @@ fi
 
 # Lo que sigue BORRA: si algo falla desde aquí, la demo queda a medias y hay que decir cómo seguir.
 fallo_tras_borrar() {
+  # Lo que decidió esta corrida viaja en el comando: sin eso, repetirlo sin perfil elegiría la GPU.
+  entorno=("DEMO_TRABAJADOR=${elegido:-}")
+  [[ "${elegido:-}" == "trabajador-cpu" ]] && entorno+=("COMPOSE_PROFILES=${COMPOSE_PROFILES:+$COMPOSE_PROFILES,}cpu")
+  [[ -n "${DEMO_COMPOSE_ARCHIVOS:-}" ]] && entorno+=("DEMO_COMPOSE_ARCHIVOS=$DEMO_COMPOSE_ARCHIVOS")
+  [[ -n "${DEMO_PROYECTO:-}" ]] && entorno+=("DEMO_PROYECTO=$DEMO_PROYECTO")
   echo "falló «$1» DESPUÉS de borrar: la demo quedó DETENIDA y a medias (salida 7)." >&2
-  echo "Para terminarla, repite:  $0 --forzar --yes   (--forzar: la guarda de videos no puede leer una base sin tablas)" >&2
+  echo "Para terminarla, repite (--forzar: la guarda de videos no puede leer una base sin tablas):" >&2
+  printf '  ' >&2; printf '%q ' "${entorno[@]}" "$0" --forzar --yes >&2; echo >&2
   echo "o a mano, en este orden:" >&2
   printf '  ' >&2; printf '%q ' "${COMPOSE[@]}" run --rm --no-deps preparar >&2; echo >&2
   printf '  ' >&2; printf '%q ' "${COMPOSE[@]}" exec -T redis redis-cli flushall >&2; echo >&2
@@ -162,14 +174,17 @@ fallo_tras_borrar() {
 
 # ── 1. Captura y hook ─────────────────────────────────────────────────────────────────────
 paso "1/6 detener la captura y el hook de la cámara (si están)"
+# Se detienen SIEMPRE los que existen, aunque no figuren corriendo: un contenedor en `restarting`
+# puede volver a arrancar en pleno borrado, y `stop` de uno ya detenido no falla.
+definido() { [[ " ${TODOS_DEF[*]} " == *" $1 "* ]]; }
 for s in "${CAMARA_SERVICIOS[@]}"; do
-  if [[ " ${corriendo[*]} " == *" $s "* ]]; then ejecutar "${TODOS[@]}" stop "$s"; fi
+  if definido "$s"; then ejecutar "${TODOS[@]}" stop "$s"; fi
 done
 
 # ── 2. Quien escribe ──────────────────────────────────────────────────────────────────────
 paso "2/6 detener trabajador, despachador, API y web"
 for s in "${APAGAR_SERVICIOS[@]}"; do
-  if [[ $SIMULAR -eq 1 || " ${corriendo[*]} " == *" $s "* ]]; then ejecutar "${TODOS[@]}" stop "$s"; fi
+  if definido "$s"; then ejecutar "${TODOS[@]}" stop "$s"; fi
 done
 
 # ── 3. Carpeta vigilada (con `en-curso`) y evidencia ──────────────────────────────────────
@@ -199,17 +214,18 @@ if [[ $SIMULAR -eq 0 ]]; then
 fi
 # Sin `--wait`: con el compose real `up -d --wait` sale con 0 (los servicios dependen de los de
 # una sola vez con `service_completed_successfully`), pero con un `preparar` suelto sale con 1. Esperar
-# a mano es válido en los dos casos: todo lo que no sea `preparar` ni `permisos` debe quedar `running`.
+# a mano es válido en los dos casos: lo que se levantó, salvo `preparar` y `permisos`, debe quedar `running`.
 # Se levanta TODO menos la cámara: un trozo del encuadre gastaría la alerta recién rearmada. El
 # `borrador` (privacidad del celular) sí queda arriba si el override lo define.
 ejecutar "${COMPOSE[@]}" up -d "${ARRANCAR[@]}" || fallo_tras_borrar "levantar los servicios"
 if [[ $SIMULAR -eq 0 ]]; then
-  excluir="^(preparar|permisos|$(IFS='|'; echo "${CAMARA_SERVICIOS[*]}")) "
-  for _ in $(seq 60); do
+  # Solo los servicios que ESTA corrida levantó (no el trabajador GPU detenido a propósito, ni la cámara).
+  incluir="^($(IFS='|'; echo "${ARRANCAR[*]}")) "
+  for _ in $(seq "${DEMO_ESPERA_S:-60}"); do
     texto="$("${COMPOSE[@]}" ps -a --format '{{.Service}} {{.State}}')" ||
       fallo_tras_borrar "listar el estado de los servicios"
     [[ -n "$texto" ]] || fallo_tras_borrar "listar el estado (salió vacío)"
-    mal="$(grep -Ev "$excluir" <<< "$texto" | grep -v ' running$' || true)"
+    mal="$(grep -E "$incluir" <<< "$texto" | grep -Ev '^(preparar|permisos) ' | grep -v ' running$' || true)"
     [[ -z "$mal" ]] && break
     sleep 1
   done

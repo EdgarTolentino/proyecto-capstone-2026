@@ -17,6 +17,7 @@ AQUI="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 # Archivos de compose, separados por «:» (las rutas pueden llevar espacios). Por defecto solo el
 # local; con el celular como cámara: DEMO_COMPOSE_ARCHIVOS=<local>/compose.yml:<celular>/compose.yml
 # (el orden importa: las rutas relativas salen de la carpeta del primero).
+TRABAJADORES=(trabajador trabajador-cpu)
 IFS=: read -r -a ARCHIVOS <<< "${DEMO_COMPOSE_ARCHIVOS:-$AQUI/compose.yml}"
 BANDERAS=()
 for a in "${ARCHIVOS[@]}"; do BANDERAS+=(-f "$a"); done
@@ -24,11 +25,33 @@ PROYECTO="${DEMO_PROYECTO:-gepp-demo}"
 CAMARA_SERVICIOS=(${CAMARA_SERVICIOS:-mediamtx captura})
 COMPOSE=(docker compose -p "$PROYECTO" "${BANDERAS[@]}")
 # Se construye y levanta todo menos la cámara (se enciende después de encuadrar, ver rearmar-demo.sh).
-mapfile -t DEFINIDOS < <("${COMPOSE[@]}" config --services)
+if ! texto="$("${COMPOSE[@]}" config --services)"; then
+  echo "no pude leer la lista de servicios del compose; no se tocó nada" >&2
+  exit 6
+fi
+mapfile -t DEFINIDOS <<< "$texto"
+# Un solo trabajador (misma regla que rearmar): DEMO_TRABAJADOR, o el CPU si el perfil `cpu` está activo.
+if [[ -n "${DEMO_TRABAJADOR:-}" ]]; then
+  [[ " ${TRABAJADORES[*]} " == *" $DEMO_TRABAJADOR "* ]] || {
+    echo "DEMO_TRABAJADOR debe ser uno de: ${TRABAJADORES[*]}" >&2
+    exit 2
+  }
+  elegido="$DEMO_TRABAJADOR"
+elif [[ ",${COMPOSE_PROFILES:-}," == *",cpu,"* ]]; then
+  elegido="trabajador-cpu"
+else
+  elegido="trabajador"
+fi
 ARRANCAR=()
 for s in "${DEFINIDOS[@]}"; do
-  [[ " ${CAMARA_SERVICIOS[*]} " == *" $s "* ]] || ARRANCAR+=("$s")
+  [[ -n "$s" ]] || continue
+  [[ " ${CAMARA_SERVICIOS[*]} " == *" $s "* ]] && continue
+  [[ " ${TRABAJADORES[*]} " == *" $s "* ]] && continue
+  ARRANCAR+=("$s")
 done
+ARRANCAR+=("$elegido")
+[[ ${#ARRANCAR[@]} -gt 1 ]] || { echo "ningún servicio que levantar (config --services vacío)" >&2; exit 6; }
+export DEMO_TRABAJADOR="$elegido"  # rearmar-demo.sh levanta el mismo
 "${COMPOSE[@]}" up -d --build "${ARRANCAR[@]}"
 # El arranque pudo procesar algo (un video en la vigilada, un trozo): se deja en cero igual.
 exec "$AQUI/rearmar-demo.sh" --yes

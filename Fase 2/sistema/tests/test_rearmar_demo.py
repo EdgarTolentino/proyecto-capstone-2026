@@ -20,7 +20,7 @@ if [ -n "$STUB_FALLA" ] && [[ "$*" == *"$STUB_FALLA"* ]]; then
 fi
 case "$*" in
   *"ps -q postgres"*) echo abc123 ;;
-  *"ps --status running --services"*) printf '%s\\n' $STUB_CORRIENDO ;;
+  *"--status paused --services"*) printf '%s\\n' $STUB_CORRIENDO ;;
   *"count(*) from video"*) printf '%s' "$STUB_VIDEOS" ;;
   *"count(*) from notificacion"*) printf '%s' "$STUB_AVISOS" ;;
   *"config --services"*) printf '%s\\n' $STUB_SERVICIOS ;;
@@ -28,7 +28,12 @@ case "$*" in
     for s in $STUB_SERVICIOS; do
       case "$s" in
         preparar|permisos|mediamtx|captura) echo "$s exited" ;;
-        *) echo "$s running" ;;
+        *)
+          if [[ " $STUB_DETENIDOS " == *" $s "* ]]; then
+            echo "$s exited"
+          else
+            echo "$s running"
+          fi ;;
       esac
     done ;;
 esac
@@ -73,7 +78,8 @@ def primera(lineas: list[str], texto: str) -> int:
 
 
 def test_el_orden_es_camara_escritores_carpetas_base_redis_y_de_vuelta(tmp_path: Path) -> None:
-    r, log = correr(tmp_path, "--yes")
+    servicios = "postgres redis preparar permisos trabajador api web despachador mediamtx"
+    r, log = correr(tmp_path, "--yes", STUB_SERVICIOS=servicios)
     assert r.returncode == 0, r.stderr
     orden = [
         primera(log, "stop mediamtx"),
@@ -204,7 +210,7 @@ def _destructivo(log: list[str]) -> bool:
 @pytest.mark.parametrize(
     ("falla", "parcial"),
     [
-        ("ps --status running --services", "mediamtx api"),
+        ("--status paused --services", "mediamtx api"),
         ("config --services", "postgres redis api web"),  # falla pero ya imprimió algo
     ],
     ids=["listar_corriendo", "servicios"],
@@ -292,3 +298,87 @@ def test_dos_trabajadores_a_la_vez_se_aborta_y_la_variable_lo_resuelve(tmp_path:
     assert r.returncode == 0 and "trabajador-cpu" in final and "trabajador" not in final
     r, log = correr(tmp_path, "--yes", DEMO_TRABAJADOR="otro", **dos)
     assert r.returncode == 2 and not _destructivo(log)
+
+
+def test_se_detiene_siempre_a_quien_escribe_aunque_no_figure_corriendo(tmp_path: Path) -> None:
+    """Un contenedor en `restarting` no sale en `ps --status running` y volvería a arrancar."""
+    r, log = correr(
+        tmp_path, "--yes", STUB_CORRIENDO="api"
+    )  # trabajador y despachador: no listados
+    assert r.returncode == 0, r.stderr
+    for servicio in ("trabajador", "despachador", "api", "web"):
+        assert any(x.endswith(f" stop {servicio}") for x in log), servicio
+    assert primera(log, "stop trabajador") < primera(log, "DROP DATABASE")
+    assert not any(x.endswith(" stop borrador") or x.endswith(" stop mediamtx") for x in log)
+
+
+def test_el_comando_de_recuperacion_lleva_el_trabajador_el_perfil_y_los_archivos(
+    tmp_path: Path,
+) -> None:
+    r, _ = correr(
+        tmp_path,
+        "--yes",
+        STUB_FALLA="run --rm --no-deps preparar",
+        STUB_SERVICIOS=TRABAJADORES,
+        STUB_CORRIENDO="trabajador-cpu api",
+        DEMO_COMPOSE_ARCHIVOS="/a/compose.yml:/b/compose.yml",
+    )
+    assert r.returncode == 7
+    orden = next(x for x in r.stderr.splitlines() if "--forzar --yes" in x)
+    for pieza in (
+        "DEMO_TRABAJADOR=trabajador-cpu",
+        "COMPOSE_PROFILES=cpu",
+        "DEMO_COMPOSE_ARCHIVOS=",
+    ):
+        assert pieza in orden, pieza
+    assert "up -d" in r.stderr and "trabajador-cpu" in r.stderr.split("up -d")[-1]
+
+
+def test_la_recuperacion_de_la_gpu_no_pide_el_perfil_cpu(tmp_path: Path) -> None:
+    r, _ = correr(
+        tmp_path, "--yes", STUB_FALLA="run --rm --no-deps preparar", STUB_CORRIENDO="trabajador api"
+    )
+    orden = next(x for x in r.stderr.splitlines() if "--forzar --yes" in x)
+    assert "DEMO_TRABAJADOR=trabajador" in orden and "COMPOSE_PROFILES" not in orden
+
+
+def test_la_espera_solo_mira_lo_que_se_levanto(tmp_path: Path) -> None:
+    """Con el CPU elegido, el trabajador GPU detenido a propósito no cuenta como caído."""
+    r, _ = correr(
+        tmp_path,
+        "--yes",
+        STUB_SERVICIOS=TRABAJADORES,
+        STUB_CORRIENDO="trabajador-cpu api",
+        STUB_DETENIDOS="trabajador",
+    )
+    assert r.returncode == 0, r.stderr
+    r, _ = correr(  # y un servicio que SÍ se levantó y no corre, sigue siendo un fallo
+        tmp_path,
+        "--yes",
+        STUB_SERVICIOS=TRABAJADORES,
+        STUB_CORRIENDO="trabajador-cpu api",
+        STUB_DETENIDOS="trabajador api",
+        DEMO_ESPERA_S="1",
+    )
+    assert r.returncode == 5 and "api exited" in r.stderr
+
+
+ARMAR = SCRIPT.with_name("armar-demo.sh")
+
+
+@pytest.mark.parametrize(
+    ("perfiles", "esperado"), [("", "trabajador"), ("cpu", "trabajador-cpu")], ids=["gpu", "cpu"]
+)
+def test_armar_levanta_un_solo_trabajador(tmp_path: Path, perfiles: str, esperado: str) -> None:
+    extra = {"COMPOSE_PROFILES": perfiles} if perfiles else {}
+    r, log = correr(tmp_path, script=ARMAR, STUB_SERVICIOS=TRABAJADORES, **extra)
+    assert r.returncode == 0, r.stderr
+    construir = next(x for x in log if " up -d --build " in x).split()
+    assert {"trabajador", "trabajador-cpu"} & set(construir) == {esperado}
+
+
+def test_armar_aborta_si_no_puede_listar_y_rechaza_un_trabajador_invalido(tmp_path: Path) -> None:
+    r, log = correr(tmp_path, script=ARMAR, STUB_FALLA="config --services", STUB_FALLA_SALIDA="a b")
+    assert r.returncode == 6 and not any(" up -d " in x for x in log)
+    r, log = correr(tmp_path, script=ARMAR, DEMO_TRABAJADOR="otro")
+    assert r.returncode == 2 and not any(" up -d " in x for x in log)
