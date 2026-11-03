@@ -106,7 +106,7 @@ el que la web usa si no defines otro). También sirve `lgrandon` (prevencionista
 | 3 | En el diálogo | «Archivo»: los videos de la carpeta de entrada, con su tamaño (y «Posible duplicado» si ya hay uno registrado con el mismo nombre y tamaño). «Cámara»: «Cámara 01 · acceso» o «Cámara 02 · obra gruesa». Pulsa **Procesar** |
 | 4 | Sobre la tabla | Avisa «El archivo … quedó pedido; se registrará cuando el trabajador lo tome.» y aparece el panel «Pedidos de procesamiento»: «Pedido pendiente» → «Registrando» → «Registrado» (si falla, «Rechazado» y el motivo) |
 | 5 | Tabla «Cola de videos» | La fila pasa de «En cola» a «Procesando», con una barra de avance, el tiempo (como `0:12 de 0:40 (30 %)`), la velocidad y «En el cuadro actual: N personas, N cascos, N chalecos.», luego «Guardando resultados…» y por fin «Listo» |
-| 6 | Bajo la fila «Procesando» | **Vista en vivo.** Primero «Esperando el primer cuadro…»; después el cuadro con las cajas de persona, casco y chaleco y el rótulo «Vista del modelo · en vivo (~1 s de atraso)» |
+| 6 | Bajo la fila «Procesando» | **Vista en vivo.** Primero «Esperando el primer cuadro…»; después el cuadro con las cajas de persona, casco y chaleco (la falta, en rojo con «SIN CASCO» o «SIN CHALECO»; sin rótulo si no hay lugar libre sin tocar una cara) y el rótulo «Vista del modelo · en vivo (~1 s de atraso)» |
 | 7 | Menú lateral → **Hallazgos** | «Bandeja de hallazgos» con lo que salió |
 | 8 | **Ver** en un hallazgo | El visor: el recorte difuminado, la línea de tiempo y «Por qué se disparó» |
 

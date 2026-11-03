@@ -134,7 +134,11 @@ Se probaron antes y se descartaron dos formas de anonimizar la vista: pixelar el
 cara de cada persona detectada.
 
 Qué se muestra: la imagen **nítida**, reducida a 640 px de ancho, con las cajas de persona, casco y
-chaleco, y **ningún rostro tapado**.
+chaleco, y **ningún rostro tapado**. La falta que vio el modelo (ADR-013) va en rojo con su
+etiqueta, «SIN CASCO» o «SIN CHALECO». El rótulo nunca toca una cara (ni un píxel de su borde) ni
+otro rótulo. «SIN CASCO» va encima de la cabeza o, si no cabe, debajo; «SIN CHALECO», en la
+cintura, por dentro de la caja, o si no debajo de ella o arriba por dentro. Si ningún lugar sirve,
+o la caja cae fuera del cuadro, la caja queda roja sin rótulo.
 
 La vista muestra los cuadros del video muestreados a `GEPP_VIVO_FPS` cuadros por segundo de video
 (25 por defecto), también los que el modelo no analizó (el modelo ve unos 5 por segundo). **En
