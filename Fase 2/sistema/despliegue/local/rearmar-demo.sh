@@ -122,6 +122,17 @@ else
   texto="$("${COMPOSE[@]}" config --services)" || no_pude_leer "la lista de servicios del compose"
   mapfile -t DEFINIDOS <<< "$texto"
 
+  # Algo corre en el proyecto y no está en los archivos (típico: la cámara levantada con el override
+  # y DEMO_COMPOSE_ARCHIVOS sin definir). No se podría detener: se aborta antes de borrar.
+  for s in "${corriendo[@]}"; do
+    [[ -n "$s" ]] || continue
+    if [[ " ${TODOS_DEF[*]} " != *" $s "* ]]; then
+      echo "«$s» corre en el proyecto $PROYECTO pero no está en los archivos de compose; define" \
+        "DEMO_COMPOSE_ARCHIVOS con los mismos archivos con que se levantó (salida 6)" >&2
+      exit 6
+    fi
+  done
+
   # El trabajador que estaba corriendo (nunca los dos, ni el GPU en lugar del CPU).
   previos=()
   for t in "${TRABAJADORES[@]}"; do

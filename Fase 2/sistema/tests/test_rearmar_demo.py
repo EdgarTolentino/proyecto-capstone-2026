@@ -61,7 +61,7 @@ def correr(
         "STUB_LOG": str(registro),
         "STUB_VIDEOS": videos,
         "STUB_AVISOS": avisos,
-        "STUB_CORRIENDO": "mediamtx trabajador despachador api",
+        "STUB_CORRIENDO": "trabajador despachador api",
         "STUB_SERVICIOS": "postgres redis preparar permisos trabajador api web despachador",
         "DEMO_PG_PASSWORD": "x",
         "DEMO_TOKEN": "y",
@@ -382,3 +382,14 @@ def test_armar_aborta_si_no_puede_listar_y_rechaza_un_trabajador_invalido(tmp_pa
     assert r.returncode == 6 and not any(" up -d " in x for x in log)
     r, log = correr(tmp_path, script=ARMAR, DEMO_TRABAJADOR="otro")
     assert r.returncode == 2 and not any(" up -d " in x for x in log)
+
+
+def test_si_corre_un_servicio_que_no_esta_en_los_archivos_se_aborta_antes_de_borrar(
+    tmp_path: Path,
+) -> None:
+    """Revisión de Codex: la cámara del override corriendo y DEMO_COMPOSE_ARCHIVOS sin definir.
+    No se la podría detener; borrar y anunciar «cámara apagada» mientras graba sería mentir."""
+    r, log = correr(tmp_path, "--yes", STUB_CORRIENDO="mediamtx trabajador despachador api")
+    assert r.returncode == 6
+    assert "mediamtx" in r.stderr and "DEMO_COMPOSE_ARCHIVOS" in r.stderr
+    assert not _destructivo(log)
