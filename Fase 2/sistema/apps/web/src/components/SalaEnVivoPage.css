@@ -1,0 +1,8 @@
+.sala-page { position: relative; margin: 24px 4% 0; display: grid; gap: 16px; }
+.sala-vistas { display: grid; grid-template-columns: repeat(auto-fit, minmax(320px, 1fr)); gap: 16px; }
+.sala-panel { background: var(--gepp-superficie); padding: 12px; display: grid; gap: 8px; align-content: start; }
+.sala-panel h2 { margin: 0; font-size: 1rem; }
+.sala-panel video { width: 100%; background: #000; }
+.sala-aviso { margin: 0; color: var(--gepp-texto-3); font-size: 0.8rem; }
+.sala-recientes { list-style: none; margin: 0; padding: 0; display: grid; gap: 6px; }
+.sala-recientes button { width: 100%; text-align: left; display: flex; gap: 12px; align-items: center; padding: 8px 12px; }

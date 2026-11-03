@@ -18,6 +18,7 @@ el mismo nombre o con otro, es un solo trabajo.
 from __future__ import annotations
 
 import hashlib
+import sys
 import time
 from collections.abc import Callable
 from dataclasses import dataclass
@@ -54,6 +55,10 @@ def _es_candidato(ruta: Path) -> bool:
     )
 
 
+def _avisar(ruta: Path, error: OSError) -> None:
+    print(f"[vigilante] se salta {ruta.name}: {type(error).__name__}", file=sys.stderr, flush=True)
+
+
 class Vigilante:
     """Sondea una carpeta y encola los videos estables de UNA fuente."""
 
@@ -72,9 +77,15 @@ class Vigilante:
         """Un sondeo. Devuelve los trabajos que encoló en esta pasada."""
         actual: dict[Path, _Firma] = {}
         for ruta in sorted(self._carpeta.iterdir()):
-            if not _es_candidato(ruta):
+            try:
+                if not _es_candidato(ruta):
+                    continue
+                estado = ruta.stat()
+            except OSError as e:
+                # Otro proceso (p. ej. el borrador de segmentos) lo quitó entre listar y mirar, o la
+                # E/S falló un instante: ese archivo se salta; el sondeo y la ingesta siguen.
+                _avisar(ruta, e)
                 continue
-            estado = ruta.stat()
             actual[ruta] = _Firma(estado.st_size, estado.st_mtime_ns)
 
         nuevos: list[Trabajo] = []
@@ -82,9 +93,14 @@ class Vigilante:
             estable = firma.bytes > 0 and self._anterior.get(ruta) == firma
             if not estable or self._encolados.get(ruta) == firma:
                 continue
+            try:
+                hash_sha256 = sha256_de_archivo(ruta)
+            except OSError as e:  # se fue (o falló la E/S) entre la estabilidad y el hash
+                _avisar(ruta, e)
+                continue
             trabajo = Trabajo(
                 ruta=str(ruta),
-                hash_sha256=sha256_de_archivo(ruta),
+                hash_sha256=hash_sha256,
                 bytes=firma.bytes,
                 fuente_id=self._fuente_id,
             )
@@ -99,5 +115,12 @@ class Vigilante:
         """Bucle de sondeo. `seguir` permite detenerlo desde fuera (señal o prueba)."""
         while seguir():
             inicio = time.monotonic()
-            self.sondear()
+            try:
+                self.sondear()
+            except OSError as e:  # la carpeta no se pudo listar un instante: se reintenta
+                print(
+                    f"[vigilante] sondeo fallido ({type(e).__name__}): {e}",
+                    file=sys.stderr,
+                    flush=True,
+                )
             time.sleep(max(0.0, intervalo_s - (time.monotonic() - inicio)))
