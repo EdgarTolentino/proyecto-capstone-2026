@@ -92,7 +92,8 @@ aviso completo (condición 2). Lo de abajo es lo técnico; no lo reemplaza.
 **Autorización y aviso (condición 2).** Antes de ponerse frente a la cámara, quien participa **firma** una
 autorización breve. Se le dice: **finalidad** solo académica (la presentación del capstone); **responsable**
 Edgar Tolentino, a quien se pide todo; **quién ve**: el proyector y la vista en vivo muestran su cara **nítida** a
-los asistentes mientras dura la demo, y el video crudo no lo ve nadie más; **qué queda**: hallazgos y recortes con
+los asistentes mientras dura la demo, y el video crudo lo ven solo el proyector y los integrantes nombrados por el
+espejo, sin grabarse; **qué queda**: hallazgos y recortes con
 el rostro difuminado en la base de la demo, que se borran con `rearmar-demo` y al terminar; y **cómo retirarse**:
 avisa a Edgar y se borra lo suyo en ese momento. Un aviso verbal no basta.
 
@@ -177,8 +178,11 @@ una señalización autenticada. La ACL de la tailnet sobre ese puerto no se prob
    por defecto; OpenCV del trabajador no lo decodifica (`Your platform doesn't support hardware
    accelerated AV1 decoding`) y los segmentos quedaron `listo` con `cuadros_analizados = 0`. **Fallo
    silencioso**: el panel mostraría «todo bien» sin haber mirado nada. En el celular hay que elegir
-   **H264** en la página (el script de prueba lo hace). Conviene que el trabajador falle fuerte con
-   0 cuadros (decisión de Edgar; no lo toqué).
+   **H264** en la página (el script de prueba lo hace). Que el trabajador falle fuerte con 0
+   cuadros ya está en main (#243).
+   **Y «audio device: none»:** la página elige el primer micrófono por defecto y el trozo graba
+   audio (prueba 2: `recording 2 tracks (Opus, H264)`). El trabajador no lo usa y se borra con el
+   trozo, pero la excepción pide que no se capte (`02-privacidad`, condición 6 del acceso por la tailnet).
 2. **MediaMTX no usa shell** en los hooks: un `&&` llegó como argumento de `mkdir`. Se pide `/bin/sh -c '…'`;
    la imagen básica no trae ni `mv`: hace falta `latest-ffmpeg`.
 3. **Volumen tmpfs de Docker**: se monta por contenedor y se destruye al salir el último, así que un
