@@ -1,5 +1,5 @@
 # Plantilla: la imagen de nginx sustituye ${API_UPSTREAM} al arrancar (host:puerto de la API).
-# Solo /api/ llega a la API. /metrics, /docs y /openapi.json no se exponen (no llevan
+# Solo /api/ y /espejo/ salen de aquí. /metrics, /docs y /openapi.json no se exponen (no llevan
 # autenticación o describen la API entera): quedan para dentro de la red.
 #
 # DOS `server` separados A PROPÓSITO: 8080 (proyector, token del bundle) y 8081 (la tailnet, por
@@ -9,12 +9,24 @@
 # El mapa lo genera identidades.sh al arrancar (/etc/nginx/identidades.conf); si falta, nginx no arranca.
 include /etc/nginx/identidades.conf;
 
+upstream api_up {
+    server ${API_UPSTREAM};
+}
+
+map $upstream_http_location $espejo_location {
+    default "";
+    "~^(?:https?://[^/]+)?/(?<resto>.*)$" "/espejo/$resto";
+}
+
 server {
     listen 8080;
     server_name _;
     root /usr/share/nginx/html;
     index index.html;
     server_tokens off;
+
+    set $authz_api $http_authorization;    # el espejo le pregunta a la API con el token del bundle
+    include /etc/nginx/espejo.inc;
 
     location /api/ {
         proxy_pass http://${API_UPSTREAM};
@@ -45,10 +57,13 @@ server {
     index index.html;
     server_tokens off;
 
-    # Antes de elegir location: sin persona conocida no pasa NADA (ni la web ni /api/).
+    # Antes de elegir location: sin persona conocida no pasa NADA (ni la web, ni /api/, ni /espejo/).
     if ($token_persona = "") {
         return 403;
     }
+
+    set $authz_api "Bearer $token_persona";    # el espejo le pregunta a la API como esta persona
+    include /etc/nginx/espejo.inc;
 
     location /api/ {
         proxy_pass http://${API_UPSTREAM};
@@ -56,7 +71,7 @@ server {
         proxy_set_header X-Forwarded-For $remote_addr;
         proxy_set_header X-Forwarded-Proto $http_x_forwarded_proto;
         # Pisa el Authorization del navegador (el del bundle) con el de esta persona.
-        proxy_set_header Authorization "Bearer $token_persona";
+        proxy_set_header Authorization $authz_api;
         proxy_set_header Tailscale-User-Login "";
         proxy_set_header Tailscale-User-Name "";
         proxy_set_header Tailscale-User-Profile-Pic "";

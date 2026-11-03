@@ -21,6 +21,18 @@ authInternalUsers:
     permissions:
       - action: publish
         path: camara
+  # `lector`: SOLO lee `camara` (el espejo de la página). Lo usa nginx, que pone la clave; el navegador
+  # nunca la ve. Clave por MTX_AUTHINTERNALUSERS_1_PASS (el compose la exige). El espejo NO se graba:
+  # leer no activa nada que `record` no hiciera ya, y HLS/RTMP/SRT siguen apagados.
+  # `ips`: solo redes privadas (la de Docker): un lector que llegue desde una IP pública o de la tailnet
+  # (100.x) se rechaza. NO aísla a nginx de otro contenedor de la red ni de loopback (el puerto
+  # publicado llega con la IP del puente), por eso la clave sigue siendo obligatoria.
+  - user: lector
+    pass:
+    ips: [172.16.0.0/12, 192.168.0.0/16, 10.0.0.0/8]
+    permissions:
+      - action: read
+        path: camara
 
 api: no
 metrics: no
@@ -35,6 +47,10 @@ rtspAddress: :8554
 
 webrtc: yes
 webrtcAddress: :8889
+# Por defecto MediaMTX devuelve `Access-Control-Allow-Origin` con el Origin que llegue (probado): una página
+# ajena podría pedir el video con la identidad de quien la abra. Vacío = sin CORS; las páginas de MediaMTX
+# y el espejo son del mismo origen y no lo necesitan. nginx además oculta esas cabeceras (espejo.inc).
+webrtcAllowOrigins: []
 # El puerto de medios es el MISMO dentro y fuera del contenedor: ICE anuncia este puerto y no se
 # puede remapear. La IP anunciada entra por MTX_WEBRTCADDITIONALHOSTS (TS_IP, ver compose).
 webrtcLocalUDPAddress: :18189
@@ -54,7 +70,7 @@ pathDefaults:
   # MediaMTX NO usa shell en estos comandos (probado: `&&` llegó como argumento): se pide una.
   runOnRecordSegmentComplete: /bin/sh -c 'mv "$MTX_SEGMENT_PATH" /grabaciones/'
 
-# Solo la ruta `camara`: publicar en cualquier otra se rechaza. Nadie lee: no hay usuario `read`
-# (el trabajador lee archivos, no RTSP) y se quita el usuario anónimo que trae MediaMTX por defecto.
+# Solo la ruta `camara`: publicar en cualquier otra se rechaza. Lee solo `lector` (el espejo); el
+# trabajador lee archivos, no RTSP. Se quita el usuario anónimo que trae MediaMTX por defecto.
 paths:
   camara:

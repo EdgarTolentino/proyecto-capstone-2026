@@ -1,9 +1,9 @@
-"""La puerta de la tailnet (nginx :8081).
+"""La puerta de la tailnet (nginx :8081) y el espejo de la cámara.
 
 `identidades.sh` se prueba siempre (solo `sh`). La plantilla se prueba con `nginx:alpine` en
 Docker real y se salta si no hay Docker o la imagen (no se descarga). Qué cuida cada prueba:
 sin `Tailscale-User-Login` de la lista no pasa nada (403) y el token del bundle nunca llega a
-la API por esa puerta.
+la API por esa puerta; la clave de MediaMTX la pone nginx.
 """
 
 import http.client
@@ -34,12 +34,13 @@ def _script(modo: str, identidades: str | None, **entorno: str) -> subprocess.Co
 
 
 def test_las_dos_salidas_salen_de_la_misma_lista() -> None:
-    nginx = _script("nginx", LISTA)
+    nginx = _script("nginx", LISTA, ESPEJO_CLAVE="clave-espejo")
     api = _script("api", LISTA)
     assert nginx.returncode == 0 and api.returncode == 0
     assert '"ana@equipo.invalid" "tokana01";' in nginx.stdout
     assert '"luis@equipo.invalid" "tokluis2";' in nginx.stdout
     assert api.stdout.strip() == "tokana01=ana@equipo.invalid,tokluis2=luis@equipo.invalid"
+    assert "Basic bGVjdG9yOmNsYXZlLWVzcGVqbw==" in nginx.stdout  # lector:clave-espejo
 
 
 def test_el_correo_va_en_minusculas_en_nginx_y_en_la_api() -> None:
@@ -101,6 +102,13 @@ def test_una_lista_mal_formada_hace_fallar_el_arranque(lista: str) -> None:
         assert not secreto or secreto not in r.stderr  # el mensaje no repite el token
 
 
+@pytest.mark.parametrize("clave", ["mala clave", 'x"; return 200; #', "a$b", "bien\nmal", "bien\r"])
+def test_una_clave_del_espejo_con_caracteres_raros_hace_fallar_el_arranque(clave: str) -> None:
+    r = _script("nginx", "a@b.invalid=tok1", ESPEJO_CLAVE=clave)
+    assert r.returncode == 1
+    assert clave not in r.stderr
+
+
 # ───────────── nginx real ─────────────
 
 
@@ -118,13 +126,27 @@ requiere_docker = pytest.mark.skipif(
     not _hay_docker(), reason="sin Docker o sin nginx:alpine local"
 )
 
-# «API» falsa: devuelve el Authorization y la identidad que recibe.
+# «API» falsa: devuelve lo que recibe, y a `/videos/0/vivo` contesta como la real: con el permiso
+# `ver_evidencia` 404, sin él 403 y sin token reconocido 401 (el permiso se revisa antes del 404).
 ECO = """
 server {
     listen 9000;
+    location = /api/v1/videos/0/vivo {
+        if ($http_authorization = "Bearer token-del-bundle") { return 404; }
+        if ($http_authorization = "Bearer tokana01") { return 404; }
+        if ($http_authorization = "Bearer tokluis2") { return 403; }
+        return 401;
+    }
     location / { return 200 "$http_authorization|$http_tailscale_user_login"; }
 }
 """
+MEDIAMTX_FALSO = (
+    "server { listen 8889; location / { add_header Location /camara/whep/abc always;\n"
+    # como MediaMTX por defecto (webrtcAllowOrigins: ['*'])
+    "  add_header Access-Control-Allow-Origin * always;\n"
+    "  add_header Access-Control-Allow-Headers Authorization always;\n"
+    '  return 201 "$http_authorization|$request_method $request_uri"; } }\n'
+)
 
 
 class Nginx:
@@ -147,7 +169,9 @@ def _levantar(tmp: Path, identidades: str, red: str | None) -> Nginx:
     comando = [
         "run", "-d", "--name", nombre, "-p", "127.0.0.1::8080", "-p", "127.0.0.1::8081",
         "-e", "API_UPSTREAM=127.0.0.1:9000", "-e", f"DEMO_IDENTIDADES={identidades}",
+        "-e", "ESPEJO_CLAVE=clave-espejo",
         "-v", f"{LOCAL / 'nginx.conf.template'}:/etc/nginx/templates/default.conf.template:ro",
+        "-v", f"{LOCAL / 'espejo.inc'}:/etc/nginx/espejo.inc:ro",
         "-v", f"{SCRIPT}:/identidades.sh:ro", "-v", f"{eco}:/etc/nginx/conf.d/eco.conf:ro",
         *(["--network", red] if red else []),
         "--entrypoint", ENTRYPOINT_WEB[0], "nginx:alpine", *ENTRYPOINT_WEB[1:],
@@ -194,7 +218,7 @@ def test_la_plantilla_pasa_nginx_t(nginx: Nginx) -> None:
 
 
 @requiere_docker
-@pytest.mark.parametrize("ruta", ["/", "/api/v1/yo"])
+@pytest.mark.parametrize("ruta", ["/", "/api/v1/yo", "/espejo/camara/whep"])
 @pytest.mark.parametrize(
     "cabeceras",
     [
@@ -228,13 +252,84 @@ def test_la_puerta_local_sigue_pasando_el_token_del_bundle(nginx: Nginx) -> None
     assert nginx.pedir(8080, "GET", "/")[0] == 200
 
 
+# Cabeceras de quien SÍ tiene `ver_evidencia` en cada puerta (el navegador manda su Authorization).
+_CON_PERMISO = {
+    8081: {"Tailscale-User-Login": "ana@equipo.invalid", "Authorization": "Basic del-navegador"},
+    8080: {"Authorization": "Bearer token-del-bundle"},
+}
+
+
+@requiere_docker
+@pytest.mark.parametrize("puerto", [8080, 8081])
+def test_sin_camara_el_espejo_responde_503(nginx: Nginx, puerto: int) -> None:
+    cabeceras = _CON_PERMISO[puerto]
+    estado, cuerpo, _ = nginx.pedir(puerto, "POST", "/espejo/camara/whep", **cabeceras)
+    assert (estado, cuerpo.strip()) == (503, "cámara apagada")
+
+
 @requiere_docker
 def test_lista_vacia_la_puerta_de_la_tailnet_dice_403_a_todo(tmp_path: Path, red: str) -> None:
     n = _levantar(tmp_path, "", red)
     try:
-        for ruta in ("/", "/api/v1/yo"):
+        for ruta in ("/", "/api/v1/yo", "/espejo/camara/whep"):
             login = {"Tailscale-User-Login": "ana@equipo.invalid"}
             assert n.pedir(8081, "GET", ruta, **login)[0] == 403
         assert n.pedir(8080, "GET", "/")[0] == 200  # la local no depende de la lista
     finally:
         _docker("rm", "-f", n.nombre, check=False)
+
+
+@pytest.fixture
+def con_camara(tmp_path: Path, red: str) -> Iterator[Nginx]:
+    """nginx + un «MediaMTX» falso con el nombre `mediamtx` en la misma red."""
+    conf = tmp_path / "mediamtx.conf"
+    conf.write_text(MEDIAMTX_FALSO)
+    falso = f"mediamtx-{uuid.uuid4().hex[:6]}"
+    _docker(
+        "run", "-d", "--name", falso, "--network", red, "--network-alias", "mediamtx",
+        "-v", f"{conf}:/etc/nginx/conf.d/default.conf:ro", "nginx:alpine",
+    )  # fmt: skip
+    n = _levantar(tmp_path, LISTA, red)
+    yield n
+    _docker("rm", "-f", n.nombre, falso, check=False)
+
+
+@requiere_docker
+def test_con_camara_nginx_pone_la_clave_y_reescribe_el_location(con_camara: Nginx) -> None:
+    for puerto, cab in _CON_PERMISO.items():
+        estado, cuerpo, h = con_camara.pedir(
+            puerto, "POST", "/espejo/camara/whep", **cab, **{"Content-Type": "application/sdp"}
+        )
+        # lector:clave-espejo en base64, y la ruta llega sin el prefijo /espejo
+        assert (estado, cuerpo) == (201, "Basic bGVjdG9yOmNsYXZlLWVzcGVqbw==|POST /camara/whep")
+        assert h["location"] == "/espejo/camara/whep/abc"  # relativo: sirve tras `serve`
+
+
+@requiere_docker
+@pytest.mark.parametrize(
+    ("puerto", "cabeceras", "esperado"),
+    [
+        # en la lista pero SIN `ver_evidencia` en la API (p. ej. «administrador»)
+        (8081, {"Tailscale-User-Login": "luis@equipo.invalid"}, 403),
+        (8080, {}, 401),  # puerta local sin token
+        (8080, {"Authorization": "Bearer desconocido"}, 401),
+    ],
+)
+def test_el_espejo_exige_ver_evidencia_en_las_dos_puertas(
+    con_camara: Nginx, puerto: int, cabeceras: dict, esperado: int
+) -> None:
+    assert con_camara.pedir(puerto, "POST", "/espejo/camara/whep", **cabeceras)[0] == esperado
+
+
+@requiere_docker
+def test_el_espejo_es_solo_de_mismo_origen(con_camara: Nginx) -> None:
+    for puerto, cab in _CON_PERMISO.items():
+        ajeno = {**cab, "Origin": "https://ajeno.invalid"}
+        # sin preflight: una página ajena no puede ni preguntar
+        assert con_camara.pedir(puerto, "OPTIONS", "/espejo/camara/whep", **ajeno)[0] == 403
+        # y aunque el POST llegara, la respuesta no trae permiso CORS para ese origen
+        estado, _, h = con_camara.pedir(
+            puerto, "POST", "/espejo/camara/whep", **ajeno, **{"Content-Type": "application/sdp"}
+        )
+        assert estado == 201
+        assert not [k for k in h if k.startswith("access-control-")], h
