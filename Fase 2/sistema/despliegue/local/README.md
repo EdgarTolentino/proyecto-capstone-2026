@@ -53,6 +53,9 @@ docker compose -p gepp-demo -f despliegue/local/compose.yml --profile cpu stop t
 docker compose -p gepp-demo -f despliegue/local/compose.yml --profile cpu down -v
 ```
 
+Redis es la 7.2 (licencia BSD; la 7.4 es RSALv2/SSPL, ADR-002). Si alguna vez se levantó este proyecto
+con otra versión de Redis, bajar antes con `down -v`: la 7.2 no lee el archivo de la 7.4.
+
 Con la GPU: comprobar antes que esté libre (`nvidia-smi`) y no entrenar mientras tanto (ADR-010).
 
 ## Decisiones

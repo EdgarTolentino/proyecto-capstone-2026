@@ -29,10 +29,12 @@ x-trabajador: &trabajador
     - sh
     - -c
     - |
-      if [ ! -s "$$GEPP_MODELO_RUTA" ]; then
-        echo "[trabajador] falta el modelo en $$GEPP_MODELO_RUTA: define MODELO_PTH (GPU) o MODELO_ONNX (CPU) y MODELO_CLASES" >&2
-        exit 1
-      fi
+      for f in "$$GEPP_MODELO_RUTA" /modelos/modelo.clases.json; do
+        if [ ! -s "$$f" ]; then
+          echo "[trabajador] falta $$f: define MODELO_PTH (GPU) o MODELO_ONNX (CPU) y MODELO_CLASES" >&2
+          exit 1
+        fi
+      done
       exec python -m gepp_worker
 
 services:
@@ -47,9 +49,6 @@ services:
   redis:
     # 7.2: la última con licencia BSD. Desde 7.4 es RSALv2/SSPL, prohibida por ADR-002.
     image: redis:7.2-alpine
-    # Sin persistencia: es la cola de una demo (rearmar la vacía) y así no queda un volumen viejo
-    # escrito por otra versión de Redis que no arranque con esta (revisión de Codex).
-    command: ["redis-server", "--save", "", "--appendonly", "no"]
     healthcheck: {test: ["CMD", "redis-cli", "ping"], interval: 3s, retries: 20}
     restart: unless-stopped
 
