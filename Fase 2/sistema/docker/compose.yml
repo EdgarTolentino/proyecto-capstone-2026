@@ -16,6 +16,8 @@ services:
 
   redis:
     # 7.2: la última con licencia BSD. `7-alpine` ya trae la 7.4 (RSALv2/SSPL), prohibida por ADR-002.
+    # Si venías de la 7.4 y Redis no arranca («Can't handle RDB format version 12»), el volumen
+    # anónimo trae su RDB: `docker compose -f docker/compose.yml up -d -V redis` lo descarta (cola de desarrollo).
     image: redis:7.2-alpine
     ports: ["6379:6379"]
 
