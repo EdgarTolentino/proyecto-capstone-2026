@@ -39,7 +39,8 @@ function urlApi(ruta: string): URL {
   return new URL(ruta.replace(/^\/+/, ""), baseApi());
 }
 
-function cabecerasApi(headers?: HeadersInit): Headers {
+// También la usa el espejo de la cámara: nginx comprueba el mismo rol antes de entregar el video.
+export function cabecerasApi(headers?: HeadersInit): Headers {
   const result = new Headers(headers);
   result.set("Authorization", AUTHORIZATION);
   return result;

@@ -1,6 +1,8 @@
 import { useEffect, useRef, useState } from "react";
 import type { RefObject } from "react";
 
+import { cabecerasApi } from "../api/client";
+
 // Espejo de la cámara por WHEP: el navegador manda su oferta SDP al mismo origen (`/espejo/…`, el
 // nginx le pone la credencial) y recibe la respuesta. Solo video (sin audio) y sin trickle ICE: se
 // espera a que termine la recolección y se manda la oferta completa.
@@ -54,7 +56,7 @@ export function useEspejoWhep(): { estado: EstadoEspejo; videoRef: RefObject<HTM
         conexion.close();
       }
       if (videoRef.current) videoRef.current.srcObject = null;
-      if (recurso) void fetch(recurso, { method: "DELETE" }).catch(() => undefined);
+      if (recurso) void fetch(recurso, { method: "DELETE", headers: cabecerasApi() }).catch(() => undefined);
     };
 
     const fallar = () => {
@@ -97,7 +99,7 @@ export function useEspejoWhep(): { estado: EstadoEspejo; videoRef: RefObject<HTM
         if (!activo || pc !== conexion) return; // se desmontó durante la recolección: sin POST
         const respuesta = await fetch(RUTA_WHEP, {
           method: "POST",
-          headers: { "Content-Type": "application/sdp" },
+          headers: cabecerasApi({ "Content-Type": "application/sdp" }),
           body: conexion.localDescription?.sdp ?? "",
         });
         if (!respuesta.ok) throw new Error(`WHEP ${respuesta.status}`);

@@ -64,7 +64,7 @@ it("manda la oferta completa por POST como application/sdp, solo con video, y no
   await asentar();
   const [url, init] = llamadas("POST")[0];
   expect(url).toBe(RUTA_WHEP);
-  expect(init.headers).toEqual({ "Content-Type": "application/sdp" });
+  expect(init.headers.get("Content-Type")).toBe("application/sdp");
   expect(init.body).toBe("oferta-completa");
   expect(ConexionFalsa.todas[0].transceivers).toEqual([["video", { direction: "recvonly" }]]);
   expect(ConexionFalsa.todas[0].remota).toEqual({ type: "answer", sdp: "respuesta-sdp" });
@@ -226,4 +226,18 @@ it.each(["failed", "closed"])("`%s` falla de inmediato, sin esperar el plazo", a
   const { result, cambiar } = await conectada();
   cambiar(estado);
   expect(result.current.estado).toBe("apagada");
+});
+
+it("el POST y el DELETE llevan la misma autorización que el cliente de la API (nginx la comprueba)", async () => {
+  respuestas = [ok()];
+  const { unmount } = renderHook(() => useEspejoWhep());
+  await asentar();
+  unmount();
+  const { cabecerasApi } = await import("../api/client");
+  const esperada = cabecerasApi().get("Authorization");
+  expect(esperada).toMatch(/^Bearer .+/);
+  const [post] = llamadas("POST");
+  const [borrar] = llamadas("DELETE");
+  expect(new Headers(post[1].headers).get("Authorization")).toBe(esperada);
+  expect(new Headers(borrar[1].headers).get("Authorization")).toBe(esperada);
 });
