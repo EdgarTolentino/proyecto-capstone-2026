@@ -1,0 +1,60 @@
+# MediaMTX mínimo para «el celular como cámara». Referencia: mediamtx.yml de la v1.21.3
+# (https://raw.githubusercontent.com/bluenviron/mediamtx/v1.21.3/mediamtx.yml, consultado 2026-11-02).
+#
+# Entra: WebRTC/WHIP (el navegador del celular abre https://<portátil>.<tailnet>.ts.net/<ruta>/publish)
+# o RTSP (ffmpeg, plan B). Sale: RTSP en :8554 y SEGMENTOS .mp4 cortos. El trabajador solo lee archivos.
+#
+# Un segmento nace en /grabaciones/en-curso (aún abierto) y, SOLO cuando MediaMTX lo cierra, el hook lo
+# MUEVE de una vez (rename dentro del mismo tmpfs: atómico) a la raíz de /grabaciones, que es la carpeta
+# vigilada del trabajador. El vigilante nunca ve un MP4 a medio escribir aunque el emisor se pause.
+# Todo vive en el volumen tmpfs `vigilada` (override del compose): nada del video toca disco.
+# Requiere la imagen `bluenviron/mediamtx:latest-ffmpeg` (la básica no trae shell ni mv).
+logLevel: info
+
+# Un solo usuario, `publicador`, que SOLO publica en `camara`. Su clave NO va en este archivo:
+# entra por MTX_AUTHINTERNALUSERS_0_PASS (el compose la exige). Vacía, no habría usuario válido.
+authMethod: internal
+authInternalUsers:
+  - user: publicador
+    pass:
+    ips: []
+    permissions:
+      - action: publish
+        path: camara
+
+api: no
+metrics: no
+playback: no
+rtmp: no
+hls: no
+srt: no
+
+rtsp: yes
+rtspTransports: [tcp]
+rtspAddress: :8554
+
+webrtc: yes
+webrtcAddress: :8889
+# El puerto de medios es el MISMO dentro y fuera del contenedor: ICE anuncia este puerto y no se
+# puede remapear. La IP anunciada entra por MTX_WEBRTCADDITIONALHOSTS (TS_IP, ver compose).
+webrtcLocalUDPAddress: :18189
+webrtcLocalTCPAddress: :18189
+
+pathDefaults:
+  record: yes
+  recordPath: /grabaciones/en-curso/%path-%Y-%m-%d_%H-%M-%S-%f
+  recordFormat: fmp4
+  # Es un MÍNIMO: el corte cae en el siguiente cuadro clave. Se cambia con
+  # MTX_PATHDEFAULTS_RECORDSEGMENTDURATION=5s|10s (ver compose).
+  recordSegmentDuration: 5s
+  recordPartDuration: 1s
+  # Lo que quede en `en-curso` (segmento sin cerrar) MediaMTX lo borra solo, por limpieza periódica
+  # (barre cada ~30 s): el plazo no es exacto; con 30 s, lo más que dura es ~60 s.
+  recordDeleteAfter: 30s
+  # MediaMTX NO usa shell en estos comandos (probado: `&&` llegó como argumento): se pide una.
+  runOnRecordSegmentComplete: /bin/sh -c 'mv "$MTX_SEGMENT_PATH" /grabaciones/'
+
+# Solo la ruta `camara`: publicar en cualquier otra se rechaza. Nadie lee: no hay usuario `read`
+# (el trabajador lee archivos, no RTSP) y se quita el usuario anónimo que trae MediaMTX por defecto.
+paths:
+  camara:
