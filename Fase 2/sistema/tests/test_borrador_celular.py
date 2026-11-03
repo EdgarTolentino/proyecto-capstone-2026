@@ -12,7 +12,7 @@ import math
 import os
 import threading
 import time
-from collections.abc import Iterator
+from collections.abc import Callable, Iterator
 from pathlib import Path
 
 import pytest
@@ -39,6 +39,31 @@ def _segmento(carpeta: Path, nombre: str, edad_s: float) -> Path:
     ruta.write_bytes(b"x")
     os.utime(ruta, (AHORA - edad_s, AHORA - edad_s))
     return ruta
+
+
+def _barrer(
+    carpeta: Path,
+    estado_de: Callable[[Path], str | None],
+    avisados: set[Path] | None = None,
+    **opciones: float,
+) -> list[Path]:
+    """Un barrido con la hora fija en AHORA (los tests de tiempo usan su propio reloj)."""
+    return borrador.barrido(
+        carpeta, estado_de, TTL, lambda: AHORA, set() if avisados is None else avisados, **opciones
+    )
+
+
+class _Reloj:
+    """Hora y tiempo monotónico simulados: cada consulta lenta los adelanta."""
+
+    def __init__(self) -> None:
+        self.t = 0.0
+
+    def hora(self) -> float:
+        return AHORA + self.t
+
+    def monotonico(self) -> float:
+        return self.t
 
 
 def _nombre(i: int, prefijo: str = "camara") -> str:
@@ -122,7 +147,7 @@ def test_con_la_base_caida_lo_vencido_se_borra_igual(
     def base_caida(_: Path) -> str | None:
         raise ConnectionError("PostgreSQL no responde")
 
-    borrados = borrador.barrido(tmp_path, base_caida, TTL, AHORA, set())
+    borrados = _barrer(tmp_path, base_caida)
 
     assert borrados == [vencido]
     assert not vencido.exists()
@@ -132,15 +157,15 @@ def test_con_la_base_caida_lo_vencido_se_borra_igual(
 
 def test_el_vencimiento_se_cumple_antes_de_consultar_la_base(tmp_path: Path) -> None:
     """Si la consulta se traba, lo vencido ya tiene que estar borrado."""
-    vencido = _segmento(tmp_path, _nombre(0), TTL + 5.0)
-    _segmento(tmp_path, _nombre(1), 1.0)
+    _segmento(tmp_path, _nombre(0), 1.0)  # el primero en consultarse
+    vencido = _segmento(tmp_path, _nombre(1), TTL + 5.0)  # va DESPUÉS en el orden
     visto: list[bool] = []
 
     def consulta(_: Path) -> str | None:
         visto.append(vencido.exists())
         return None
 
-    borrador.barrido(tmp_path, consulta, TTL, AHORA, set())
+    _barrer(tmp_path, consulta)
 
     assert visto == [False]
 
@@ -157,7 +182,7 @@ def test_una_consulta_trabada_no_detiene_los_borrados(tmp_path: Path) -> None:
 
     inicio = time.monotonic()
     try:
-        borrados = borrador.barrido(tmp_path, trabada, TTL, AHORA, set(), limite_s=0.2)
+        borrados = _barrer(tmp_path, trabada, limite_s=0.2)
         demora = time.monotonic() - inicio
     finally:
         soltar.set()
@@ -179,14 +204,14 @@ def test_con_la_base_caida_se_consulta_una_sola_vez_por_barrido(tmp_path: Path) 
         llamadas.append(ruta)
         raise ConnectionError("PostgreSQL no responde")
 
-    assert borrador.barrido(tmp_path, base_caida, TTL, AHORA, set()) == []
+    assert _barrer(tmp_path, base_caida) == []
     assert len(llamadas) == 1
 
 
 @pytest.mark.parametrize("estado", ["listo", "error"])
 def test_un_video_terminado_se_borra_aunque_sea_reciente(tmp_path: Path, estado: str) -> None:
     reciente = _segmento(tmp_path, _nombre(0), 1.0)
-    assert borrador.barrido(tmp_path, lambda _: estado, TTL, AHORA, set()) == [reciente]
+    assert _barrer(tmp_path, lambda _: estado) == [reciente]
 
 
 @pytest.mark.parametrize("estado", [None, "en_cola", "procesando", "reintentando"])
@@ -194,7 +219,7 @@ def test_un_video_sin_terminar_se_conserva_dentro_del_ttl(
     tmp_path: Path, estado: str | None
 ) -> None:
     reciente = _segmento(tmp_path, _nombre(0), 1.0)
-    assert borrador.barrido(tmp_path, lambda _: estado, TTL, AHORA, set()) == []
+    assert _barrer(tmp_path, lambda _: estado) == []
     assert reciente.exists()
 
 
@@ -208,7 +233,7 @@ def test_lo_que_no_es_de_la_ruta_camara_no_se_toca_y_se_avisa_una_vez(
     avisados: set[Path] = set()
 
     for _ in range(2):
-        assert borrador.barrido(tmp_path, lambda _: "listo", TTL, AHORA, avisados) == []
+        assert _barrer(tmp_path, lambda _: "listo", avisados) == []
 
     assert ajeno.exists() and demo.exists() and otra_ruta.exists()
     salida = capsys.readouterr().out
@@ -239,3 +264,109 @@ def test_con_limite_no_apila_hilos_si_la_anterior_sigue_trabada() -> None:
         soltar.set()
         if borrador._consulta is not None:
             borrador._consulta.join(2.0)
+
+
+# ── El presupuesto total del paso 2 y la reevaluación del vencimiento ────────
+
+
+def test_las_consultas_comparten_un_presupuesto_total_por_barrido(tmp_path: Path) -> None:
+    """Seis consultas de 0,8 s y 3 s de presupuesto: paran al agotarse, no una por archivo."""
+    for i in range(6):
+        _segmento(tmp_path, _nombre(i), 10.0)
+    reloj = _Reloj()
+    llamadas: list[Path] = []
+
+    def lenta(ruta: Path) -> str | None:
+        llamadas.append(ruta)
+        reloj.t += 0.8
+        return None
+
+    borrador.barrido(
+        tmp_path,
+        lenta,
+        TTL,
+        reloj.hora,
+        set(),
+        limite_s=3.0,
+        presupuesto_s=3.0,
+        monotonico=reloj.monotonico,
+    )
+
+    assert len(llamadas) == 4  # 0,0 · 0,8 · 1,6 · 2,4 → a los 3,2 s ya no queda presupuesto
+    assert reloj.t < 3.0 + 0.8
+
+
+def test_lo_que_vence_mientras_se_consulta_se_borra_en_el_mismo_barrido(tmp_path: Path) -> None:
+    """Archivos de 57,5 s (TTL 60): vencen durante las consultas, no esperan al próximo barrido."""
+    rutas = [_segmento(tmp_path, _nombre(i), 57.5) for i in range(6)]
+    reloj = _Reloj()
+
+    def lenta(_: Path) -> str | None:
+        reloj.t += 0.8
+        return None  # el video aún no termina
+
+    borrados = borrador.barrido(
+        tmp_path,
+        lenta,
+        TTL,
+        reloj.hora,
+        set(),
+        limite_s=3.0,
+        presupuesto_s=3.0,
+        monotonico=reloj.monotonico,
+    )
+
+    assert sorted(borrados) == rutas
+    assert not any(r.exists() for r in rutas)
+
+
+def test_cada_consulta_respeta_lo_que_queda_del_presupuesto(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    for i in range(2):
+        _segmento(tmp_path, _nombre(i), 1.0)
+    reloj = _Reloj()
+    limites: list[float] = []
+    real = borrador.con_limite
+
+    def espia(fn: Callable[[], str | None], limite_s: float) -> str | None:
+        limites.append(limite_s)
+        return real(fn, limite_s)
+
+    monkeypatch.setattr(borrador, "con_limite", espia)
+
+    def lenta(_: Path) -> str | None:
+        reloj.t += 2.5
+        return None
+
+    borrador.barrido(
+        tmp_path,
+        lenta,
+        TTL,
+        reloj.hora,
+        set(),
+        limite_s=3.0,
+        presupuesto_s=3.0,
+        monotonico=reloj.monotonico,
+    )
+
+    assert limites == [3.0, 0.5]  # la segunda solo puede usar lo que queda del presupuesto
+
+
+def test_lo_que_ya_venció_no_gasta_una_consulta(tmp_path: Path) -> None:
+    primero = _segmento(tmp_path, _nombre(0), 59.5)
+    segundo = _segmento(tmp_path, _nombre(1), 59.5)
+    reloj = _Reloj()
+    llamadas: list[Path] = []
+
+    def lenta(ruta: Path) -> str | None:
+        llamadas.append(ruta)
+        reloj.t += 0.8  # al terminar, el segundo ya pasó de los 60 s
+        return None
+
+    borrados = borrador.barrido(
+        tmp_path, lenta, TTL, reloj.hora, set(), monotonico=reloj.monotonico
+    )
+
+    assert llamadas == [primero]  # el segundo venció antes de su turno: se borra sin consultar
+    assert segundo in borrados

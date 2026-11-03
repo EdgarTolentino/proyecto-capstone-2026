@@ -94,17 +94,43 @@ def con_limite[T](fn: Callable[[], T], limite_s: float) -> T:
     return resultado[0]
 
 
+def _vencer(
+    rutas: list[Path], ttl_s: float, reloj: Callable[[], float], borrados: list[Path]
+) -> list[Path]:
+    """Borra lo vencido con la hora de ahora (no la del inicio); devuelve lo que sigue."""
+    quedan: list[Path] = []
+    for ruta in rutas:
+        try:
+            edad = reloj() - ruta.stat().st_mtime
+        except FileNotFoundError:  # ya no está
+            continue
+        if vencido(edad, ttl_s):
+            ruta.unlink(missing_ok=True)
+            borrados.append(ruta)
+            print(f"[borrador] borrado {ruta.name}: vencido ({edad:.0f} s)", flush=True)
+        else:
+            quedan.append(ruta)
+    return quedan
+
+
 def barrido(
     carpeta: Path,
     estado_de: Callable[[Path], str | None],
     ttl_s: float,
-    ahora: float,
+    reloj: Callable[[], float],
     avisados: set[Path],
     *,
     limite_s: float = 3.0,
+    presupuesto_s: float = 3.0,
     prefijo: str = "camara",
+    monotonico: Callable[[], float] = time.monotonic,
 ) -> list[Path]:
-    """Un barrido: primero el vencimiento (sin base) y después, con límite duro, los terminados."""
+    """Un barrido: vencimiento (sin base), terminados con presupuesto TOTAL, vencimiento otra vez.
+
+    Las consultas del paso 2 comparten `presupuesto_s` (cada una, además, `limite_s`): una base
+    lenta no alarga el barrido más que eso. El vencimiento se reevalúa con la hora de ahora antes de
+    cada consulta y al final: lo que venció MIENTRAS se consultaba no espera al próximo barrido.
+    """
     borrados: list[Path] = []
     candidatos: list[Path] = []
     for ruta in sorted(carpeta.iterdir()):
@@ -117,28 +143,30 @@ def barrido(
             continue
         candidatos.append(ruta)
 
-    # Paso 1: vencimiento. NO toca la base.
-    restantes: list[Path] = []
-    for ruta in candidatos:
-        edad = ahora - ruta.stat().st_mtime
-        if vencido(edad, ttl_s):
-            ruta.unlink(missing_ok=True)
-            borrados.append(ruta)
-            print(f"[borrador] borrado {ruta.name}: vencido ({edad:.0f} s)", flush=True)
-        else:
-            restantes.append(ruta)
+    restantes = _vencer(candidatos, ttl_s, reloj, borrados)  # paso 1: NO toca la base
 
-    # Paso 2: terminados. Una falla o un límite vencido corta el paso: ya se cumplió el TTL.
+    fin = monotonico() + presupuesto_s  # paso 2
+    pendientes = list(restantes)
     for ruta in restantes:
+        if not _vencer([ruta], ttl_s, reloj, borrados):  # venció mientras tanto
+            pendientes.remove(ruta)
+            continue
+        quedan = fin - monotonico()
+        if quedan <= 0:
+            print("[borrador] presupuesto de consultas agotado: rige solo el TTL", flush=True)
+            break
         try:
-            estado = con_limite(lambda r=ruta: estado_de(r), limite_s)
+            estado = con_limite(lambda r=ruta: estado_de(r), min(limite_s, quedan))
         except Exception as e:  # la base caída o trabada no puede impedir nada más
             print(f"[borrador] sin base ({type(e).__name__}): rige solo el TTL", flush=True)
             break
         if estado in TERMINADOS:
             ruta.unlink(missing_ok=True)
             borrados.append(ruta)
+            pendientes.remove(ruta)
             print(f"[borrador] borrado {ruta.name}: {estado}", flush=True)
+
+    _vencer(pendientes, ttl_s, reloj, borrados)  # lo que venció durante el paso 2
     return borrados
 
 
@@ -149,7 +177,9 @@ def main() -> int:
     carpeta = Path(os.environ["GEPP_CARPETA_GRABACION"])
     ttl_s = float(os.environ.get("GEPP_TTL_SEGMENTO_S", "60"))
     limite_s = float(os.environ.get("GEPP_CONSULTA_LIMITE_S", "3"))
+    presupuesto_s = float(os.environ.get("GEPP_PRESUPUESTO_CONSULTAS_S", "3"))
     prefijo = os.environ.get("GEPP_RUTA_CAMARA", "camara")
+    latido = Path(os.environ.get("GEPP_LATIDO", "/tmp/latido"))
     vencido(0.0, ttl_s)  # valida el TTL al arrancar: inválido => cae, no borra a medias
     carpeta.mkdir(parents=True, exist_ok=True)
     fabrica = fabrica_de_sesiones(crear_motor())
@@ -165,13 +195,23 @@ def main() -> int:
             v = videos.por_hash(s, hashes[clave])
         return v.estado if v else None
 
+    latido.touch()
     print(
-        f"[borrador] vigilando {carpeta} (TTL {ttl_s:g} s, consulta ≤ {limite_s:g} s)", flush=True
+        f"[borrador] vigilando {carpeta} (TTL {ttl_s:g} s, consultas ≤ {presupuesto_s:g} s)",
+        flush=True,
     )
     while True:
         barrido(
-            carpeta, estado_de, ttl_s, time.time(), avisados, limite_s=limite_s, prefijo=prefijo
+            carpeta,
+            estado_de,
+            ttl_s,
+            time.time,
+            avisados,
+            limite_s=limite_s,
+            presupuesto_s=presupuesto_s,
+            prefijo=prefijo,
         )
+        latido.touch()  # el healthcheck del compose mira la edad de este archivo
         time.sleep(2)
 
 
