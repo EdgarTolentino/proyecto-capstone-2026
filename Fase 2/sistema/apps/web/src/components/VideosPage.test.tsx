@@ -4,7 +4,7 @@ import { afterEach, expect, it, vi } from "vitest";
 
 import type { Video } from "../api/types";
 import * as api from "../api/client";
-import { INTERVALO_REFRESCO_MS } from "../api/videos";
+import { INTERVALO_BANDEJA_MS, INTERVALO_REFRESCO_MS } from "../api/videos";
 import { VideosPage } from "./VideosPage";
 
 vi.mock("../api/client", () => ({
@@ -182,34 +182,69 @@ it.each([
   expect(screen.queryByText("motivo anterior") !== null).toBe(visible);
 });
 
-it("vuelve a pedir la cola cuando hay un video procesando y deja de pedirla al terminar", async () => {
+it("sigue pidiendo la cola aunque todo haya terminado y muestra el video que llega después", async () => {
   vi.useFakeTimers({ shouldAdvanceTime: true });
   vi.mocked(api.listarVideos)
     .mockResolvedValueOnce({ items: [videoDePrueba("procesando")] })
-    .mockResolvedValue({ items: [videoDePrueba("listo")] });
+    .mockResolvedValueOnce({ items: [videoDePrueba("listo")] })
+    .mockResolvedValue({ items: [{ ...videoDePrueba("en_cola"), id: 23, archivo: "trozo-siguiente.mp4" }, videoDePrueba("listo")] });
   renderizar();
 
   expect(await screen.findByText("Procesando")).toBeVisible();
   await vi.advanceTimersByTimeAsync(INTERVALO_REFRESCO_MS);
   expect(await screen.findByText("Listo")).toBeVisible();
-  const llamadas = vi.mocked(api.listarVideos).mock.calls.length;
-  await vi.advanceTimersByTimeAsync(INTERVALO_REFRESCO_MS * 3);
-  expect(api.listarVideos).toHaveBeenCalledTimes(llamadas);
+  // Todo terminó, pero la cola sigue consultándose: cada trozo de la cámara es un video nuevo.
+  await vi.advanceTimersByTimeAsync(INTERVALO_BANDEJA_MS);
+  expect(await screen.findByText("trozo-siguiente.mp4")).toBeVisible();
 });
 
-it.each([500, 401])("si el refresco falla con un %i, conserva la tabla, avisa sin tapar y deja de pedir", async (status) => {
+it("una cola vacía descubre el primer video sin recargar", async () => {
+  vi.useFakeTimers({ shouldAdvanceTime: true });
+  vi.mocked(api.listarVideos)
+    .mockResolvedValueOnce({ items: [] })
+    .mockResolvedValue({ items: [videoDePrueba("en_cola")] });
+  renderizar();
+
+  await vi.waitFor(() => expect(api.listarVideos).toHaveBeenCalledTimes(1));
+  expect(screen.queryByText("CAM-03_2026-10-02_08-00.mp4")).not.toBeInTheDocument();
+  await vi.advanceTimersByTimeAsync(INTERVALO_BANDEJA_MS);
+  expect(await screen.findByText("CAM-03_2026-10-02_08-00.mp4")).toBeVisible();
+});
+
+it("si el refresco falla con un 500, conserva la tabla, avisa y sigue intentando sola hasta recuperarse", async () => {
   vi.useFakeTimers({ shouldAdvanceTime: true });
   vi.mocked(api.listarVideos)
     .mockResolvedValueOnce({ items: [videoDePrueba("procesando")] })
-    .mockRejectedValue(new api.ApiError("fallo", status));
+    .mockRejectedValueOnce(new api.ApiError("fallo", 500))
+    .mockRejectedValueOnce(new api.ApiError("fallo", 500))
+    .mockResolvedValue({ items: [videoDePrueba("listo")] });
   renderizar();
 
   expect(await screen.findByText("Procesando")).toBeVisible();
   await vi.advanceTimersByTimeAsync(INTERVALO_REFRESCO_MS);
   expect(await screen.findByText(/No fue posible actualizar la cola/)).toBeVisible();
+  expect(screen.getByText(/Se vuelve a intentar sola cada 10 s/)).toBeVisible();
   expect(screen.getByRole("table", { name: "Cola de videos" })).toBeVisible();
   expect(screen.queryByText(/No fue posible cargar la cola de videos/)).not.toBeInTheDocument();
-  expect(screen.queryByText("No tienes permiso para ver la cola de videos.")).not.toBeInTheDocument();
+
+  // Sin pulsar «Reintentar»: la API volvió y la lista se pone al día sola.
+  await vi.advanceTimersByTimeAsync(INTERVALO_REFRESCO_MS * 3);
+  expect(await screen.findByText("Listo")).toBeVisible();
+  expect(screen.queryByText(/No fue posible actualizar la cola/)).not.toBeInTheDocument();
+});
+
+it("si el refresco falla con un 401, conserva la tabla, avisa sin prometer reintentos y deja de pedir", async () => {
+  vi.useFakeTimers({ shouldAdvanceTime: true });
+  vi.mocked(api.listarVideos)
+    .mockResolvedValueOnce({ items: [videoDePrueba("procesando")] })
+    .mockRejectedValue(new api.ApiError("fallo", 401));
+  renderizar();
+
+  expect(await screen.findByText("Procesando")).toBeVisible();
+  await vi.advanceTimersByTimeAsync(INTERVALO_REFRESCO_MS);
+  expect(await screen.findByText(/No fue posible actualizar la cola/)).toBeVisible();
+  expect(screen.queryByText(/Se vuelve a intentar sola/)).not.toBeInTheDocument();
+  expect(screen.getByRole("table", { name: "Cola de videos" })).toBeVisible();
 
   const llamadas = vi.mocked(api.listarVideos).mock.calls.length;
   await vi.advanceTimersByTimeAsync(INTERVALO_REFRESCO_MS * 3);
@@ -491,20 +526,20 @@ it("la barra avanza cuando llega un avance nuevo", async () => {
   expect(screen.queryByText("2:30 de 5:00 (50 %)")).not.toBeInTheDocument();
 });
 
-it.each(["en_cola", "reintentando"] as const)("con un video %s sigue pidiendo la cola cada 10000 ms", async (estado) => {
+it.each(["en_cola", "reintentando"] as const)("con un video %s sigue pidiendo la cola cada 5000 ms", async (estado) => {
   vi.useFakeTimers({ shouldAdvanceTime: true });
   vi.mocked(api.listarVideos).mockResolvedValue({ items: [videoDePrueba(estado)] });
   renderizar();
 
   await screen.findByRole("table", { name: "Cola de videos" });
   const inicial = vi.mocked(api.listarVideos).mock.calls.length;
-  await vi.advanceTimersByTimeAsync(9000);
+  await vi.advanceTimersByTimeAsync(4000);
   expect(api.listarVideos).toHaveBeenCalledTimes(inicial);
   await vi.advanceTimersByTimeAsync(2000);
   expect(api.listarVideos).toHaveBeenCalledTimes(inicial + 1);
 });
 
-it("al pasar de procesando a listo quita la barra y deja de pedir cada 3 s", async () => {
+it("al pasar de procesando a listo quita la barra y baja al ritmo de 5 s", async () => {
   vi.useFakeTimers({ shouldAdvanceTime: true });
   vi.mocked(api.listarVideos)
     .mockResolvedValueOnce({ items: [videoProcesando(150)] })
@@ -517,11 +552,13 @@ it("al pasar de procesando a listo quita la barra y deja de pedir cada 3 s", asy
   expect(screen.queryByRole("progressbar")).not.toBeInTheDocument();
   expect(screen.queryByText(/En el cuadro actual/)).not.toBeInTheDocument();
   const llamadas = vi.mocked(api.listarVideos).mock.calls.length;
-  await vi.advanceTimersByTimeAsync(30_000);
+  await vi.advanceTimersByTimeAsync(4000);
   expect(api.listarVideos).toHaveBeenCalledTimes(llamadas);
+  await vi.advanceTimersByTimeAsync(2000);
+  expect(api.listarVideos).toHaveBeenCalledTimes(llamadas + 1);
 });
 
-it("al pasar de procesando a reintentando baja al ritmo de 10 s y quita la barra", async () => {
+it("al pasar de procesando a reintentando baja al ritmo de 5 s y quita la barra", async () => {
   vi.useFakeTimers({ shouldAdvanceTime: true });
   vi.mocked(api.listarVideos)
     .mockResolvedValueOnce({ items: [videoProcesando(240)] })
@@ -533,7 +570,7 @@ it("al pasar de procesando a reintentando baja al ritmo de 10 s y quita la barra
   expect(await screen.findByText("Reintentando")).toBeVisible();
   expect(screen.queryByRole("progressbar")).not.toBeInTheDocument();
   const llamadas = vi.mocked(api.listarVideos).mock.calls.length;
-  await vi.advanceTimersByTimeAsync(7000);
+  await vi.advanceTimersByTimeAsync(1000);
   expect(api.listarVideos).toHaveBeenCalledTimes(llamadas);
   await vi.advanceTimersByTimeAsync(4000);
   expect(api.listarVideos).toHaveBeenCalledTimes(llamadas + 1);

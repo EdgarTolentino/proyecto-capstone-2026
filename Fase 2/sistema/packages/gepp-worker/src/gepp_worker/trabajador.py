@@ -61,6 +61,12 @@ class VideoIlegible(Exception):
     """El archivo no se pudo abrir como video. Su mensaje es el motivo que ve el usuario."""
 
 
+class VideoSinCuadros(VideoIlegible):
+    """El archivo abrió, pero no entregó ni un cuadro (caso típico: AV1, que OpenCV no decodifica
+    en esta máquina). Es determinista: el mismo archivo con el mismo OpenCV falla igual, así que
+    no se reintenta; quien lo repara (recodificar a H.264) lo pide de nuevo desde la API."""
+
+
 @dataclass(frozen=True, slots=True)
 class Aviso:
     """A quién se avisa de cada hallazgo. Sin aviso configurado no se escribe outbox."""
@@ -255,9 +261,13 @@ class Trabajador:
             rutas = (*variantes_de(trabajo.ruta), *self._rutas_de_la_fila(trabajo))
             motivo = sin_rutas(completo, *rutas)
             print(f"[trabajador] {trabajo.ruta}: {completo}", file=sys.stderr)
+            sin_reintento = isinstance(e, VideoSinCuadros)
+            # Sin anotación en la base, Redis lleva la cuenta normal aunque no haya cuadros: si
+            # lo cerrara como definitivo, la fila quedaría `procesando` para siempre y
+            # /reprocesar respondería 409 (revisión de Codex). El reintento lo anota bien.
             definitivo: bool | None = None
             try:
-                definitivo = self._anotar_fallo(trabajo, motivo)
+                definitivo = self._anotar_fallo(trabajo, motivo, sin_reintento=sin_reintento)
             except Exception as e2:
                 # Anotar en la base no puede tumbar al trabajador (fuente inexistente, base
                 # caída, archivo borrado): el trabajo vuelve igual a la cola con su motivo, y
@@ -280,7 +290,7 @@ class Trabajador:
         except Exception:
             return ()
 
-    def _anotar_fallo(self, trabajo: Trabajo, motivo: str) -> bool:
+    def _anotar_fallo(self, trabajo: Trabajo, motivo: str, *, sin_reintento: bool = False) -> bool:
         """Que el fallo se vea en `GET /videos`, y no solo en Redis (#29). Devuelve si ya
         agotó sus intentos.
 
@@ -293,7 +303,7 @@ class Trabajador:
             video = videos.por_hash(s, trabajo.hash_sha256)
             if video is None:
                 video, _ = videos.registrar(s, _sin_leer(trabajo))
-            agotado = video.intentos + 1 >= self._cola.maximo_intentos
+            agotado = sin_reintento or video.intentos + 1 >= self._cola.maximo_intentos
             videos.anotar_fallo(s, video.id, motivo, definitivo=agotado)
         return agotado
 
@@ -523,6 +533,12 @@ class Trabajador:
             finally:
                 if vista is not None:  # listo, error o reintento: los cuadros no sobreviven
                     vista.cerrar()
+        if resultado.cuadros == 0:
+            # Un video "listo" sin haber mirado nada diría que la obra está en regla.
+            raise VideoSinCuadros(
+                "No se leyó ningún cuadro del video: el códec no se puede decodificar aquí "
+                "(p. ej. AV1). Recodifíquelo a H.264 y pida el reintento"
+            )
         # Antes de abrir la transacción del resultado (que toma la fila del video), no después.
         avance.final()
 

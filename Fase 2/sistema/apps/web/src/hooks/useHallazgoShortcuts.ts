@@ -12,6 +12,8 @@ interface ShortcutOptions {
   onOpen: (id: number) => void;
   onConfirm: () => void;
   onFalsePositive: () => void;
+  // Enter, c o x sin fila activa: la pantalla lo dice en vez de quedarse callada.
+  onSinActivo?: () => void;
 }
 
 // Los atajos viven en un hook separado para poder probarlos sin montar toda la pantalla.
@@ -31,10 +33,17 @@ export function useHallazgoShortcuts(options: ShortcutOptions) {
       if (!options.enabled || estaEscribiendo || estaActivandoControl || event.ctrlKey || event.metaKey || event.altKey) return;
 
       const indice = options.hallazgos.findIndex((item) => item.id === options.activoId);
-      if (event.key === "j" && indice < options.hallazgos.length - 1) {
+      // Un hallazgo abierto que ya no está en la lista no tiene vecinos (los botones del visor están
+      // deshabilitados): `j` y `k` tampoco. Sin ninguno activo, `j` sí elige el primero.
+      const fueraDeLaLista = indice === -1 && options.activoId !== undefined;
+      if (event.key === "j" && !fueraDeLaLista && indice < options.hallazgos.length - 1) {
         options.onActivate(options.hallazgos[indice + 1].id);
       }
-      if (event.key === "k" && indice > 0) options.onActivate(options.hallazgos[indice - 1].id);
+      if (event.key === "k" && !fueraDeLaLista && indice > 0) options.onActivate(options.hallazgos[indice - 1].id);
+      const pideActuar =
+        (event.key === "Enter" && !options.visorAbierto) ||
+        ((event.key === "c" || event.key === "x") && options.permiteTriar);
+      if (pideActuar && !options.activoId) options.onSinActivo?.();
       if (event.key === "Enter" && options.activoId && !options.visorAbierto) {
         options.onOpen(options.activoId);
       }

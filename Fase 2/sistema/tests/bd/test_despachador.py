@@ -106,7 +106,7 @@ def test_tres_graves_de_un_area_son_un_solo_aviso_sin_nombres(sembrada: Engine) 
     ((aviso, destino),) = canal.enviados
     assert destino == "chat-1"
     assert aviso.titulo.startswith("Acceso y patio de materiales · turno ")
-    assert aviso.cuerpo.startswith("3 personas sin casco entre 22:10 y 22:12")
+    assert aviso.cuerpo.startswith("3 incumplimientos sin casco entre 22:10 y 22:12")
     ns = filas(sembrada)
     assert {n.estado for n in ns} == {"enviada"} and len({n.token_acuse for n in ns}) == 1
 

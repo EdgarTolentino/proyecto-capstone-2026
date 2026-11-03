@@ -16,6 +16,12 @@ from gepp_bd.modelos import Notificacion
 
 #: Tras este número de intentos fallidos la notificación queda `fallida` y deja de reintentarse.
 MAXIMO_INTENTOS = 5
+#: Prefijo fijo del `motivo` de un rechazo permanente (token inválido, bot bloqueado): los
+#: intentos no distinguen la causa, esto sí, y `reintentar_agotadas` lo excluye (sin esquema nuevo).
+PREFIJO_RECHAZO = "rechazo_permanente: "
+#: Lo mismo para lo guardado ANTES del prefijo: el canal escribía «<código HTTP>: <descripción>», y
+#: un 4xx que no es 429 (chat inexistente, bot bloqueado, token inválido) es un rechazo permanente.
+RECHAZO_HISTORICO = r"^4(?!29)[0-9]{2}: "
 
 
 def tomar_pendientes(
@@ -123,7 +129,11 @@ def marcar_grupo_rechazado(sesion: Session, ids: Sequence[int], *, motivo: str) 
     sesion.execute(
         update(Notificacion)
         .where(Notificacion.id.in_(ids))
-        .values(estado="fallida", intentos=Notificacion.intentos + 1, motivo=motivo)
+        .values(
+            estado="fallida",
+            intentos=Notificacion.intentos + 1,
+            motivo=PREFIJO_RECHAZO + motivo,
+        )
     )
 
 
@@ -144,6 +154,27 @@ def acusar_por_token(sesion: Session, token: str) -> int:
         update(Notificacion)
         .where(Notificacion.token_acuse == token, Notificacion.estado == "enviada")
         .values(estado="acusada", acusada_en=func.now())
+        .returning(Notificacion.id)
+    ).scalars()
+    return len(list(filas))
+
+
+def reintentar_agotadas(sesion: Session) -> int:
+    """Devuelve a `pendiente` las que agotaron sus intentos, con la cuenta en cero.
+
+    Solo las `fallida` con `MAXIMO_INTENTOS` o más: un rechazo permanente (token inválido, bot
+    bloqueado) también queda `fallida` (con `MAXIMO_INTENTOS` si antes hubo fallos transitorios),
+    y reintentarlo no arregla nada: se reconoce por el prefijo o, si es histórico, por su 4xx.
+    """
+    filas = sesion.execute(
+        update(Notificacion)
+        .where(
+            Notificacion.estado == "fallida",
+            Notificacion.intentos >= MAXIMO_INTENTOS,
+            ~func.coalesce(Notificacion.motivo, "").startswith(PREFIJO_RECHAZO, autoescape=True),
+            func.coalesce(Notificacion.motivo, "").op("!~")(RECHAZO_HISTORICO),
+        )
+        .values(estado="pendiente", intentos=0, reintentar_despues=None)
         .returning(Notificacion.id)
     ).scalars()
     return len(list(filas))

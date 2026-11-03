@@ -98,4 +98,41 @@ describe("useHallazgoShortcuts", () => {
     expect(onConfirm).toHaveBeenCalledOnce();
     button.remove();
   });
+
+  it("con el hallazgo abierto fuera de la lista, j y k no cambian de caso; sin ninguno activo, j elige el primero", () => {
+    const onActivate = vi.fn();
+    const opciones = (activoId: number | undefined, visorAbierto: boolean) => ({
+      hallazgos, activoId, enabled: true, permiteTriar: true, visorAbierto,
+      onActivate, onOpen: vi.fn(), onConfirm: vi.fn(), onFalsePositive: vi.fn(),
+    });
+    const { unmount } = renderHook(() => useHallazgoShortcuts(opciones(9, true)));
+    fireEvent.keyDown(window, { key: "j" });
+    fireEvent.keyDown(window, { key: "k" });
+    expect(onActivate).not.toHaveBeenCalled();
+    unmount();
+
+    renderHook(() => useHallazgoShortcuts(opciones(undefined, false)));
+    fireEvent.keyDown(window, { key: "j" });
+    expect(onActivate).toHaveBeenCalledWith(1);
+  });
+
+  it("avisa con onSinActivo cuando Enter, c o x no tienen fila activa; con fila activa no", () => {
+    const onSinActivo = vi.fn();
+    const base = {
+      hallazgos, enabled: true, permiteTriar: true, visorAbierto: false,
+      onActivate: vi.fn(), onOpen: vi.fn(), onConfirm: vi.fn(), onFalsePositive: vi.fn(), onSinActivo,
+    };
+    const { unmount } = renderHook(() => useHallazgoShortcuts({ ...base, activoId: undefined }));
+    fireEvent.keyDown(window, { key: "Enter" });
+    fireEvent.keyDown(window, { key: "c" });
+    fireEvent.keyDown(window, { key: "x" });
+    fireEvent.keyDown(window, { key: "j" }); // j no actúa sobre nada: no avisa
+    expect(onSinActivo).toHaveBeenCalledTimes(3);
+    unmount();
+
+    onSinActivo.mockClear();
+    renderHook(() => useHallazgoShortcuts({ ...base, activoId: 2 }));
+    fireEvent.keyDown(window, { key: "c" });
+    expect(onSinActivo).not.toHaveBeenCalled();
+  });
 });

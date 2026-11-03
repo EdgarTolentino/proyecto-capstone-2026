@@ -49,7 +49,7 @@ detección
    │
    ├─ 3. AGRUPACIÓN               espera 45 s · intervalo 5 min · repetición 2 h
    │                              agrupa por (área, tipo de EPP)
-   │                              "tres personas sin casco en Chancado" = UN mensaje
+   │                              "tres incumplimientos sin casco en Chancado" = UN mensaje
    ├─ 4. INHIBICIÓN               área en mantención o cámara caída → silencio total
    │
    ├─ 5. VENTANAS DE SILENCIO     cambio de turno, colación, tronadura programada
@@ -144,7 +144,7 @@ herramientas— es inaceptable aquí.
 
 Las alertas van **al área y al turno, no a la persona**:
 
-> *"Área 4 · turno noche · 3 personas sin casco entre 02:10 y 02:14"*
+> *"Área 4 · turno noche · 3 incumplimientos sin casco entre 02:10 y 02:14"*
 
 Con tres acciones y no más: **Acuso recibo · Ver evidencia · Falso positivo**.
 
