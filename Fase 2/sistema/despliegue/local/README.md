@@ -14,7 +14,7 @@ viven en esta carpeta y usan los nombres de abajo.
 | Contenedores | `gepp-demo-<servicio>-1` |
 | Volúmenes | `gepp-demo_pgdata`, `gepp-demo_evidencia`, `gepp-demo_vigilada`, `gepp-demo_vivo` (tmpfs) |
 | Imágenes | `gepp-api:demo`, `gepp-web:demo`, `gepp-worker:demo-gpu`, `gepp-worker:demo-cpu` |
-| Puertos (loopback) | web `18080` · API `18000` · PostgreSQL `15432` |
+| Puertos (loopback) | web `18080` (proyector) y `18081` (tailnet) · API `18000` · PostgreSQL `15432` |
 | Base / Redis | usuario y base `gepp` · `redis://redis:6379/0` |
 
 ## Variables
@@ -28,6 +28,26 @@ Nada va en archivos. La ruta del compose lleva un espacio: entre comillas.
 | `MODELO_PTH`, `MODELO_CLASES` | para GPU | ruta del checkpoint `.pth` y de su `.clases.json`. **Sin ellas el trabajador monta `/dev/null`, se cae al cargar el modelo y la demo parece arriba sin analizar nada**: comprobar que estén antes de levantar (lo hará `armar-demo.sh`) |
 | `MODELO_ONNX`, `MODELO_CLASES` | para CPU | ruta del `.onnx` y de su `.clases.json`. Lo mismo: sin ellas no se analiza nada |
 | `GEPP_TELEGRAM_TOKEN`, `GEPP_AVISO_DESTINATARIO` | no | bot y chat. Sin token, el despachador queda en espera (no muere) |
+| `DEMO_IDENTIDADES` | no | `"correo=token,correo2=token2"`: quién entra por la puerta de la tailnet (abajo) y con qué token. Vacía o sin definir: esa puerta responde 403 a todo. Los mismos tokens entran a `GEPP_API_TOKENS` de la API (se suman a `DEMO_TOKEN`). El correo debe existir como usuario en la base **tal como está en la tabla `usuario`, en minúsculas** (el script lo pasa a minúsculas en nginx y en la API: la API busca el correo exacto). Ningún token puede ser `DEMO_TOKEN`. La lista mal formada (comillas, `$`, espacios, saltos de línea u otros caracteres de control, repetidos) **impide arrancar** `web` y `api` |
+
+## Dos puertas (nginx)
+
+| Puerta | Dónde | Quién entra |
+|---|---|---|
+| Local `127.0.0.1:18080` | proyector del portátil | cualquiera con acceso al portátil; la API recibe el token del bundle (`DEMO_TOKEN`) |
+| Tailnet `127.0.0.1:18081` | `tailscale serve` | solo quien llegue con `Tailscale-User-Login` de `DEMO_IDENTIDADES`: otra cosa → **403 en todo** (web y `/api/`). La API recibe el token **de esa persona**, que pisa al del navegador; la cabecera de identidad no sigue hacia la API |
+
+Son dos `server` separados a propósito: Tailscale Serve no pone la cabecera a los dispositivos con
+etiqueta, y no puede existir una puerta en la que su falta deje pasar con el token del bundle. Lo corre
+Edgar, no los scripts (no se tocó Tailscale):
+
+```
+! tailscale serve --bg --https=8443 http://127.0.0.1:18081     # deshacer: ! tailscale serve reset
+export DEMO_IDENTIDADES="<correo-1>=$(openssl rand -hex 16),<correo-2>=$(openssl rand -hex 16)"
+```
+
+Límites: la cabecera es de confianza solo porque 18081 está en loopback; cualquier proceso local del
+portátil podría escribirla. Los dispositivos con etiqueta no reciben la cabecera (403, a propósito).
 
 ## Levantar
 
