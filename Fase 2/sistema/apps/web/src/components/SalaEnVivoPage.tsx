@@ -4,6 +4,7 @@ import { useState } from "react";
 import { listarHallazgos } from "../api/client";
 import type { Hallazgo } from "../api/types";
 import { INTERVALO_BANDEJA_MS } from "../api/videos";
+import { sinPermiso, textoDeFallo } from "../utils/fallosSala";
 import { useEspejoWhep } from "../hooks/useEspejoWhep";
 import { formatHora } from "../utils/format";
 import { EvidenceDrawer } from "./EvidenceDrawer";
@@ -26,11 +27,20 @@ function CamaraEnVivo() {
   );
 }
 
-function HallazgosRecientes({ recientes, cargado, error, onAbrir }: { recientes: Hallazgo[]; cargado: boolean; error: boolean; onAbrir: (id: number) => void }) {
+interface RecientesProps {
+  recientes: Hallazgo[];
+  cargado: boolean;
+  fallo: unknown; // el error de la consulta, si lo hay
+  onReintentar: () => void;
+  onAbrir: (id: number) => void;
+}
+
+function HallazgosRecientes({ recientes, cargado, fallo, onReintentar, onAbrir }: RecientesProps) {
   return (
     <section className="sala-panel" aria-labelledby="sala-hallazgos">
       <h2 id="sala-hallazgos">Hallazgos recientes</h2>
-      {error && <p role="status">No fue posible cargar los hallazgos.</p>}
+      {fallo !== null && <p role="alert">{textoDeFallo(fallo, "hallazgos")}</p>}
+      {sinPermiso(fallo) && <button type="button" onClick={onReintentar}>Reintentar</button>}
       {cargado && recientes.length === 0 && <p role="status">Aún no hay hallazgos.</p>}
       <ul className="sala-recientes">
         {recientes.map((h) => (
@@ -54,7 +64,8 @@ export function SalaEnVivoPage() {
   const pagina = useQuery({
     queryKey: ["hallazgos-sala"],
     queryFn: () => listarHallazgos({ vista: "todos", orden: "ts_inicio_desc" }),
-    refetchInterval: INTERVALO_BANDEJA_MS,
+    retry: (intentos, error) => !sinPermiso(error) && intentos < 1,
+    refetchInterval: (consulta) => (sinPermiso(consulta.state.error) ? false : INTERVALO_BANDEJA_MS),
   });
   const recientes = (pagina.data?.items ?? []).slice(0, HALLAZGOS_RECIENTES);
   return (
@@ -63,7 +74,7 @@ export function SalaEnVivoPage() {
         <CamaraEnVivo />
         <VistaProcesada />
       </div>
-      <HallazgosRecientes recientes={recientes} cargado={Boolean(pagina.data)} error={pagina.isError} onAbrir={setAbierto} />
+      <HallazgosRecientes recientes={recientes} cargado={Boolean(pagina.data)} fallo={pagina.error} onReintentar={() => void pagina.refetch()} onAbrir={setAbierto} />
       {abierto !== undefined && (
         <EvidenceDrawer
           hallazgoId={abierto}

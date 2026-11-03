@@ -1,5 +1,5 @@
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
-import { cleanup, render, screen, waitFor, within } from "@testing-library/react";
+import { act, cleanup, render, screen, waitFor, within } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
 import { afterEach, beforeEach, expect, it, vi } from "vitest";
 
@@ -90,4 +90,36 @@ it.each([[["ver_hallazgos"]], [[]]])("sin ver_evidencia (%j) la pestaña ni apar
 it("sin sesión cargada tampoco aparece", () => {
   render(<AppShell seccion="panel" onNavigate={vi.fn()}><div /></AppShell>);
   expect(screen.queryByRole("button", { name: /Sala en vivo/ })).not.toBeInTheDocument();
+});
+
+it.each([
+  [401, "Sesión no válida"],
+  [403, "No tienes permiso para ver los hallazgos"],
+])("si /hallazgos responde %i dice «%s», deja de consultar y ofrece «Reintentar»", async (estado, texto) => {
+  vi.useFakeTimers();
+  try {
+    vi.mocked(api.listarHallazgos).mockRejectedValueOnce(new api.ApiError("no", estado));
+    dibujar();
+    await act(async () => { await vi.advanceTimersByTimeAsync(50); });
+    expect(screen.getByText(texto)).toBeInTheDocument();
+    expect(screen.queryByText("No fue posible consultar los hallazgos")).not.toBeInTheDocument();
+    const consultas = vi.mocked(api.listarHallazgos).mock.calls.length;
+    await act(async () => { await vi.advanceTimersByTimeAsync(20_000); });
+    expect(vi.mocked(api.listarHallazgos).mock.calls.length).toBe(consultas); // ni refresco ni reintento
+    act(() => screen.getByRole("button", { name: "Reintentar" }).click());
+    await act(async () => { await vi.advanceTimersByTimeAsync(50); });
+    expect(vi.mocked(api.listarHallazgos).mock.calls.length).toBe(consultas + 1);
+    expect(screen.queryByText(texto)).not.toBeInTheDocument();
+    expect(screen.getByText("Aún no hay hallazgos.")).toBeInTheDocument();
+  } finally {
+    vi.useRealTimers();
+  }
+});
+
+it("otro fallo de /hallazgos sale como error genérico, sin botón «Reintentar»", async () => {
+  vi.mocked(api.listarHallazgos).mockRejectedValue(new api.ApiError("caído", 503));
+  dibujar();
+  // un reintento (1 s de espera) antes de dar el error
+  expect(await screen.findByText("No fue posible consultar los hallazgos", {}, { timeout: 3_000 })).toBeInTheDocument();
+  expect(screen.queryByRole("button", { name: "Reintentar" })).not.toBeInTheDocument();
 });

@@ -208,6 +208,15 @@ export default function App() {
         />
       )}
       {seccion === "videos" && <VideosPage puedeProcesar={permisos.has("procesar_videos")} puedeVerEvidencia={permiteEvidencia} catalogos={catalogos.data} catalogosError={catalogos.isError} />}
+      {seccion === "sala" && sesion.isError && (
+        <main className="findings-page">
+          <div className="state-message state-message--error" role="alert">
+            <AlertTriangle />
+            No fue posible validar tu sesión
+            <button type="button" onClick={() => void sesion.refetch()}>Reintentar</button>
+          </div>
+        </main>
+      )}
       {seccion === "sala" && permiteEvidencia && <SalaEnVivoPage />}
       {seccion === "sala" && sesion.data && !permiteEvidencia && (
         <main className="findings-page"><div className="state-message" role="alert">No tienes permiso para ver la sala en vivo.</div></main>
