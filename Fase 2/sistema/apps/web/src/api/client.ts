@@ -39,7 +39,8 @@ function urlApi(ruta: string): URL {
   return new URL(ruta.replace(/^\/+/, ""), baseApi());
 }
 
-function cabecerasApi(headers?: HeadersInit): Headers {
+// También la usa el espejo de la cámara: nginx comprueba el mismo rol antes de entregar el video.
+export function cabecerasApi(headers?: HeadersInit): Headers {
   const result = new Headers(headers);
   result.set("Authorization", AUTHORIZATION);
   return result;
@@ -129,9 +130,10 @@ export const obtenerCatalogos = () => api<Catalogos>("/catalogos");
 export const obtenerEstado = () => api<EstadoSistema>("/estado");
 export const obtenerSesion = () => api<Sesion>("/yo");
 
-export function listarVideos(cursor?: string): Promise<PaginaVideos> {
+export function listarVideos(cursor?: string, estado?: Video["estado"]): Promise<PaginaVideos> {
   const parametros = new URLSearchParams({ limite: "200" });
   if (cursor) parametros.set("cursor", cursor);
+  if (estado) parametros.set("estado", estado);
   return api<PaginaVideos>(`/videos?${parametros}`);
 }
 

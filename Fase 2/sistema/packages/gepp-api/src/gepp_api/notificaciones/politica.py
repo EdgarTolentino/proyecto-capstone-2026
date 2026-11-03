@@ -7,7 +7,7 @@ Las dos velocidades (ADR-008):
 
 Y la cadena de supresión que protege el presupuesto de `03-alertas.md`:
 
-1. **Agrupación** por (destinatario, área, EPP): "3 personas sin casco" es UN mensaje.
+1. **Agrupación** por (destinatario, área, EPP): "3 incumplimientos sin casco" es UN mensaje.
 2. **Espera global**: como máximo un aviso cada `ESPERA_GLOBAL` por destinatario (techo duro).
 3. **Espera por cámara**: una cámara ya avisada hace menos de `ESPERA_POR_CAMARA` no vuelve a
    interrumpir; lo nuevo de esa cámara baja al resumen.
@@ -152,9 +152,13 @@ def _hora(ts: datetime, tz: ZoneInfo) -> str:
 
 
 def texto_inmediato(g: Grupo, turno: str, tz: ZoneInfo) -> tuple[str, str]:
-    """Al área y al turno, nunca a la persona: "3 personas sin casco", no quiénes."""
+    """Al área y al turno, nunca a la persona: cuántos incumplimientos, no quiénes.
+
+    Se cuentan hallazgos, no personas: el `track_id` es efímero y con un video partido en trozos
+    la misma persona puede dar dos hallazgos. Decir «2 personas» afirmaría lo que no se contó.
+    """
     n = len(g.items)
-    personas = "1 persona" if n == 1 else f"{n} personas"
+    personas = "1 incumplimiento" if n == 1 else f"{n} incumplimientos"
     desde = min(p.ts_inicio for p in g.items)
     hasta = max(p.ts_fin or p.ts_inicio for p in g.items)
     titulo = f"{g.area} · turno {turno}"[:MAXIMO_TITULO]

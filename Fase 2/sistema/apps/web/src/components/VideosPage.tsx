@@ -4,7 +4,7 @@ import { Fragment, useEffect, useMemo, useRef, useState } from "react";
 
 import { ApiError, listarPedidos, listarVideos, pedirIngesta, reprocesarVideo } from "../api/client";
 import type { Catalogos, EstadoPedido, Pedido, PedidoNuevo, Video } from "../api/types";
-import { intervaloDePedidos, intervaloDeRefresco, mensajeDePedido, pedidoDejoListaVieja, pedidoSigueAbierto } from "../api/videos";
+import { intervaloDePedidos, intervaloDeRefresco, intervaloTrasError, mensajeDePedido, pedidoDejoListaVieja, pedidoSigueAbierto } from "../api/videos";
 import { AvanceVideo } from "./AvanceVideo";
 import { ProcesarVideoDialog, type FuenteElegible } from "./ProcesarVideoDialog";
 import { VivoVideo } from "./VivoVideo";
@@ -155,8 +155,9 @@ export function VideosPage({ puedeProcesar = false, puedeVerEvidencia = false, c
       const siguiente = ultimaPagina.siguiente_cursor ?? undefined;
       return siguiente && !parametros.includes(siguiente) ? siguiente : undefined;
     },
-    // Si un refresco falla, se deja de insistir hasta que la persona reintente.
-    refetchInterval: (query) => (query.state.status === "error" ? false : intervaloDeRefresco(query.state.data?.pages)),
+    // Si un refresco falla se sigue intentando, más despacio (salvo 401 y 403).
+    refetchInterval: (query) =>
+      query.state.status === "error" ? intervaloTrasError(query.state.error) : intervaloDeRefresco(query.state.data?.pages),
   });
   const paginas = consulta.data?.pages;
   const videosPorId = useMemo(() => {
@@ -251,6 +252,7 @@ export function VideosPage({ puedeProcesar = false, puedeVerEvidencia = false, c
       {consulta.isRefetchError && !consulta.isFetching && (
         <div className="state-message" role="status">
           No fue posible actualizar la cola; se muestran los últimos datos cargados.
+          {intervaloTrasError(consulta.error) !== false && " Se vuelve a intentar sola cada 10 s."}
           <button type="button" onClick={() => void consulta.refetch()}>Reintentar</button>
         </div>
       )}
