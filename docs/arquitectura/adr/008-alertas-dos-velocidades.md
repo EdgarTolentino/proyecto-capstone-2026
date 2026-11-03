@@ -40,3 +40,12 @@ emitidos. Es el número que demuestra que el sistema sirve, y sale gratis del fl
 
 Si en la demostración de la S15 el prevencionista recibe 200 correos, el proyecto está muerto
 aunque el modelo sea perfecto. Esta decisión es la que lo evita.
+
+## Nota (2026-11-03): el aviso cuenta incumplimientos, no personas
+
+El ejemplo de arriba («3 personas sin casco») se mantiene como historia de la decisión, pero el
+texto del aviso dice «3 incumplimientos sin casco». El aviso cuenta hallazgos, y el `track_id` es
+efímero: con un video partido en trozos (la cámara de demostración de
+[`spec-en-vivo.md`](../../operacion/despliegue/spec-en-vivo.md)), la misma persona puede dar dos
+hallazgos. Decir «2 personas» afirmaría algo que no se contó. Sigue yendo al área y al turno,
+nunca a una persona.

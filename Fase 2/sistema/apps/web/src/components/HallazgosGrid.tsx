@@ -79,11 +79,15 @@ export function HallazgosGrid(props: HallazgosGridProps) {
   });
   const todos = props.hallazgos.length > 0 && props.hallazgos.every((item) => props.seleccionados.has(item.id));
 
-  // Cuando j/k cambia la fila activa, la mantenemos dentro de la parte visible.
+  // Cuando j/k cambia la fila activa, la mantenemos dentro de la parte visible. Solo depende de la
+  // fila activa, no de la lista: si llega un hallazgo nuevo (la bandeja se refresca sola), la vista
+  // de quien está mirando no se mueve.
+  const lista = useRef(props.hallazgos);
+  useEffect(() => { lista.current = props.hallazgos; });
   useEffect(() => {
-    const index = props.hallazgos.findIndex((item) => item.id === props.activoId);
+    const index = lista.current.findIndex((item) => item.id === props.activoId);
     if (index >= 0) virtual.scrollToIndex(index, { align: "auto" });
-  }, [props.activoId, props.hallazgos, virtual]);
+  }, [props.activoId, virtual]);
 
   return (
     <div

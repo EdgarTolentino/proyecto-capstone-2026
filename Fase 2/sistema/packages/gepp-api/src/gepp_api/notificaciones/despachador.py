@@ -27,6 +27,7 @@ from gepp_bd.repositorios import auditoria
 from gepp_bd.repositorios import notificaciones as repo
 from gepp_bd.turnos import turno_en_curso
 from sqlalchemy import Engine, func, select
+from sqlalchemy.exc import SQLAlchemyError
 from sqlalchemy.orm import Session
 
 from gepp_api.notificaciones.canal import Aviso, CanalNotificacion, Estado
@@ -51,6 +52,8 @@ class ResultadoCiclo:
     fallos: int = 0
     resumenes: int = 0
     motivos: list[str] = field(default_factory=list)
+    #: La base se cortó en este ciclo; el siguiente lo reintenta.
+    error_bd: str | None = None
 
     @property
     def vacio(self) -> bool:
@@ -73,19 +76,37 @@ class Despachador:
         # Sin reloj manda la hora de PostgreSQL, la misma que marca `enviada_en`. Las pruebas
         # lo fijan para no depender de si corren cerca de un cambio de turno.
         self._reloj = reloj
+        #: Acuses ya sacados del canal (Telegram los da una sola vez) que la base aún no guardó.
+        self._acuses_sin_guardar: list[str] = []
 
     def ciclo(self) -> ResultadoCiclo:
+        """Un ciclo. Si la base se corta no lanza: lo anota en `error_bd` y el siguiente reintenta.
+
+        Lo que ya estaba en el outbox sigue ahí (cada paso va en su transacción), y los acuses
+        que el canal ya entregó se guardan hasta que la base responda.
+        """
         r = ResultadoCiclo()
-        tokens = self._canal.acuses_recibidos()
-        with transaccion(self._motor) as s:
-            for token in tokens:
-                r.acusados += repo.acusar_por_token(s, token)
-        with transaccion(self._motor) as s:
-            ahora = self._reloj() if self._reloj else s.execute(select(func.now())).scalar_one()
-            turno, inicio = turno_en_curso(ahora, self._tz)
-            self._inmediatos(s, ahora, turno.codigo, inicio, r)
-        with transaccion(self._motor) as s:
-            self._resumenes(s, inicio, r)
+        try:
+            # Mientras haya acuses sin guardar NO se piden updates nuevos: pedirlos confirmaría
+            # ante Telegram los anteriores, y si el proceso se reinicia con la base aún caída ese
+            # acuse (ya con el botón quitado) no vuelve. Sin confirmar, un reinicio lo recibe.
+            if not self._acuses_sin_guardar:
+                self._acuses_sin_guardar = self._canal.acuses_recibidos()
+            acusados = 0
+            with transaccion(self._motor) as s:
+                for token in self._acuses_sin_guardar:
+                    acusados += repo.acusar_por_token(s, token)
+            r.acusados = acusados  # recién después del commit: si revierte, no se informa
+            self._acuses_sin_guardar = []
+            with transaccion(self._motor) as s:
+                ahora = self._reloj() if self._reloj else s.execute(select(func.now())).scalar_one()
+                turno, inicio = turno_en_curso(ahora, self._tz)
+                self._inmediatos(s, ahora, turno.codigo, inicio, r)
+            with transaccion(self._motor) as s:
+                self._resumenes(s, inicio, r)
+        except SQLAlchemyError as e:  # base caída, conexión perdida, agotó el pool, sesión inválida
+            orig = getattr(e, "orig", None)
+            r.error_bd = type(orig).__name__ if orig else type(e).__name__
         return r
 
     # ── Avisos inmediatos ───────────────────────────────────────────────────────────────
