@@ -29,8 +29,9 @@ export function EvidenceDrawer(props: EvidenceDrawerProps) {
     queryFn: () => obtenerHallazgo(props.hallazgoId),
   });
   const indice = props.cola.findIndex((item) => item.id === props.hallazgoId);
-  const anterior = props.cola[indice - 1];
-  const siguiente = props.cola[indice + 1];
+  // Si el hallazgo abierto ya no está en la lista (la bandeja se refrescó), no hay vecinos ni lugar.
+  const anterior = indice >= 0 ? props.cola[indice - 1] : undefined;
+  const siguiente = indice >= 0 ? props.cola[indice + 1] : undefined;
 
   // Al abrir, llevamos el foco al botón cerrar. Al cerrar, App lo devuelve a la bandeja.
   useEffect(() => { if (!document.querySelector(".modal-layer")) closeRef.current?.focus(); }, []);
@@ -63,7 +64,7 @@ export function EvidenceDrawer(props: EvidenceDrawerProps) {
             <button type="button" disabled={props.isUpdating} onClick={() => props.onTriage({ estado: "duplicado", duplicado_de: null })}>Duplicado</button>
             <button type="button" disabled={props.isUpdating} onClick={() => props.onTriage({ estado: "pospuesto", posponer_hasta: null })}>Posponer</button>
             <button type="button" disabled title="El contrato aún no entrega el catálogo de responsables">Asignar…</button>
-            <span className="queue-position mono">{indice + 1} de {props.cola.length} en la cola</span>
+            <span className="queue-position mono">{indice >= 0 ? `${indice + 1} de ${props.cola.length} en la cola` : "Fuera de la lista actual"}</span>
           </footer>
         )}
       </aside>
