@@ -40,7 +40,7 @@ GEPP_BD_URL=postgresql+psycopg://gepp:gepp_dev@localhost:5432/gepp_demo make des
 En segundos llega al teléfono:
 
 > **Frente de obra gruesa · turno A**
-> 1 persona sin casco ni chaleco entre 15:38 y 15:38.
+> 1 incumplimiento sin casco ni chaleco entre 15:38 y 15:38.
 > Indicio automatizado. Requiere validación humana.
 > [ ✅ Acuso recibo ]
 
@@ -61,7 +61,7 @@ corriente y baja al resumen del turno. Eso es ADR-008 funcionando, no un error.
 |---|---|
 | Hallazgo crítico, o más de 120 s | Aviso inmediato |
 | Hallazgo corriente | Al resumen, que sale al empezar el turno siguiente |
-| Varias personas en la misma área y EPP | **Un** mensaje: "3 personas sin casco" |
+| Varios incumplimientos en la misma área y EPP | **Un** mensaje: "3 incumplimientos sin casco" |
 | Ya hubo un aviso hace menos de 10 min | Espera y se agrupa con lo que llegue |
 | La misma cámara avisó hace menos de 30 min | Al resumen |
 | Ya salieron 6 avisos en el turno | Al resumen, y queda registrado en `auditoria` |
