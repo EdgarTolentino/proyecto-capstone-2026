@@ -126,12 +126,25 @@ services:
   api:
     image: gepp-api:demo
     user: "1000:1000"
+    # A DEMO_TOKEN se le SUMAN los tokens por persona de DEMO_IDENTIDADES ("correo=token,..."): los
+    # mismos que usa la puerta de la tailnet de la web. identidades.sh falla si la lista está mal formada.
+    entrypoint:
+      - sh
+      - -c
+      - |
+        extra=$$(sh /identidades.sh api) || exit 1
+        export GEPP_API_TOKENS="$$GEPP_API_TOKENS$${extra:+,$$extra}"
+        exec "$$@"
+      - api
+    command: ["python", "-m", "gepp_api"]
     environment:
       - *bd
       - GEPP_API_TOKENS=${DEMO_TOKEN:?define DEMO_TOKEN}=prevencionista@obra.invalid
+      - DEMO_IDENTIDADES=${DEMO_IDENTIDADES:-}
+      - DEMO_TOKEN=${DEMO_TOKEN}     # identidades.sh rechaza una persona con este mismo token
       - GEPP_VISTA_EN_VIVO=1
       - GEPP_CARPETA_VIVO=/vivo
-    volumes: ["evidencia:/datos/evidencia:ro", "vivo:/vivo:ro"]
+    volumes: ["evidencia:/datos/evidencia:ro", "vivo:/vivo:ro", "./identidades.sh:/identidades.sh:ro"]
     ports: ["127.0.0.1:18000:8000"]
     depends_on: {permisos: {condition: service_completed_successfully}}
     restart: unless-stopped
@@ -145,8 +158,19 @@ services:
       dockerfile: despliegue/imagenes/api.Dockerfile
       target: web
       args: {VITE_API_TOKEN: "${DEMO_TOKEN}"}
-    environment: {API_UPSTREAM: "api:8000"}
-    ports: ["127.0.0.1:18080:8080"]
+    environment:
+      API_UPSTREAM: "api:8000"
+      DEMO_IDENTIDADES: "${DEMO_IDENTIDADES:-}"
+      DEMO_TOKEN: "${DEMO_TOKEN}"
+    # Genera el mapa de identidades antes de arrancar nginx; si falla, el contenedor no arranca.
+    entrypoint:
+      - sh
+      - -c
+      - sh /identidades.sh nginx > /etc/nginx/identidades.conf && exec /docker-entrypoint.sh nginx -g "daemon off;"
+    volumes: ["./identidades.sh:/identidades.sh:ro"]
+    # 18080: proyector (token del bundle). 18081: puerta de la tailnet; Edgar la publica con
+    # `tailscale serve --bg --https=8443 http://127.0.0.1:18081` (README). Ninguna sale de loopback.
+    ports: ["127.0.0.1:18080:8080", "127.0.0.1:18081:8081"]
     depends_on: [api]
     restart: unless-stopped
 
