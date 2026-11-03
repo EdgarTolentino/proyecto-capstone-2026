@@ -17,13 +17,22 @@ from gepp_api.notificaciones.despachador import Despachador
 from gepp_api.notificaciones.telegram import CanalTelegram
 
 
+def anunciar_cambio(nombre: str, visto: str | None, actual: str | None) -> str | None:
+    """Imprime en stderr solo cuando el estado cambia (error nuevo o recuperación): una caída de
+    media hora no llena la terminal. Devuelve el estado a recordar."""
+    if actual != visto:
+        print(f"[despachador] {nombre}: {actual or 'recuperado'}", file=sys.stderr, flush=True)
+    return actual
+
+
 def main() -> int:
     token = os.environ.get("GEPP_TELEGRAM_TOKEN")
     if not token:
         print("Falta GEPP_TELEGRAM_TOKEN (ver docs/operacion/alertas-telegram.md)", file=sys.stderr)
         return 2
     intervalo = float(os.environ.get("GEPP_DESPACHO_INTERVALO_S", "5"))
-    despachador = Despachador(crear_motor(), CanalTelegram(token))
+    canal = CanalTelegram(token)
+    despachador = Despachador(crear_motor(), canal)
     seguir = True
 
     def detener(_: int, __: FrameType | None) -> None:
@@ -33,8 +42,10 @@ def main() -> int:
     signal.signal(signal.SIGTERM, detener)
     signal.signal(signal.SIGINT, detener)
     print(f"[despachador] Telegram, cada {intervalo:g} s", flush=True)
+    error_visto: str | None = None
     while seguir:
         r = despachador.ciclo()
+        error_visto = anunciar_cambio("acuses", error_visto, canal.ultimo_error)
         if not r.vacio:
             print(
                 f"[despachador] enviados={r.avisos_enviados} resumenes={r.resumenes} "
