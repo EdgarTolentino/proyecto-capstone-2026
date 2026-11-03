@@ -162,12 +162,13 @@ services:
       API_UPSTREAM: "api:8000"
       DEMO_IDENTIDADES: "${DEMO_IDENTIDADES:-}"
       DEMO_TOKEN: "${DEMO_TOKEN}"
+      ESPEJO_CLAVE: "${ESPEJO_CLAVE:-}"    # clave del `lector` de MediaMTX (solo con el override del celular)
     # Genera el mapa de identidades antes de arrancar nginx; si falla, el contenedor no arranca.
     entrypoint:
       - sh
       - -c
       - sh /identidades.sh nginx > /etc/nginx/identidades.conf && exec /docker-entrypoint.sh nginx -g "daemon off;"
-    volumes: ["./identidades.sh:/identidades.sh:ro"]
+    volumes: ["./identidades.sh:/identidades.sh:ro", "./espejo.inc:/etc/nginx/espejo.inc:ro"]
     # 18080: proyector (token del bundle). 18081: puerta de la tailnet; Edgar la publica con
     # `tailscale serve --bg --https=8443 http://127.0.0.1:18081` (README). Ninguna sale de loopback.
     ports: ["127.0.0.1:18080:8080", "127.0.0.1:18081:8081"]

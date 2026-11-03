@@ -29,13 +29,14 @@ Nada va en archivos. La ruta del compose lleva un espacio: entre comillas.
 | `MODELO_ONNX`, `MODELO_CLASES` | para CPU | ruta del `.onnx` y de su `.clases.json`. Lo mismo: sin ellas no se analiza nada |
 | `GEPP_TELEGRAM_TOKEN`, `GEPP_AVISO_DESTINATARIO` | no | bot y chat. Sin token, el despachador queda en espera (no muere) |
 | `DEMO_IDENTIDADES` | no | `"correo=token,correo2=token2"`: quién entra por la puerta de la tailnet (abajo) y con qué token. Vacía o sin definir: esa puerta responde 403 a todo. Los mismos tokens entran a `GEPP_API_TOKENS` de la API (se suman a `DEMO_TOKEN`). El correo debe existir como usuario en la base **tal como está en la tabla `usuario`, en minúsculas** (el script lo pasa a minúsculas en nginx y en la API: la API busca el correo exacto). Ningún token puede ser `DEMO_TOKEN`. La lista mal formada (comillas, `$`, espacios, saltos de línea u otros caracteres de control, repetidos) **impide arrancar** `web` y `api` |
+| `ESPEJO_CLAVE` | con la cámara | clave del usuario `lector` de MediaMTX; la pone nginx en `/espejo/`, el navegador no la ve. Obligatoria con el override del celular |
 
 ## Dos puertas (nginx)
 
 | Puerta | Dónde | Quién entra |
 |---|---|---|
 | Local `127.0.0.1:18080` | proyector del portátil | cualquiera con acceso al portátil; la API recibe el token del bundle (`DEMO_TOKEN`) |
-| Tailnet `127.0.0.1:18081` | `tailscale serve` | solo quien llegue con `Tailscale-User-Login` de `DEMO_IDENTIDADES`: otra cosa → **403 en todo** (web y `/api/`). La API recibe el token **de esa persona**, que pisa al del navegador; la cabecera de identidad no sigue hacia la API |
+| Tailnet `127.0.0.1:18081` | `tailscale serve` | solo quien llegue con `Tailscale-User-Login` de `DEMO_IDENTIDADES`: otra cosa → **403 en todo** (web, `/api/`, `/espejo/`). La API recibe el token **de esa persona**, que pisa al del navegador; la cabecera de identidad no sigue hacia la API |
 
 Son dos `server` separados a propósito: Tailscale Serve no pone la cabecera a los dispositivos con
 etiqueta, y no puede existir una puerta en la que su falta deje pasar con el token del bundle. Lo corre
@@ -48,6 +49,15 @@ export DEMO_IDENTIDADES="<correo-1>=$(openssl rand -hex 16),<correo-2>=$(openssl
 
 Límites: la cabecera es de confianza solo porque 18081 está en loopback; cualquier proceso local del
 portátil podría escribirla. Los dispositivos con etiqueta no reciben la cabecera (403, a propósito).
+`/espejo/` responde 503 «cámara apagada» si no se levantó el override del celular.
+
+`/espejo/` exige además el permiso `ver_evidencia` **en cada petición**, en las dos puertas: nginx le pregunta a
+la API (`auth_request` a `GET /videos/0/vivo`, con el mismo `Authorization` que usaría `/api/`; ahí el permiso se
+revisa antes que el 404). Sin permiso → 403 (p. ej. `administrador`), sin token → 401. En la puerta local el
+navegador debe mandar `Authorization: Bearer <token>` también en el `POST` y el `DELETE` del espejo.
+Solo el mismo origen: `OPTIONS` en `/espejo/` → 403 y se ocultan las `Access-Control-*` de MediaMTX.
+Límites que se aceptan: un 404 que no venga de esa ruta de la API (API vieja o upstream equivocado) también
+autorizaría (nginx y la API salen del mismo compose); y solo se comprueba `ver_evidencia`, no el área.
 
 ## Levantar
 

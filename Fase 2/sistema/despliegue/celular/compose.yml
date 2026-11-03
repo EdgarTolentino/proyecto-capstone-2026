@@ -19,6 +19,8 @@ services:
       # Clave del usuario `publicador` (solo publica en `camara`). Obligatoria y no vacía: con la clave
       # vacía MediaMTX aceptaría al usuario sin contraseña (probado).
       - MTX_AUTHINTERNALUSERS_0_PASS=${CAMARA_CLAVE:?define CAMARA_CLAVE}
+      # Clave del `lector` (solo lee `camara`): nginx la pone en /espejo/; es la misma ESPEJO_CLAVE de `web`.
+      - MTX_AUTHINTERNALUSERS_1_PASS=${ESPEJO_CLAVE:?define ESPEJO_CLAVE}
     volumes:
       - ../celular/mediamtx.yml:/mediamtx.yml:ro
       - vigilada:/grabaciones

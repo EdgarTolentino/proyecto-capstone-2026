@@ -9,7 +9,7 @@ primero). Desde `Fase 2/sistema` (ruta con espacio: entre comillas).
 Quien se pone frente a la cámara **firma antes una autorización por escrito** y se le lee el aviso completo:
 **finalidad** solo académica (la presentación del capstone); **responsable** Edgar Tolentino, a quien se pide
 todo; **quién ve**: el proyector y la vista en vivo muestran su cara **nítida** mientras dura la demo, y el video
-crudo no lo ve nadie más; **qué queda**: hallazgos y recortes con el rostro difuminado en la base de la demo, que se
+crudo lo ven solo el proyector y los integrantes nombrados por el espejo, sin grabarse; **qué queda**: hallazgos y recortes con el rostro difuminado en la base de la demo, que se
 borran con `rearmar-demo` y al terminar; **cómo retirarse**: avisa a Edgar y se borra lo suyo en ese momento. Un
 aviso verbal no basta. Sin esto, plan B: un video ya autorizado (`07-datasets.md`) por el mismo camino.
 
@@ -29,6 +29,7 @@ depende de PostgreSQL (probado con la base detenida y trabada).
 ```bash
 export DEMO_PG_PASSWORD=$(openssl rand -hex 12) DEMO_TOKEN=$(openssl rand -hex 16)
 export CAMARA_CLAVE=$(openssl rand -hex 12)    # clave de `publicador` (solo publica `camara`): obligatoria y no vacía
+export ESPEJO_CLAVE=$(openssl rand -hex 12)    # clave de `lector` (solo lee `camara`): obligatoria; la usa nginx, no el navegador
 export MODELO_PTH=... MODELO_CLASES=...        # ver despliegue/local/README.md
 C="docker compose -p gepp-demo -f despliegue/local/compose.yml -f despliegue/celular/compose.yml"
 TS_IP=<IP de Tailscale del portátil> SEGMENTO=5s $C up -d --build --wait
@@ -42,6 +43,16 @@ MediaMTX: no depende de la imagen del trabajador); el override cambia el volumen
 y los trabajadores esperan a que el `borrador` esté **sano** (su latido al día: con un TTL inválido el borrador cae y
 MediaMTX NO arranca) y el `borrador` no espera a PostgreSQL. Si la demo ya estaba levantada sin cámara, `down -v` primero. Sin `TS_IP`, los medios WebRTC quedan en
 loopback. **RTSP no se publica al host.**
+
+## Espejo en la página (`/espejo/`)
+
+nginx (`despliegue/local/`) publica `POST /espejo/camara/whep` (WHEP, `Content-Type: application/sdp`) hacia
+MediaMTX en las dos puertas; en la de la tailnet solo para quien esté en `DEMO_IDENTIDADES`. nginx entra como
+`lector`, que **solo lee `camara`** (restringido a redes privadas con `ips:`: rechaza IP públicas y de la
+tailnet, pero NO aísla a nginx de otro contenedor ni de loopback, por eso la clave es obligatoria). El `Location`
+del 201 vuelve como `/espejo/camara/whep/<id>` (relativo), y el `DELETE` de ese Location cierra la sesión.
+**No se graba**: `record` es solo de los trozos del trabajador; HLS, RTMP y SRT siguen apagados. Sin este
+override, `/espejo/` responde 503 «cámara apagada» y nginx arranca igual.
 
 ## Sin celular: Chromium headless con cámara falsa
 
@@ -65,7 +76,8 @@ docker run --rm -e CAMARA_CLAVE --network container:gepp-demo-mediamtx-1 \
 3. Levantar con `TS_IP=$(tailscale ip -4)` como arriba: los puertos 18189 UDP/TCP se abren SOLO en esa IP.
 4. En el teléfono (con la app de Tailscale en el mismo tailnet) abrir
    `https://<portátil>.<tailnet>.ts.net/camara/publish`. El navegador pide **usuario `publicador` y la clave**
-   (`CAMARA_CLAVE`). Dejar el códec en **H264**, «publish» y permitir la cámara. Ese URL es el QR (sin la clave).
+   (`CAMARA_CLAVE`). Dejar el códec en **H264**, poner **«audio device: none»** (la página de MediaMTX v1.21.3 elige el primer
+   micrófono por defecto y elegir H264 no lo apaga), «publish» y permitir la cámara. Ese URL es el QR (sin la clave).
 5. Con la autorización firmada, pararse sin casco frente a la cámara; el hallazgo aparece a los ~8-11 s (5 s de
    segmento, GPU).
 
