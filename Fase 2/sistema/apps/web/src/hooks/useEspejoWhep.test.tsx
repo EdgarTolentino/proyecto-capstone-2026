@@ -148,3 +148,82 @@ it("al desmontar deja de reintentar", async () => {
   await act(async () => { await vi.advanceTimersByTimeAsync(REINTENTO_ESPEJO_MS * 3); });
   expect(llamadas("POST")).toHaveLength(1);
 });
+
+const conLocation = (ubicacion: string) => new Response("respuesta-sdp", { status: 201, headers: { Location: ubicacion } });
+
+it.each([
+  ["otro origen", "https://otro.example/espejo/x"],
+  ["fuera de /espejo/", "/otra-ruta/x"],
+])("un Location %s se trata como fallo y no se le manda nunca un DELETE", async (_caso, ubicacion) => {
+  respuestas = [conLocation(ubicacion)];
+  const { result, unmount } = renderHook(() => useEspejoWhep());
+  await asentar();
+  expect(result.current.estado).toBe("apagada");
+  unmount();
+  expect(llamadas("DELETE")).toHaveLength(0);
+  expect(fetchFalso.mock.calls.every(([url]) => url === RUTA_WHEP)).toBe(true);
+});
+
+it("si se desmonta durante la recolección de candidatos, al vencer el plazo no manda el POST", async () => {
+  respuestas = [ok()];
+  const original = ConexionFalsa.prototype.createOffer;
+  ConexionFalsa.prototype.createOffer = async function (this: ConexionFalsa) {
+    this.iceGatheringState = "gathering"; // nunca termina
+    return original.call(this);
+  };
+  try {
+    const { unmount } = renderHook(() => useEspejoWhep());
+    await asentar();
+    unmount();
+    await act(async () => { await vi.advanceTimersByTimeAsync(10_000); });
+    expect(llamadas("POST")).toHaveLength(0);
+  } finally {
+    ConexionFalsa.prototype.createOffer = original;
+  }
+});
+
+async function conectada() {
+  respuestas = [ok(), ok()];
+  const hook = renderHook(() => useEspejoWhep());
+  await asentar();
+  const conexion = ConexionFalsa.todas[0];
+  act(() => conexion.ontrack?.({ streams: [{}] }));
+  const cambiar = (estado: string) => act(() => {
+    conexion.connectionState = estado;
+    conexion.onconnectionstatechange?.();
+  });
+  return { ...hook, conexion, cambiar };
+}
+const GRACIA = 5_000; // literal a propósito, como el reintento
+
+it("`disconnected` es transitorio: si vuelve a `connected` dentro del plazo, no se cierra ni se borra nada", async () => {
+  const { result, conexion, cambiar } = await conectada();
+  cambiar("disconnected");
+  await act(async () => { await vi.advanceTimersByTimeAsync(GRACIA - 1); });
+  expect(conexion.close).not.toHaveBeenCalled();
+  expect(result.current.estado).toBe("en_vivo");
+  cambiar("connected");
+  await act(async () => { await vi.advanceTimersByTimeAsync(GRACIA * 2); });
+  expect(conexion.close).not.toHaveBeenCalled();
+  expect(llamadas("DELETE")).toHaveLength(0);
+  expect(result.current.estado).toBe("en_vivo");
+});
+
+it("si `disconnected` no se recupera en el plazo, falla: «apagada», DELETE y reintento", async () => {
+  const { result, conexion, cambiar } = await conectada();
+  cambiar("disconnected");
+  await act(async () => { await vi.advanceTimersByTimeAsync(GRACIA - 1); });
+  expect(llamadas("DELETE")).toHaveLength(0);
+  await act(async () => { await vi.advanceTimersByTimeAsync(1); });
+  expect(result.current.estado).toBe("apagada");
+  expect(conexion.close).toHaveBeenCalled();
+  expect(llamadas("DELETE")).toHaveLength(1);
+  await act(async () => { await vi.advanceTimersByTimeAsync(REINTENTO_ESPEJO_MS); });
+  expect(llamadas("POST")).toHaveLength(2);
+});
+
+it.each(["failed", "closed"])("`%s` falla de inmediato, sin esperar el plazo", async (estado) => {
+  const { result, cambiar } = await conectada();
+  cambiar(estado);
+  expect(result.current.estado).toBe("apagada");
+});

@@ -7,6 +7,9 @@ import type { RefObject } from "react";
 export const RUTA_WHEP = "/espejo/camara/whep";
 export const REINTENTO_ESPEJO_MS = 5_000;
 const ESPERA_ICE_MS = 3_000;
+// `disconnected` suele ser transitorio (W3C): se le da este plazo para volver a `connected`.
+export const GRACIA_DESCONEXION_MS = 5_000;
+const PREFIJO_RECURSO = "/espejo/";
 
 export type EstadoEspejo = "conectando" | "en_vivo" | "apagada";
 
@@ -35,6 +38,7 @@ export function useEspejoWhep(): { estado: EstadoEspejo; videoRef: RefObject<HTM
     let pc: RTCPeerConnection | undefined;
     let sesion: string | undefined; // URL del recurso WHEP (cabecera Location del POST)
     let reintento: number | undefined;
+    let gracia: number | undefined; // plazo de una desconexión transitoria
 
     // Cierra la conexión y borra el recurso en el servidor (DELETE al Location).
     const soltar = () => {
@@ -42,6 +46,8 @@ export function useEspejoWhep(): { estado: EstadoEspejo; videoRef: RefObject<HTM
       const recurso = sesion;
       pc = undefined;
       sesion = undefined;
+      window.clearTimeout(gracia);
+      gracia = undefined;
       if (conexion) {
         conexion.ontrack = null;
         conexion.onconnectionstatechange = null;
@@ -71,10 +77,24 @@ export function useEspejoWhep(): { estado: EstadoEspejo; videoRef: RefObject<HTM
           if (activo) setEstado("en_vivo");
         };
         conexion.onconnectionstatechange = () => {
-          if (["failed", "disconnected", "closed"].includes(conexion.connectionState) && pc === conexion) fallar();
+          if (pc !== conexion) return;
+          const estadoConexion = conexion.connectionState;
+          if (estadoConexion === "failed" || estadoConexion === "closed") {
+            fallar();
+          } else if (estadoConexion === "disconnected") {
+            // Puede volver solo: se espera un poco antes de darla por perdida.
+            gracia ??= window.setTimeout(() => {
+              gracia = undefined;
+              if (pc === conexion && conexion.connectionState !== "connected") fallar();
+            }, GRACIA_DESCONEXION_MS);
+          } else if (estadoConexion === "connected") {
+            window.clearTimeout(gracia);
+            gracia = undefined;
+          }
         };
         await conexion.setLocalDescription(await conexion.createOffer());
         await esperarRecoleccion(conexion);
+        if (!activo || pc !== conexion) return; // se desmontó durante la recolección: sin POST
         const respuesta = await fetch(RUTA_WHEP, {
           method: "POST",
           headers: { "Content-Type": "application/sdp" },
@@ -82,7 +102,14 @@ export function useEspejoWhep(): { estado: EstadoEspejo; videoRef: RefObject<HTM
         });
         if (!respuesta.ok) throw new Error(`WHEP ${respuesta.status}`);
         const ubicacion = respuesta.headers.get("Location");
-        if (ubicacion) sesion = new URL(ubicacion, new URL(RUTA_WHEP, window.location.origin)).toString();
+        if (ubicacion) {
+          // El DELETE solo va al mismo origen y bajo /espejo/: un Location ajeno es un fallo.
+          const recurso = new URL(ubicacion, new URL(RUTA_WHEP, window.location.origin));
+          if (recurso.origin !== window.location.origin || !recurso.pathname.startsWith(PREFIJO_RECURSO)) {
+            throw new Error("Location inválido");
+          }
+          sesion = recurso.toString();
+        }
         if (!activo) {
           soltar(); // se desmontó mientras se esperaba la respuesta
           return;
