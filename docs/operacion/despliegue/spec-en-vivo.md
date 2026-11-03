@@ -1,6 +1,6 @@
 # Spec — Guardián EPP en vivo para la presentación
 
-**Estado:** propuesta, pendiente de las decisiones de Edgar (sección 6) · **Fecha:** 2026-11-02 ·
+**Estado:** aprobada por Edgar el 2026-11-03, con todas las recomendaciones de la sección 6 · **Fecha:** 2026-11-02 ·
 **Revisión externa:** Codex `gpt-6-astra` (max) pidió cambios a la primera versión. Esta versión
 los incorpora; el detalle está en la sección 9.
 

@@ -67,3 +67,14 @@ apagada por defecto, la ven solo los roles con `ver_evidencia` y los cuadros viv
 memoria que se borra al terminar el procesamiento. Condiciones y límites en
 [`02-privacidad-y-cumplimiento.md`](../../producto/02-privacidad-y-cumplimiento.md), sección
 «Excepción: vista en vivo del procesamiento».
+
+## Nota (2026-11-03): cámara de demostración en la sala
+
+Para la presentación académica, el celular de Edgar hace de cámara y el sistema graba trozos cortos
+de video en memoria para procesarlos. Lo decide Edgar Tolentino el 2026-11-03 (decisión D4 de
+[`spec-en-vivo.md`](../../operacion/despliegue/spec-en-vivo.md)). No cambia lo que dice este ADR:
+no se identifica a nadie y la evidencia persistida sigue siendo el recorte con el rostro
+difuminado. Lo nuevo es que existe video crudo de personas en la sala durante unos minutos, en
+memoria y con autorización escrita de quienes aparecen. Condiciones en
+[`02-privacidad-y-cumplimiento.md`](../../producto/02-privacidad-y-cumplimiento.md), sección
+«Excepción: cámara de demostración en la sala».
