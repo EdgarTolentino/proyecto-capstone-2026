@@ -3,7 +3,7 @@ import { useCallback, useEffect, useRef, useState } from "react";
 import type { Severidad, TipoEpp, VistaTriage } from "../api/types";
 import { rangoDefectoPanel } from "../api/fechas";
 
-export type SeccionApp = "panel" | "hallazgos" | "reglas" | "videos";
+export type SeccionApp = "panel" | "hallazgos" | "reglas" | "videos" | "sala";
 
 export interface DestinoHallazgos {
   vista?: VistaTriage;
@@ -42,6 +42,7 @@ export function leerSeccion(): SeccionApp {
   if (window.location.pathname.startsWith("/reglas")) return "reglas";
   if (window.location.pathname.startsWith("/hallazgos")) return "hallazgos";
   if (window.location.pathname.startsWith("/videos")) return "videos";
+  if (window.location.pathname.startsWith("/sala")) return "sala";
   return "panel";
 }
 
@@ -98,7 +99,9 @@ export function useAppNavigation() {
         ? "/reglas"
         : destino === "videos"
           ? "/videos"
-          : actual === "panel"
+          : destino === "sala"
+            ? "/sala"
+            : actual === "panel"
             ? construirRutaHallazgos({})
             : ultimaUbicacionHallazgos.current;
     if (destino === "hallazgos") ultimaUbicacionHallazgos.current = ruta;
