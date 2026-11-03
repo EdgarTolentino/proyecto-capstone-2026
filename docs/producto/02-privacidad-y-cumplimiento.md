@@ -241,6 +241,9 @@ Límites que se aceptan y se declaran:
   tras una señalización autenticada, y la ACL de la condición 2 limita quién llega.
 - **El espejo muestra el instante real y la vista procesada va unos 10 s atrás.** La página los
   rotula por separado para que nadie crea que muestran el mismo momento.
+- **El espejo no distingue el área del supervisor.** El nginx comprueba `ver_evidencia`, no el
+  área (condición 2 de la vista en vivo). En la demo hay una sola cámara, y los integrantes
+  nombrados no son supervisores de otra área.
 
 ## 6. El punto ciego clásico: el dataset
 
