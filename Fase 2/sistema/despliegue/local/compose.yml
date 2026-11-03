@@ -1,0 +1,181 @@
+# La demo local: UN solo sistema en el portátil (spec-en-vivo.md §2). Proyecto: gepp-demo.
+#
+#   export DEMO_PG_PASSWORD=$(openssl rand -hex 12) DEMO_TOKEN=$(openssl rand -hex 16)
+#   export GEPP_TELEGRAM_TOKEN=...  GEPP_AVISO_DESTINATARIO=...     # opcionales, ver README
+#   docker compose -p gepp-demo -f despliegue/local/compose.yml up -d --build --wait
+#
+# Todo por variables de entorno: aquí no hay contraseñas, tokens ni rutas de nadie.
+# GPU: el servicio `trabajador` (.pth, motor rfdetr). CPU: `--profile cpu` y el servicio
+# `trabajador-cpu` (.onnx); no corren a la vez (los dos serían consumidores de la misma cola).
+# La vista en vivo está ENCENDIDA porque el cliente es el navegador de este portátil (condición 7
+# de 02-privacidad-y-cumplimiento.md); la API NO se publica fuera de loopback.
+name: gepp-demo
+
+x-bd: &bd GEPP_BD_URL=postgresql+psycopg://gepp:${DEMO_PG_PASSWORD:?define DEMO_PG_PASSWORD}@postgres:5432/gepp
+
+# El trabajador y la API corren con el MISMO usuario (1000): cada subcarpeta del anillo de la vista
+# es 0700 y solo la lee quien la escribió (vivo.py), y la evidencia la escribe uno y la lee el otro.
+x-trabajador: &trabajador
+  user: "1000:1000"
+  depends_on:
+    permisos: {condition: service_completed_successfully}
+    preparar: {condition: service_completed_successfully}
+    redis: {condition: service_healthy}
+  restart: unless-stopped
+  # Sin modelo montado (`/dev/null` por defecto) el trabajador no analiza nada pero el vigilante
+  # sigue vivo, y la demo parece arriba (revisión de Codex). Se cae con un mensaje claro, y
+  # `restart` lo deja a la vista en bucle en vez de en silencio.
+  entrypoint:
+    - sh
+    - -c
+    - |
+      for f in "$$GEPP_MODELO_RUTA" /modelos/modelo.clases.json; do
+        if [ ! -s "$$f" ]; then
+          echo "[trabajador] falta $$f: define MODELO_PTH (GPU) o MODELO_ONNX (CPU) y MODELO_CLASES" >&2
+          exit 1
+        fi
+      done
+      exec python -m gepp_worker
+
+services:
+  postgres:
+    image: postgres:17-alpine
+    environment: {POSTGRES_USER: gepp, POSTGRES_PASSWORD: "${DEMO_PG_PASSWORD}", POSTGRES_DB: gepp}
+    ports: ["127.0.0.1:15432:5432"]
+    volumes: [pgdata:/var/lib/postgresql/data]
+    healthcheck: {test: ["CMD-SHELL", "pg_isready -U gepp"], interval: 3s, retries: 20}
+    restart: unless-stopped
+
+  redis:
+    # 7.2: la última con licencia BSD. Desde 7.4 es RSALv2/SSPL, prohibida por ADR-002.
+    image: redis:7.2-alpine
+    healthcheck: {test: ["CMD", "redis-cli", "ping"], interval: 3s, retries: 20}
+    restart: unless-stopped
+
+  # Una vez: migraciones y perfil de construcción. Idempotente.
+  preparar:
+    image: gepp-api:demo
+    build: {context: ../.., dockerfile: despliegue/imagenes/api.Dockerfile, target: api}
+    environment: [*bd]
+    command: ["sh", "-c", "python -m gepp_bd.migrar subir && python -m gepp_bd.semilla perfiles/construccion.yaml"]
+    depends_on: {postgres: {condition: service_healthy}}
+    restart: "no"
+
+  # Los volúmenes nuevos son de root: la evidencia se entrega al usuario 1000. (El anillo `vivo`
+  # lo recibe ya con dueño por la opción de montaje: un chown sobre tmpfs se pierde al desmontarse.)
+  permisos:
+    image: gepp-api:demo
+    user: root
+    command: ["python", "-c", "import os; os.chown('/datos/evidencia', 1000, 1000)"]
+    volumes: ["evidencia:/datos/evidencia"]
+    depends_on: {preparar: {condition: service_completed_successfully}}
+    restart: "no"
+
+  trabajador:
+    <<: *trabajador
+    image: gepp-worker:demo-gpu
+    build: {context: ../.., dockerfile: despliegue/imagenes/worker.Dockerfile, args: {VARIANTE: gpu}}
+    gpus: all
+    environment:
+      - *bd
+      - GEPP_REDIS_URL=redis://redis:6379/0
+      - GEPP_FUENTE_ID=2
+      - GEPP_UMBRAL_CONFIANZA=0.25
+      - GEPP_CARPETA_VIGILADA=/datos/vigilada
+      - GEPP_CARPETA_EVIDENCIA=/datos/evidencia
+      - GEPP_AVISO_CANAL=telegram
+      - GEPP_AVISO_DESTINATARIO=${GEPP_AVISO_DESTINATARIO:-}
+      - GEPP_VISTA_EN_VIVO=1
+      - GEPP_CARPETA_VIVO=/vivo
+      - GEPP_MODELO_VARIANTE=small
+      - GEPP_MODELO_MOTOR=rfdetr
+      - GEPP_MODELO_RUTA=/modelos/modelo.pth
+    volumes:
+      - ${MODELO_PTH:-/dev/null}:/modelos/modelo.pth:ro
+      - ${MODELO_CLASES:-/dev/null}:/modelos/modelo.clases.json:ro
+      - vigilada:/datos/vigilada:ro
+      - evidencia:/datos/evidencia
+      - vivo:/vivo
+
+  trabajador-cpu:
+    <<: *trabajador
+    image: gepp-worker:demo-cpu
+    profiles: [cpu]
+    build: {context: ../.., dockerfile: despliegue/imagenes/worker.Dockerfile, args: {VARIANTE: cpu}}
+    cpus: 4
+    environment:
+      - *bd
+      - GEPP_REDIS_URL=redis://redis:6379/0
+      - GEPP_FUENTE_ID=2
+      - GEPP_UMBRAL_CONFIANZA=0.25
+      - GEPP_CARPETA_VIGILADA=/datos/vigilada
+      - GEPP_CARPETA_EVIDENCIA=/datos/evidencia
+      - GEPP_AVISO_CANAL=telegram
+      - GEPP_AVISO_DESTINATARIO=${GEPP_AVISO_DESTINATARIO:-}
+      - GEPP_VISTA_EN_VIVO=1
+      - GEPP_CARPETA_VIVO=/vivo
+      - GEPP_MODELO_MOTOR=onnx
+      - GEPP_MODELO_RUTA=/modelos/modelo.onnx
+    volumes:
+      - ${MODELO_ONNX:-/dev/null}:/modelos/modelo.onnx:ro
+      - ${MODELO_CLASES:-/dev/null}:/modelos/modelo.clases.json:ro
+      - vigilada:/datos/vigilada:ro
+      - evidencia:/datos/evidencia
+      - vivo:/vivo
+
+  api:
+    image: gepp-api:demo
+    user: "1000:1000"
+    environment:
+      - *bd
+      - GEPP_API_TOKENS=${DEMO_TOKEN:?define DEMO_TOKEN}=prevencionista@obra.invalid
+      - GEPP_VISTA_EN_VIVO=1
+      - GEPP_CARPETA_VIVO=/vivo
+    volumes: ["evidencia:/datos/evidencia:ro", "vivo:/vivo:ro"]
+    ports: ["127.0.0.1:18000:8000"]
+    depends_on: {permisos: {condition: service_completed_successfully}}
+    restart: unless-stopped
+
+  # La web se COMPILA aquí con el mismo token que la API: repetir con un token nuevo y reconstruir
+  # (`up --build`) no deja una web con el token viejo (401).
+  web:
+    image: gepp-web:demo
+    build:
+      context: ../..
+      dockerfile: despliegue/imagenes/api.Dockerfile
+      target: web
+      args: {VITE_API_TOKEN: "${DEMO_TOKEN}"}
+    environment: {API_UPSTREAM: "api:8000"}
+    ports: ["127.0.0.1:18080:8080"]
+    depends_on: [api]
+    restart: unless-stopped
+
+  # UN solo consumidor del bot (getUpdates admite uno). Sin GEPP_TELEGRAM_TOKEN no muere: espera,
+  # para que `restart` no lo reinicie en bucle. Reinicia solo si la base se corta (despachador.py).
+  despachador:
+    image: gepp-api:demo
+    command:
+      - sh
+      - -c
+      - |
+        if [ -z "$$GEPP_TELEGRAM_TOKEN" ]; then
+          echo "[despachador] sin GEPP_TELEGRAM_TOKEN: en espera, no se enviará nada"
+          exec sleep infinity
+        fi
+        exec python -m gepp_api.notificaciones
+    environment:
+      - *bd
+      - GEPP_TELEGRAM_TOKEN=${GEPP_TELEGRAM_TOKEN:-}
+      - GEPP_DESPACHO_INTERVALO_S=5
+    depends_on: {preparar: {condition: service_completed_successfully}}
+    healthcheck: {disable: true}   # el de la imagen mira el puerto de la API
+    restart: unless-stopped
+
+volumes:
+  pgdata:
+  evidencia:
+  # La carpeta vigilada: ahí se deja el video de demo (README). Volumen con nombre, no tmpfs.
+  vigilada:
+  vivo:
+    driver: local
+    driver_opts: {type: tmpfs, device: tmpfs, o: "size=256m,mode=0700,uid=1000,gid=1000"}

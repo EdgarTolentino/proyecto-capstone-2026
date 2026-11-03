@@ -1,0 +1,31 @@
+# Plantilla: la imagen de nginx sustituye ${API_UPSTREAM} al arrancar (host:puerto de la API).
+# Solo /api/ llega a la API. /metrics, /docs y /openapi.json no se exponen (no llevan
+# autenticación o describen la API entera): quedan para dentro de la red.
+server {
+    listen 8080;
+    server_name _;
+    root /usr/share/nginx/html;
+    index index.html;
+    server_tokens off;
+
+    location /api/ {
+        proxy_pass http://${API_UPSTREAM};
+        proxy_set_header Host $host;
+        proxy_set_header X-Forwarded-For $remote_addr;
+        proxy_set_header X-Forwarded-Proto $http_x_forwarded_proto;
+        proxy_read_timeout 30s;
+        # Nada de lo que pasa por aquí toca el disco del contenedor: los cuadros de la vista en
+        # vivo son nítidos y solo pueden vivir en memoria (condición 4 de la vista en vivo).
+        proxy_max_temp_file_size 0;
+    }
+
+    location /assets/ {
+        add_header Cache-Control "public, max-age=31536000, immutable";
+        try_files $uri =404;
+    }
+
+    location / {
+        add_header Cache-Control "no-cache";
+        try_files $uri /index.html;
+    }
+}
