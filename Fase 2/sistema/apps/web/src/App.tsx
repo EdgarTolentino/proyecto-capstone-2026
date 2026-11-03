@@ -36,7 +36,10 @@ export default function App() {
   const { filtros: filtrosPanel, actualizar: actualizarFiltrosPanel } = usePanelFilters();
   const [activoId, setActivoId] = useState<number>();
   const [seleccionados, setSeleccionados] = useState<Set<number>>(new Set());
-  const [mostrarMotivo, setMostrarMotivo] = useState(false);
+  // A quién se aplicará el falso positivo, congelado al abrir el diálogo: si la bandeja se refresca
+  // mientras se escribe el motivo, la decisión no cambia de destinatario.
+  const [motivoPara, setMotivoPara] = useState<{ ids: number[]; lote: boolean } | null>(null);
+  const mostrarMotivo = motivoPara !== null;
   const [mensaje, setMensaje] = useState("");
 
   const sesion = useQuery({ queryKey: ["sesion"], queryFn: obtenerSesion });
@@ -65,9 +68,24 @@ export default function App() {
   const permisos = new Set(sesion.data?.permisos ?? []);
   const permiteTriar = permisos.has("triar_hallazgos");
   const permiteEvidencia = permisos.has("ver_evidencia");
-  const activoVisibleId = hallazgos.some((item) => item.id === activoId)
-    ? activoId
-    : hallazgos[0]?.id;
+  // La fila activa se fija en la primera UNA vez (al abrir la bandeja o al cambiar de filtros). Si
+  // después sale de la lista porque llegaron otros hallazgos, no se pasa sola a la primera: la
+  // grilla saltaría al principio y los atajos actuarían sobre otra fila. Queda sin activa y `j`
+  // vuelve a elegir.
+  const firmaFiltros = JSON.stringify(filtrosLista);
+  const [firmaVista, setFirmaVista] = useState(firmaFiltros);
+  if (firmaFiltros !== firmaVista) {
+    setFirmaVista(firmaFiltros);
+    setActivoId(undefined);
+  }
+  if (activoId === undefined && hallazgos.length > 0) setActivoId(hallazgos[0].id);
+  const activoVisibleId = hallazgos.some((item) => item.id === activoId) ? activoId : undefined;
+  // Con la bandeja refrescándose, un hallazgo seleccionado puede salir de la página (llegan otros).
+  // Lo que no está en la lista no se cuenta ni se envía en un triage en lote.
+  const seleccionVigente = useMemo(() => {
+    const presentes = new Set(hallazgos.map((item) => item.id));
+    return new Set([...seleccionados].filter((id) => presentes.has(id)));
+  }, [hallazgos, seleccionados]);
   const atajoActivoId = filtros.hallazgoId ?? activoVisibleId;
 
   const actualizarBandeja = async () => {
@@ -108,7 +126,13 @@ export default function App() {
     onSuccess: async (resultado) => {
       const omitidos = new Set(resultado.omitidos?.flatMap((item) => item.id ?? []) ?? []);
       setSeleccionados(omitidos);
-      setMensaje(`${resultado.aplicados ?? 0} decisiones guardadas.`);
+      const sinAplicar = resultado.omitidos ?? [];
+      // Lo que la API no aplicó se dice con su motivo: la selección ya filtrada lo esconde.
+      const motivos = [...new Set(sinAplicar.map((item) => item.motivo || "sin motivo"))].join("; ");
+      setMensaje(
+        `${resultado.aplicados ?? 0} decisiones guardadas.` +
+          (sinAplicar.length ? ` ${sinAplicar.length} omitidas: ${motivos}.` : ""),
+      );
       await actualizarBandeja();
     },
     onError: () => setMensaje("No pudimos aplicar la acción en lote."),
@@ -129,9 +153,16 @@ export default function App() {
   };
 
   const decidirSeleccion = (decision: DecisionTriage) => {
-    const ids = [...seleccionados];
+    const ids = [...seleccionVigente];
     if (!ids.length || !permiteTriar) return;
     triageEnLote.mutate({ ids, decision });
+  };
+
+  // El destino del falso positivo, tal como está en pantalla AHORA: el visor, la selección o la fila activa.
+  const abrirMotivo = () => {
+    if (filtros.hallazgoId) setMotivoPara({ ids: [filtros.hallazgoId], lote: false });
+    else if (seleccionVigente.size) setMotivoPara({ ids: [...seleccionVigente], lote: true });
+    else if (atajoActivoId) setMotivoPara({ ids: [atajoActivoId], lote: false });
   };
 
   useHallazgoShortcuts({
@@ -146,16 +177,18 @@ export default function App() {
     },
     onOpen: abrir,
     onConfirm: () => decidir({ estado: "confirmado" }),
-    onFalsePositive: () => setMostrarMotivo(true),
+    onFalsePositive: abrirMotivo,
+    onSinActivo: () => setMensaje("Ningún hallazgo activo: usa j o haz clic en una fila."),
   });
 
   const confirmarMotivo = (motivo: string) => {
+    const destino = motivoPara;
+    setMotivoPara(null);
+    if (!destino?.ids.length || !permiteTriar) return;
     const decision: DecisionTriage = { estado: "falso_positivo", motivo };
-    if (filtros.hallazgoId) {
-      triageIndividual.mutate({ id: filtros.hallazgoId, decision });
-    } else if (seleccionados.size) decidirSeleccion(decision);
-    else decidir(decision);
-    setMostrarMotivo(false);
+    // Sobre los ids con que se abrió el diálogo, aunque la lista ya haya cambiado.
+    if (destino.lote) triageEnLote.mutate({ ids: destino.ids, decision });
+    else triageIndividual.mutate({ id: destino.ids[0], decision });
   };
 
   return (
@@ -207,7 +240,7 @@ export default function App() {
               <HallazgosGrid
                 hallazgos={hallazgos}
                 activoId={activoVisibleId}
-                seleccionados={seleccionados}
+                seleccionados={seleccionVigente}
                 permiteSeleccionar={permiteTriar}
                 permiteEvidencia={permiteEvidencia}
                 onActivate={setActivoId}
@@ -221,12 +254,12 @@ export default function App() {
                 onSelectAll={(checked) => setSeleccionados(checked ? new Set(hallazgos.map((item) => item.id)) : new Set())}
               />
             )}
-            {seleccionados.size > 0 && (
+            {seleccionVigente.size > 0 && (
               <BulkActionsBar
-                count={seleccionados.size}
+                count={seleccionVigente.size}
                 busy={triageEnLote.isPending}
                 onConfirm={() => decidirSeleccion({ estado: "confirmado" })}
-                onFalsePositive={() => setMostrarMotivo(true)}
+                onFalsePositive={abrirMotivo}
                 onClear={() => setSeleccionados(new Set())}
               />
             )}
@@ -255,14 +288,14 @@ export default function App() {
           onClose={cerrarVisor}
           onMove={(hallazgoId) => { setActivoId(hallazgoId); actualizar({ hallazgoId }, true); }}
           onTriage={(decision) => triageIndividual.mutate({ id: filtros.hallazgoId!, decision })}
-          onFalsePositive={() => setMostrarMotivo(true)}
+          onFalsePositive={abrirMotivo}
           isUpdating={triageIndividual.isPending}
         />
       )}
       {seccion === "hallazgos" && mostrarMotivo && (
         <FalsePositiveDialog
-          count={filtros.hallazgoId ? 1 : seleccionados.size || 1}
-          onCancel={() => setMostrarMotivo(false)}
+          count={motivoPara?.ids.length ?? 1}
+          onCancel={() => setMotivoPara(null)}
           onConfirm={confirmarMotivo}
         />
       )}
