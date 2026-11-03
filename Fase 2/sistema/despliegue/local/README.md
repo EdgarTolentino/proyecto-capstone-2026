@@ -25,8 +25,8 @@ Nada va en archivos. La ruta del compose lleva un espacio: entre comillas.
 |---|---|---|
 | `DEMO_PG_PASSWORD` | sí | contraseña de PostgreSQL |
 | `DEMO_TOKEN` | sí | token de la API **y** token compilado en la web: cambiarlo y volver a `up --build` mantiene los dos iguales (si no, 401). Queda dentro del JS: es de demostración |
-| `MODELO_PTH`, `MODELO_CLASES` | para GPU | ruta del checkpoint `.pth` y de su `.clases.json` |
-| `MODELO_ONNX`, `MODELO_CLASES` | para CPU | ruta del `.onnx` y de su `.clases.json` |
+| `MODELO_PTH`, `MODELO_CLASES` | para GPU | ruta del checkpoint `.pth` y de su `.clases.json`. **Sin ellas el trabajador monta `/dev/null`, se cae al cargar el modelo y la demo parece arriba sin analizar nada**: comprobar que estén antes de levantar (lo hará `armar-demo.sh`) |
+| `MODELO_ONNX`, `MODELO_CLASES` | para CPU | ruta del `.onnx` y de su `.clases.json`. Lo mismo: sin ellas no se analiza nada |
 | `GEPP_TELEGRAM_TOKEN`, `GEPP_AVISO_DESTINATARIO` | no | bot y chat. Sin token, el despachador queda en espera (no muere) |
 
 ## Levantar
@@ -40,10 +40,14 @@ docker compose -p gepp-demo -f despliegue/local/compose.yml up -d --build --wait
 # dejar el video de demo en la carpeta vigilada (el trabajador lo procesa solo):
 docker run --rm -v gepp-demo_vigilada:/v -v "$VIDEO":/in.mp4:ro --entrypoint cp gepp-api:demo /in.mp4 /v/demo.mp4
 
-# sin GPU: --profile cpu y el servicio trabajador-cpu (NO el trabajador GPU)
+# sin GPU: --profile cpu y SOLO el trabajador-cpu. Si la GPU ya estaba arriba, detenerla antes:
+# los dos trabajadores comparten la cola y el segundo vacía el anillo de la vista al arrancar.
+docker compose -p gepp-demo -f despliegue/local/compose.yml stop trabajador
 docker compose -p gepp-demo -f despliegue/local/compose.yml --profile cpu up -d --build \
   postgres redis preparar permisos api web despachador trabajador-cpu
-docker compose -p gepp-demo -f despliegue/local/compose.yml down -v        # al terminar
+
+# al terminar (con --profile cpu, para que también baje el trabajador-cpu y sus volúmenes):
+docker compose -p gepp-demo -f despliegue/local/compose.yml --profile cpu down -v
 ```
 
 Con la GPU: comprobar antes que esté libre (`nvidia-smi`) y no entrenar mientras tanto (ADR-010).

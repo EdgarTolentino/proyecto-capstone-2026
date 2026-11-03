@@ -14,6 +14,9 @@ server {
         proxy_set_header X-Forwarded-For $remote_addr;
         proxy_set_header X-Forwarded-Proto $http_x_forwarded_proto;
         proxy_read_timeout 30s;
+        # Nada de lo que pasa por aquí toca el disco del contenedor: los cuadros de la vista en
+        # vivo son nítidos y solo pueden vivir en memoria (condición 4 de la vista en vivo).
+        proxy_max_temp_file_size 0;
     }
 
     location /assets/ {
