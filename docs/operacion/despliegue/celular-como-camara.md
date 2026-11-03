@@ -120,13 +120,24 @@ depende de PostgreSQL ni de `preparar`: si la base falla al arrancar, igual se a
 | Tramo | Valor | De dónde |
 |---|---|---|
 | Segmento abierto en `en-curso/` (graba) | ≥ 5 s: el corte espera al siguiente cuadro clave | `recordSegmentDuration` (un mínimo) |
-| Un segmento que el hook no movió | `recordDeleteAfter` 30 s + hasta 30 s del barrido de MediaMTX = ~60 s | `mediamtx.yml` |
-| En la carpeta vigilada | `TTL_SEGMENTO_S` 60 s + barrido del borrador 2 s = 62 s | `compose.yml` |
-| **Tope nominal declarado** | 30 + 30 + 60 + 2 = **122 s (~2 min)** | suma de las dos esperas más el TTL: cota conservadora; en el camino normal son ~67 s |
+| Un segmento que el hook no movió | `recordDeleteAfter` 30 s + hasta ~15 s hasta que MediaMTX limpia = ~45 s | `mediamtx.yml`; la limpieza se midió: un archivo viejo en `en-curso` desapareció a los 6, 7, 8 y 13 s |
+| En la carpeta vigilada | `TTL_SEGMENTO_S` 60 s + barrido 2 s + presupuesto de consultas 3 s = 65 s | `compose.yml`, `borrador.py` |
+| **Tope nominal declarado** | 30 + 15 + 60 + 2 + 3 = **110 s** | suma conservadora de las dos esperas más el TTL; en el camino normal, ~67 s |
 
 No es una garantía: un segmento abierto **sin cuadro clave** podría durar más de los 5 s pedidos (con la cámara de
-prueba salieron de 5,0 a 6,1 s; con un celular real no está medido: PLAUSIBLE, no confirmado); el reloj del
-vencimiento es la fecha de modificación del archivo; y tmpfs puede ir a swap (los segmentos no están pixelados).
+prueba salieron de 5,0 a 6,1 s; con un celular real no está medido: PLAUSIBLE); el reloj del vencimiento es la fecha
+de modificación del archivo; y tmpfs puede ir a swap (los segmentos no están pixelados).
+
+**El borrador se sabe sano.** Escribe un latido (`/tmp/latido`) en cada barrido y su `healthcheck` mira que tenga
+menos de 15 s. `mediamtx` y los trabajadores dependen de `borrador: service_healthy`: con un TTL inválido
+(`TTL_SEGMENTO_S=0`) el borrador cae (`ValueError: TTL inválido`, 7 reinicios en 12 s), `up -d mediamtx` sale con
+código 1 («dependency failed to start: container … is unhealthy») y **MediaMTX no se crea ni arranca**. Si el bucle
+se cuelga con MediaMTX ya grabando, Docker lo marca `unhealthy` pero no lo reinicia ni detiene la grabación: ese
+caso no está cubierto (el latido solo gobierna el arranque).
+
+**Presupuesto total de consultas.** El paso 2 tiene 3 s para TODO el barrido (cada consulta, además, tope de 3 s y
+solo lo que quede del presupuesto) y el vencimiento se reevalúa con la hora de ahora antes de cada consulta y al
+final: antes, 4 consultas de 0,8 s tardaban 3,2 s y dejaban archivos de 63 s con TTL 60 (simulado por Codex).
 
 **Probado (compose real, TTL 20 s para acortar):** con el trabajador **y PostgreSQL detenidos**: 11 segmentos
 borrados por vencimiento, a los 20–24 s, y al final solo queda `en-curso/`; con PostgreSQL **trabado**
@@ -138,12 +149,14 @@ lo trata como parada manual). **Un TTL inválido no borra nada**: el proceso cae
 **Nombre reconocido.** Solo `camara-AAAA-MM-DD_HH-MM-SS-micros.mp4` con una fecha real; `respaldo-2026-13-99_…`,
 el 30 de febrero, la hora 24 y los `.part` se dejan y se avisa una vez (`GEPP_RUTA_CAMARA` cambia el prefijo).
 
-**Tests** (`tests/test_borrador_celular.py`, 38): TTL justo en 60 s (no vence), a cada lado (59,75 y 60,25) y TTL
+**Tests** (`tests/test_borrador_celular.py`, 42): TTL justo en 60 s (no vence), a cada lado (59,75 y 60,25) y TTL
 inválido (0, −1, NaN, ∞); el vencimiento ocurre **antes** de la consulta; una consulta trabada no detiene los
-borrados (<2 s con un límite de 0,2 s); una sola consulta por barrido con la base caída; no se apilan hilos;
-fechas imposibles y otra ruta. Defectos inyectados (cada uno hace caer su test, archivo restaurado idéntico): `>`→`>=`
-(2), consultar antes de vencer (3), sin límite duro (2; tarda 10 s), sin cortar el paso 2 (1), sin validar fechas (5),
-cualquier prefijo (2), TTL sin validar (4), no borrar `listo`/`error` (2), apilar consultas (1), no ignorar `en-curso` (1).
+borrados; presupuesto total (6 consultas de 0,8 s se detienen tras 4) y cada consulta usa lo que queda; lo que
+vence durante las consultas se borra en el mismo barrido y no gasta una consulta; no se apilan hilos; fechas
+imposibles y otra ruta. 15 defectos inyectados (`>`→`>=`, sin vencimiento previo, sin límite duro, sin cortar el
+paso 2, sin validar fechas, cualquier prefijo, TTL sin validar, no borrar listo/error, apilar consultas, no
+ignorar `en-curso`, límite por archivo, ignorar lo que queda del presupuesto, sin reevaluar antes de cada
+consulta, sin reevaluar al final, hora del inicio): cada uno hace caer al menos un test.
 
 ### Quién puede publicar o leer (MediaMTX, `authInternalUsers`)
 
@@ -177,6 +190,13 @@ una señalización autenticada. La ACL de la tailnet sobre ese puerto no se prob
    cerrar (rename dentro del mismo tmpfs: atómico). No probé una pausa larga del emisor.
 5. `webrtcLocalUDPAddress` se mantiene en 18189 dentro y fuera: ICE anuncia el puerto, remapearlo
    (8189→18189) rompería la conexión.
+
+6. **El vigilante moría en silencio si el borrador le quitaba un archivo.** Entre `is_file()` y `stat()` (o entre
+   la estabilidad y el hash) un `FileNotFoundError` salía de `Vigilante.correr`; el proceso padre
+   (`__main__.py`) queda esperando al trabajador sin reiniciar el vigilante, y la ingesta moría sin ruido. Se arregló
+   en un PR propio (`vigilante.py`: un archivo que desaparece a mitad de sondeo se salta; un fallo transitorio de E/S
+   no mata el bucle; un defecto de código sigue cayendo). El padre sigue sin reiniciar un vigilante que muera por
+   otra causa: no se tocó.
 
 ## 7. Camino a un `RtspFrameSource` real (decide Edgar)
 
