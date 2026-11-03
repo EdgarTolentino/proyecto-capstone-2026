@@ -21,6 +21,7 @@ import { FalsePositiveDialog } from "./components/FalsePositiveDialog";
 import { HallazgoFilters } from "./components/HallazgoFilters";
 import { HallazgosGrid } from "./components/HallazgosGrid";
 import { ReglasPage } from "./components/ReglasPage";
+import { SalaEnVivoPage } from "./components/SalaEnVivoPage";
 import { PanelPage } from "./components/PanelPage";
 import { TriageTabs } from "./components/TriageTabs";
 import { VideosPage } from "./components/VideosPage";
@@ -207,6 +208,10 @@ export default function App() {
         />
       )}
       {seccion === "videos" && <VideosPage puedeProcesar={permisos.has("procesar_videos")} puedeVerEvidencia={permiteEvidencia} catalogos={catalogos.data} catalogosError={catalogos.isError} />}
+      {seccion === "sala" && permiteEvidencia && <SalaEnVivoPage />}
+      {seccion === "sala" && sesion.data && !permiteEvidencia && (
+        <main className="findings-page"><div className="state-message" role="alert">No tienes permiso para ver la sala en vivo.</div></main>
+      )}
       {seccion === "hallazgos" && (
       <main className="findings-page">
         {mostrarAvisoObraSinFiltro && <div className="state-message" role="status">La obra seleccionada en el panel no se aplica en esta bandeja: el contrato de Hallazgos no ofrece filtro por obra.</div>}
