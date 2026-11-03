@@ -74,19 +74,28 @@ class CanalTelegram:
                     ]
                 },
             )
-        except httpx.TransportError as e:
+        except httpx.HTTPError as e:  # red, tiempo, respuesta que no se puede decodificar
             return ResultadoEnvio(
                 Estado.FALLO_TRANSITORIO, reintentar_en_s=30, motivo=type(e).__name__
             )
         cuerpo = _json(r)
         if r.status_code == 200 and cuerpo.get("ok"):
-            return ResultadoEnvio(Estado.ACEPTADO, id_externo=str(cuerpo["result"]["message_id"]))
+            resultado = cuerpo.get("result")
+            id_mensaje = resultado.get("message_id") if isinstance(resultado, dict) else None
+            # Aceptado sin id legible: el aviso salió, se identifica por su token (no se reenvía).
+            return ResultadoEnvio(
+                Estado.ACEPTADO,
+                id_externo=str(id_mensaje)
+                if id_mensaje is not None
+                else f"sin-id:{aviso.token_acuse}",
+            )
         motivo = f"{r.status_code}: {self._descripcion(cuerpo)}"
         if r.status_code == 429:
-            espera = cuerpo.get("parameters", {}).get("retry_after", 30)
-            return ResultadoEnvio(
-                Estado.FALLO_TRANSITORIO, reintentar_en_s=float(espera), motivo=motivo
+            parametros = cuerpo.get("parameters")
+            espera = _espera(
+                parametros.get("retry_after") if isinstance(parametros, dict) else None
             )
+            return ResultadoEnvio(Estado.FALLO_TRANSITORIO, reintentar_en_s=espera, motivo=motivo)
         if r.status_code >= 500:
             return ResultadoEnvio(Estado.FALLO_TRANSITORIO, reintentar_en_s=60, motivo=motivo)
         # 400 chat inexistente, 403 bot bloqueado, 401 token inválido: reintentar no arregla nada.
@@ -98,7 +107,7 @@ class CanalTelegram:
             datos["offset"] = self._offset
         try:
             r = self._llamar("getUpdates", **datos)
-        except httpx.TransportError as e:
+        except httpx.HTTPError as e:
             self.ultimo_error = type(e).__name__
             return []  # se reintenta en el próximo ciclo; Telegram guarda lo no confirmado
         cuerpo = _json(r)
@@ -106,13 +115,21 @@ class CanalTelegram:
             # 409: hay un webhook puesto y getUpdates no puede convivir con él. 401: token malo.
             self.ultimo_error = f"{r.status_code}: {self._descripcion(cuerpo)}"
             return []
+        actualizaciones = cuerpo.get("result", [])
+        if not isinstance(actualizaciones, list):
+            self.ultimo_error = "respuesta inesperada de getUpdates"
+            return []
         self.ultimo_error = None
         tokens = []
-        for u in cuerpo.get("result", []):
+        for u in actualizaciones:
+            if not isinstance(u, dict) or not isinstance(u.get("update_id"), int):
+                continue  # sin update_id no se puede ni confirmar: se ignora
             self._offset = u["update_id"] + 1  # confirma el update: no vuelve a llegar
-            cq = u.get("callback_query") or {}
-            data = cq.get("data", "")
-            if not data.startswith(PREFIJO_ACUSE):
+            cq = u.get("callback_query")
+            if not isinstance(cq, dict):
+                continue
+            data = cq.get("data")
+            if not isinstance(data, str) or not data.startswith(PREFIJO_ACUSE):
                 continue
             tokens.append(data.removeprefix(PREFIJO_ACUSE))
             self._cerrar_boton(cq)
@@ -131,8 +148,17 @@ class CanalTelegram:
                     message_id=mensaje["message_id"],
                     reply_markup={"inline_keyboard": []},
                 )
-        except (httpx.TransportError, KeyError):
+        except (httpx.HTTPError, KeyError, TypeError):
             pass
+
+
+def _espera(valor: Any, defecto: float = 30.0) -> float:
+    """`retry_after` de Telegram, o el defecto si viene mal (texto, negativo, cero, infinito)."""
+    try:
+        espera = float(valor)
+    except (TypeError, ValueError):
+        return defecto
+    return espera if 0 < espera < float("inf") else defecto
 
 
 def _json(r: httpx.Response) -> dict[str, Any]:
