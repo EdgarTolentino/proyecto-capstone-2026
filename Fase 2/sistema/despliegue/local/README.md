@@ -46,6 +46,9 @@ docker compose -p gepp-demo -f despliegue/local/compose.yml stop trabajador
 docker compose -p gepp-demo -f despliegue/local/compose.yml --profile cpu up -d --build \
   postgres redis preparar permisos api web despachador trabajador-cpu
 
+# para volver a la GPU: detener antes el trabajador-cpu, por la misma razón
+docker compose -p gepp-demo -f despliegue/local/compose.yml --profile cpu stop trabajador-cpu
+
 # al terminar (con --profile cpu, para que también baje el trabajador-cpu y sus volúmenes):
 docker compose -p gepp-demo -f despliegue/local/compose.yml --profile cpu down -v
 ```

@@ -22,6 +22,18 @@ x-trabajador: &trabajador
     preparar: {condition: service_completed_successfully}
     redis: {condition: service_healthy}
   restart: unless-stopped
+  # Sin modelo montado (`/dev/null` por defecto) el trabajador no analiza nada pero el vigilante
+  # sigue vivo, y la demo parece arriba (revisión de Codex). Se cae con un mensaje claro, y
+  # `restart` lo deja a la vista en bucle en vez de en silencio.
+  entrypoint:
+    - sh
+    - -c
+    - |
+      if [ ! -s "$$GEPP_MODELO_RUTA" ]; then
+        echo "[trabajador] falta el modelo en $$GEPP_MODELO_RUTA: define MODELO_PTH (GPU) o MODELO_ONNX (CPU) y MODELO_CLASES" >&2
+        exit 1
+      fi
+      exec python -m gepp_worker
 
 services:
   postgres:
@@ -35,6 +47,9 @@ services:
   redis:
     # 7.2: la última con licencia BSD. Desde 7.4 es RSALv2/SSPL, prohibida por ADR-002.
     image: redis:7.2-alpine
+    # Sin persistencia: es la cola de una demo (rearmar la vacía) y así no queda un volumen viejo
+    # escrito por otra versión de Redis que no arranque con esta (revisión de Codex).
+    command: ["redis-server", "--save", "", "--appendonly", "no"]
     healthcheck: {test: ["CMD", "redis-cli", "ping"], interval: 3s, retries: 20}
     restart: unless-stopped
 
