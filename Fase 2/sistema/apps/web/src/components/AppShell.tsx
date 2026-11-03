@@ -5,6 +5,7 @@ import {
   HardHat,
   Map,
   Radio,
+  Video,
   SearchCheck,
   Settings2,
   ShieldCheck,
@@ -28,6 +29,7 @@ interface AppShellProps {
 
 const navegacion = [
   { texto: "Panel general", icono: BarChart3, seccion: "panel" },
+  { texto: "Sala en vivo", icono: Video, seccion: "sala" },
   { texto: "Hallazgos", icono: SearchCheck, seccion: "hallazgos" },
   { texto: "Videos", icono: FileVideo, seccion: "videos" },
   { texto: "Reglas", icono: Settings2, seccion: "reglas" },
@@ -38,6 +40,8 @@ const navegacion = [
 export function AppShell({ children, catalogos, estado, sesion, sesionError = false, seccion, onNavigate }: AppShellProps) {
   const obra = catalogos?.obras?.[0]?.nombre ?? "Sin obra seleccionada";
   const ingestaActiva = estado?.ingesta?.activa ?? false;
+  // La sala muestra video crudo: solo con `ver_evidencia`, la misma regla que la vista en vivo.
+  const puedeVerSala = sesion?.permisos?.includes("ver_evidencia") ?? false;
 
   return (
     <div className="app-shell">
@@ -50,7 +54,7 @@ export function AppShell({ children, catalogos, estado, sesion, sesionError = fa
         <div className="site-header__actions"><UserMenu sesion={sesion} sesionError={sesionError} /><HelpMenu /></div>
       </header>
       <nav className="operations-nav" aria-label="Navegación principal">
-        {navegacion.map(({ texto, icono: Icono, seccion: destino }) => {
+        {navegacion.filter(({ seccion: destino }) => destino !== "sala" || puedeVerSala).map(({ texto, icono: Icono, seccion: destino }) => {
           const activo = destino === seccion;
           return (
           <button key={texto} className={`nav-item ${activo ? "nav-item--active" : ""}`} type="button" disabled={!destino} aria-current={activo ? "page" : undefined} title={!destino ? "Módulo próximamente disponible" : undefined} onClick={() => destino && onNavigate(destino)}>

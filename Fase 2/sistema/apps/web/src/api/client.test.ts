@@ -91,6 +91,21 @@ describe("cliente API", () => {
     expect(pagina.contadores?.descartado).toBe(pagina.items.length);
   });
 
+  it("pide la cola de videos con `estado` solo cuando se le da, y sin él como siempre", async () => {
+    const fetchMock = vi.spyOn(globalThis, "fetch").mockImplementation(async () =>
+      new Response(JSON.stringify({ items: [] }), { status: 200, headers: { "Content-Type": "application/json" } }),
+    );
+    const { listarVideos } = await import("./client");
+
+    await listarVideos(undefined, "procesando");
+    await listarVideos("c1");
+
+    expect(fetchMock.mock.calls.map(([url]) => String(url))).toEqual([
+      "http://127.0.0.1:4010/videos?limite=200&estado=procesando",
+      "http://127.0.0.1:4010/videos?limite=200&cursor=c1",
+    ]);
+  });
+
   it("envía area_id al consultar las reglas por área", async () => {
     const fetchMock = vi.spyOn(globalThis, "fetch").mockResolvedValue(
       new Response(JSON.stringify([]), {
