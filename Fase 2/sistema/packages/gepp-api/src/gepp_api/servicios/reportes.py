@@ -10,6 +10,13 @@ Los `n` (y el `valor`, y la `serie` semanal) de una celda visible salen **redond
 múltiplo de 5 más cercano** (#140): `GET /reportes/{tipo}` acepta cualquier `desde`/`hasta`, y
 restando las respuestas de dos ventanas se despejaba una celda chica (5 casos en una semana y 1 en
 la siguiente daban 5 y 6; la resta delataba el 1). Con el redondeo, 5 y 6 salen ambos como 5.
+Las filas se ordenan por el valor publicado (no por el exacto), las suprimidas al final y el
+desempate por etiqueta: si no, el orden delataba el conteo.
+
+Límite que se declara: con ventanas que SE SOLAPAN todavía se despeja un caso (franjas A = 6,
+X = 1, B = 6: A+X, X+B, todo y X dan 5, 5, 15 y suprimido, y eso obliga a X = 1). El redondeo
+reduce los despejes, no los elimina; la protección completa son ventanas fijas (cambia el
+contrato) y queda para después de H4.
 """
 
 from __future__ import annotations
@@ -55,6 +62,19 @@ def redondear_a_multiplo(x: float) -> int:
     if not math.isfinite(x) or x < 0:
         raise ValueError(f"no se puede redondear un conteo de {x!r}")
     return math.floor(x / MULTIPLO + 0.5) * MULTIPLO
+
+
+def _por_valor_publicado(conteo: Counter[str]) -> list[tuple[str, int]]:
+    """Mayor a menor por el `n` PUBLICADO (redondeado), las suprimidas al final, y por etiqueta.
+
+    Ordenar por el conteo exacto (`most_common`) delata lo oculto: con A = 4 y B = 1, suprimidas, o
+    con 7 y 6, publicados ambos como 5, invertir los conteos invertía las filas.
+    """
+    return sorted(
+        conteo.items(),
+        # Suprimida = 0 publicado: queda después de toda fila visible (>= 5).
+        key=lambda kn: (-(redondear_a_multiplo(kn[1]) if kn[1] >= N_MINIMO else 0), kn[0]),
+    )
 
 
 def celda(etiqueta: str, n: int, serie: list[float] | None = None) -> dict[str, Any]:
@@ -169,7 +189,7 @@ def reporte(
                 if tipo == "zonas"
                 else None,
             )
-            for k, n in conteo.most_common()
+            for k, n in _por_valor_publicado(conteo)
         ]
     return {"tipo": tipo, "segmentacion": dimension, "filas": filas}
 

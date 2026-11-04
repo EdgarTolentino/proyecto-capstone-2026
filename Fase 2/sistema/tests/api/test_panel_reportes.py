@@ -121,6 +121,11 @@ def test_los_cuatro_reportes_cumplen_el_contrato(
     for fila in r["filas"]:
         # Ninguna celda visible con menos de 5: la supresión es del servidor.
         assert fila["datos_insuficientes"] or fila["n"] >= 5
+        if not fila["datos_insuficientes"]:
+            # #140: todo `n` visible es múltiplo de 5 en TODO tipo y segmentación (si uno se saltara
+            # `celda`, saldría el conteo exacto); `valor` es el mismo número y cada semana también.
+            assert fila["n"] % 5 == 0 and fila["valor"] == float(fila["n"])
+            assert all(v % 5 == 0 for v in fila.get("serie", []))
 
 
 def test_la_supresion_corta_exactamente_en_cinco(api: Cliente, extra: None) -> None:

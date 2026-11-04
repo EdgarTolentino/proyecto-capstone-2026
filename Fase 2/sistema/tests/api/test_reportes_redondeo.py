@@ -8,11 +8,18 @@ from __future__ import annotations
 
 import csv
 import io
+from collections import Counter
 from datetime import timedelta
 from typing import Any
 
 import pytest
-from gepp_api.servicios.reportes import N_MINIMO, a_csv, celda, redondear_a_multiplo
+from gepp_api.servicios.reportes import (
+    N_MINIMO,
+    _por_valor_publicado,
+    a_csv,
+    celda,
+    redondear_a_multiplo,
+)
 from gepp_bd import transaccion
 from gepp_bd.repositorios import hallazgos
 from gepp_core import Hallazgo, Severidad, TipoEPP
@@ -119,3 +126,66 @@ def test_con_la_api_real_la_resta_de_dos_ventanas_no_despeja_nada(
     corta = fila("2026-09-08T00:00:00Z")  # 5 casos reales
     assert larga["n"] == corta["n"] == 5
     assert larga["valor"] == corta["valor"] == 5.0
+
+
+def _etiquetas(conteo: dict[str, int]) -> list[str]:
+    return [k for k, _ in _por_valor_publicado(Counter(conteo))]
+
+
+def test_el_orden_de_las_filas_no_delata_el_conteo_exacto() -> None:
+    # A = 4 y B = 1 (suprimidas) con los conteos invertidos; 7 y 6 (publicados como 5) también.
+    for a, b in ((4, 1), (1, 4), (7, 6), (6, 7)):
+        assert _etiquetas({"A": a, "B": b}) == ["A", "B"]
+    # Mayor publicado primero, las suprimidas al final y el desempate por etiqueta.
+    assert _etiquetas({"s": 4, "z": 12, "a": 3, "m": 5, "b": 7}) == ["z", "b", "m", "a", "s"]
+
+
+def _sembrar_epp(bd: Engine, dia: int, conteos: dict[TipoEPP, int]) -> str:
+    """Un hallazgo por EPP faltante, `dia` días después de T0; devuelve la ventana de ese día."""
+    ini = T0 + timedelta(days=dia)
+    with transaccion(bd) as s:
+        i = 0
+        for epp, n in conteos.items():
+            for _ in range(n):
+                i += 1
+                inicio = ini + timedelta(minutes=i)
+                hallazgos.guardar(
+                    s,
+                    Hallazgo(
+                        track_id=dia * 100 + i,
+                        regla_id=2,
+                        regla_version=1,
+                        epp_faltante=frozenset({epp}),
+                        severidad=Severidad.ALTA,
+                        ts_inicio=inicio,
+                        ts_fin=inicio + timedelta(seconds=10),
+                        cuadros_confirmados=50,
+                        confianza_media=0.8,
+                    ),
+                    hallazgos.Contexto(fuente_id=2, area_id=2),
+                )
+    marca = "%Y-%m-%dT%H:%M:%SZ"
+    desde, hasta = ini - timedelta(hours=1), ini + timedelta(hours=1)
+    return f"desde={desde.strftime(marca)}&hasta={hasta.strftime(marca)}"
+
+
+@pytest.mark.integration
+def test_con_la_api_real_invertir_los_conteos_ocultos_no_cambia_el_orden(
+    api: Cliente, bd: Engine, datos: dict[str, Any]
+) -> None:
+    del datos
+    c, ch, ca, g = TipoEPP.CASCO, TipoEPP.CHALECO, TipoEPP.CALZADO, TipoEPP.GUANTES
+    # Día 20: casco 4 y chaleco 1 (suprimidos); calzado 7 y guantes 6 (ambos 5). Día 40: al revés.
+    ventanas = (
+        _sembrar_epp(bd, 20, {c: 4, ch: 1, ca: 7, g: 6}),
+        _sembrar_epp(bd, 40, {c: 1, ch: 4, ca: 6, g: 7}),
+    )
+    esperado = ["calzado", "guantes", "casco", "chaleco"]
+    for ventana in ventanas:
+        r = api.llamar("obtenerReporte", "GET", f"/reportes/ranking-epp?{ventana}")
+        assert [f["etiqueta"] for f in r["filas"]] == esperado
+        crudo = api.http.get(
+            f"/api/v1/reportes/ranking-epp?{ventana}&formato=csv",
+            headers={"Authorization": "Bearer demo"},
+        )
+        assert [f["etiqueta"] for f in csv.DictReader(io.StringIO(crudo.text))] == esperado
