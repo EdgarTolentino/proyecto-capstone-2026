@@ -15,7 +15,10 @@ services:
     image: bluenviron/mediamtx:latest-ffmpeg
     environment:
       - MTX_PATHDEFAULTS_RECORDSEGMENTDURATION=${SEGMENTO:-5s}
-      - MTX_WEBRTCADDITIONALHOSTS=${TS_IP:-127.0.0.1}
+      # 127.0.0.1 siempre: el navegador del propio portátil (proyector) llega por ahí. TS_IP, además, para
+      # el celular y los integrantes por la tailnet. Sin 127.0.0.1 el espejo no conecta en el proyector
+      # (ensayo del 2026-11-04: «deadline exceeded while waiting connection»).
+      - MTX_WEBRTCADDITIONALHOSTS=127.0.0.1${TS_IP:+,${TS_IP}}
       # Clave del usuario `publicador` (solo publica en `camara`). Obligatoria y no vacía: con la clave
       # vacía MediaMTX aceptaría al usuario sin contraseña (probado).
       - MTX_AUTHINTERNALUSERS_0_PASS=${CAMARA_CLAVE:?define CAMARA_CLAVE}
@@ -27,6 +30,8 @@ services:
     # RTSP (8554) NO se publica al host: el plan B entra por la red interna de compose.
     ports:
       - "127.0.0.1:18889:8889"       # HTTP: `tailscale serve` lo publica como HTTPS (README)
+      - "127.0.0.1:18189:18189/udp"         # proyector (sin TS_IP, compose junta estas con las de abajo)
+      - "127.0.0.1:18189:18189/tcp"
       - "${TS_IP:-127.0.0.1}:18189:18189/udp"
       - "${TS_IP:-127.0.0.1}:18189:18189/tcp"
     # No se graba sin quien aplique el TTL: el borrador tiene que estar SANO (su latido al día), no solo

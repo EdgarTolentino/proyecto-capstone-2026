@@ -41,7 +41,10 @@ Edgar levanta todo y te pasa por privado dos direcciones y una clave.
    - Si ves **403**: tu correo no quedó en la lista. Avísale a Edgar.
    - Si la API da **401**: tu usuario no está en la base. Avísale a Edgar.
 2. **En tu teléfono**, con Tailscale conectado, abre `https://<portátil>.<tailnet>.ts.net/camara/publish`.
-   - Usuario `publicador`, y la clave que te pasó Edgar.
+   - Ábrelo en una **pestaña privada** de Safari. Usuario `publicador`, en minúscula (el iPhone pone
+     la primera en mayúscula), y la clave que te pasó Edgar, **pegada**. Si se escribe mal una vez,
+     Safari la guarda y no vuelve a preguntar.
+   - Pantalla encendida y Safari en primer plano: si cambias de app, iOS corta la cámara.
    - **Códec: H264.** Con AV1, el trabajador no procesa nada.
    - **«audio device»: `none`.** La página elige el micrófono por defecto, y no queremos audio de la sala.
    - Toca «publish» y permite **solo** la cámara.

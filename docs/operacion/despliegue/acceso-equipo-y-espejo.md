@@ -26,7 +26,7 @@ reemplaza.
 | nginx de la tailnet (web, `/api/`, `/espejo/`) | `127.0.0.1:18081` → `tailscale serve --https=8443` | Los de `DEMO_IDENTIDADES`; los demás, 403 |
 | nginx del proyector | `127.0.0.1:18080` | Solo el portátil. **No se publica en Tailscale** |
 | Publicar desde el celular (MediaMTX) | `127.0.0.1:18889` → `tailscale serve --https=443` | Quien tenga usuario `publicador` y `CAMARA_CLAVE` |
-| Medios WebRTC (UDP/TCP) | `${TS_IP}:18189` (solo en esa IP) | La tailnet, tras una señalización autenticada |
+| Medios WebRTC (UDP/TCP) | `${TS_IP}:18189` y `127.0.0.1:18189` | La tailnet y el navegador del portátil, tras una señalización autenticada |
 
 No se usa `tailscale funnel` (abre a internet). `serve` solo admite destinos en `127.0.0.1`.
 Requisito de una vez: activar «HTTPS Certificates» en la consola de Tailscale.
@@ -108,11 +108,15 @@ botones de triage ni de procesar. Si ve 403: su login no está en `DEMO_IDENTIDA
 Con la demo levantada por Edgar con `TS_IP=$(tailscale ip -4)` (sin ella el teléfono no conecta):
 
 1. En el teléfono, con Tailscale conectado: `https://<portátil>.<tailnet>.ts.net/camara/publish`.
-2. Usuario `publicador` y la clave `CAMARA_CLAVE`, que Edgar le pasa por un canal privado.
+2. Usuario `publicador` (el iPhone pone la primera letra en mayúscula: corrígela) y la clave
+   `CAMARA_CLAVE`, **pegada**, que Edgar le pasa por un canal privado. Ábrelo en una **pestaña
+   privada** de Safari: si el usuario se escribe mal una vez, Safari lo guarda y ya no vuelve a
+   preguntar (pasó en el ensayo del 2026-11-04).
 3. Códec **H264** (con AV1 el trabajador no decodifica y el PR 7 deja ese video en `error`).
 4. **«audio device»: `none`.** La página de MediaMTX elige el primer micrófono por defecto, y
    elegir H264 no lo apaga. Sin este paso, el trozo graba audio de la sala.
-5. «publish» y permitir solo la cámara.
+5. «publish» y permitir solo la cámara. **Pantalla encendida y Safari en primer plano**: iOS corta
+   la cámara si se cambia de app o se bloquea el teléfono.
 
 ### 6. Ver la Sala en vivo
 
@@ -170,18 +174,35 @@ guarda son los trozos en memoria del paso 7), sin audio, apagado salvo que la de
 cámara, y con aviso a quien se pare frente a ella. La clave de `lector` (`ESPEJO_CLAVE`) vive solo
 en el entorno del nginx: quien la conozca ve el video sin pasar por `ver_evidencia`.
 
-## Lo que no pude comprobar
+## Ensayo real (2026-11-04, Edgar y Miguel)
 
-- Nada con Tailscale real: ni `serve`, ni la cabecera llegando al nginx, ni una ACL sobre `18189`.
-  El nginx debe escuchar solo en `127.0.0.1`: si alguien llegara al puerto directo podría escribir
-  la cabecera (condición de la documentación de Tailscale).
-- Los nombres de S1 (puerta `18081`, `DEMO_IDENTIDADES`, `/espejo/`, usuario `lector`,
-  `ESPEJO_CLAVE`): salen del encargo del capitán, no de un PR. Hoy `mediamtx.yml` del #254 solo trae
-  `publicador`. Contrastar con el PR de S1 cuando exista.
-- Los `psql` (no corrí Docker): `UPDATE` e `INSERT` salen de `modelos.py` (tabla `usuario`, columnas
-  `email, nombre, rol`, `activo` verdadero por defecto) y del compose del #246 (`postgres`, `gepp`).
-- Un teléfono real, H264 en el espejo, la ruta de medios por la tailnet (directa o con relé) y la
-  latencia con red real. El Chromium de Playwright no decodifica H264: el espejo se midió con VP8.
-- `ips:` en `authInternalUsers` para limitar `lector` a la red del nginx, y el `proxy_pass` a WHEP
-  desde el nginx junto con la identidad (probé las dos partes por separado).
-- Qué puertos admite `tailscale serve` más allá de 443 y 8443.
+Con el iPhone de Miguel por la tailnet: 25 trozos procesados con la GPU y 23 hallazgos. Miguel vio
+cada hallazgo en la Sala en vivo **unos 4 a 5 s** después de pararse sin casco (medido a ojo). Al
+cerrar quedaban 0 trozos. Lo que dejó:
+
+- El espejo no conectaba en el navegador del portátil: MediaMTX anunciaba solo la IP de Tailscale.
+  Corregido: también se anuncia y se publica `127.0.0.1` (comprobado en Chrome de Windows con el
+  video de respaldo).
+- El iPhone llegó por un relé de Tailscale (DERP) y perdió paquetes. La grabación se recuperó sola.
+  En la sala, con el teléfono y el portátil en la misma red, debería conectar directo: **comprobarlo
+  antes de presentar**.
+- Telegram no se probó en este ensayo.
+
+## Qué quedó comprobado y qué falta
+
+Comprobado en el ensayo del 2026-11-04, o en los PR de S1 (#261, #262):
+
+- `tailscale serve` en 8443 y 443, con la cabecera de identidad llegando al nginx: Miguel entró como
+  `auditor` y sin identidad la respuesta es 403.
+- El `INSERT` del usuario en la base de la demo (el guion del ensayo lo creó como `auditor`).
+- El iPhone con Safari publicando en H264 y sin audio, y el espejo en su equipo y en el navegador
+  del portátil.
+- `ips:` del `lector` y el `proxy_pass` a WHEP con la identidad (contenedores reales, S1).
+
+Falta:
+
+- **La ACL de la tailnet** (condición 2 de E1): Liân también está en la tailnet, por CVAT, y hoy
+  llega al portátil (recibe 403 en la web, y la cámara pide una clave que no tiene).
+- La conexión **directa** del teléfono en la sala: en el ensayo fue por relé DERP.
+- La latencia del espejo con red real (solo se midió la del hallazgo) y un teléfono Android.
+- La alerta de Telegram dentro de un ensayo.
