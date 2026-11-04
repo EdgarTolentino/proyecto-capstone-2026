@@ -188,18 +188,21 @@ cerrar quedaban 0 trozos. Lo que dejó:
   antes de presentar**.
 - Telegram no se probó en este ensayo.
 
-## Lo que no pude comprobar
+## Qué quedó comprobado y qué falta
 
-- Nada con Tailscale real: ni `serve`, ni la cabecera llegando al nginx, ni una ACL sobre `18189`.
-  El nginx debe escuchar solo en `127.0.0.1`: si alguien llegara al puerto directo podría escribir
-  la cabecera (condición de la documentación de Tailscale).
-- Los nombres de S1 (puerta `18081`, `DEMO_IDENTIDADES`, `/espejo/`, usuario `lector`,
-  `ESPEJO_CLAVE`): salen del encargo del capitán, no de un PR. Hoy `mediamtx.yml` del #254 solo trae
-  `publicador`. Contrastar con el PR de S1 cuando exista.
-- Los `psql` (no corrí Docker): `UPDATE` e `INSERT` salen de `modelos.py` (tabla `usuario`, columnas
-  `email, nombre, rol`, `activo` verdadero por defecto) y del compose del #246 (`postgres`, `gepp`).
-- Un teléfono real, H264 en el espejo, la ruta de medios por la tailnet (directa o con relé) y la
-  latencia con red real. El Chromium de Playwright no decodifica H264: el espejo se midió con VP8.
-- `ips:` en `authInternalUsers` para limitar `lector` a la red del nginx, y el `proxy_pass` a WHEP
-  desde el nginx junto con la identidad (probé las dos partes por separado).
-- Qué puertos admite `tailscale serve` más allá de 443 y 8443.
+Comprobado en el ensayo del 2026-11-04, o en los PR de S1 (#261, #262):
+
+- `tailscale serve` en 8443 y 443, con la cabecera de identidad llegando al nginx: Miguel entró como
+  `auditor` y sin identidad la respuesta es 403.
+- El `INSERT` del usuario en la base de la demo (el guion del ensayo lo creó como `auditor`).
+- El iPhone con Safari publicando en H264 y sin audio, y el espejo en su equipo y en el navegador
+  del portátil.
+- `ips:` del `lector` y el `proxy_pass` a WHEP con la identidad (contenedores reales, S1).
+
+Falta:
+
+- **La ACL de la tailnet** (condición 2 de E1): Liân también está en la tailnet, por CVAT, y hoy
+  llega al portátil (recibe 403 en la web, y la cámara pide una clave que no tiene).
+- La conexión **directa** del teléfono en la sala: en el ensayo fue por relé DERP.
+- La latencia del espejo con red real (solo se midió la del hallazgo) y un teléfono Android.
+- La alerta de Telegram dentro de un ensayo.
