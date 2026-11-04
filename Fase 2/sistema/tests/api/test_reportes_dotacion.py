@@ -200,7 +200,8 @@ def test_la_dotacion_del_periodo_es_el_promedio_de_los_totales_diarios(
     dias = {date(2026, 9, 1): (30, 20, 10), date(2026, 9, 2): (10, 5, 5)}
     dias[date(2026, 8, 31)] = (50, 25, 25)  # el A del 31-ago termina justo al abrir la ventana
     _dotacion_dias(bd, 1, "A", dias)
-    assert _filas(api)[f"{ACCESO} · Turno A"]["valor"] == 25.0  # 10 * 100 / 40
+    fila = _filas(api)[f"{ACCESO} · Turno A"]
+    assert fila["valor"] == 25.0 and fila["dotacion"]["total"] == 40  # 10 * 100 / 40
 
 
 def test_incumplimientos_en_un_dia_sin_dotacion_no_se_dividen_entre_otros_dias(

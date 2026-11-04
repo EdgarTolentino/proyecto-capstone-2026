@@ -386,7 +386,7 @@ export interface paths {
          *     de los totales diarios con registro), una fila por área × turno (`segmentacion` solo
          *     admite `turno`). Dato administrativo: no se cruza con personas detectadas. Sin tasa
          *     (`valor` nulo y `razon`) si algún día tiene menos de 5 personas o hay incumplimientos en
-         *     días sin dotación registrada. Con `formato=csv` no se incluye `razon`.
+         *     días sin dotación registrada. Con `formato=csv` no se incluyen `razon` ni `dotacion`.
          */
         get: operations["obtenerReporte"];
         put?: never;
@@ -1130,6 +1130,22 @@ export interface components {
                  * @enum {string}
                  */
                 razon?: "n_insuficiente" | "sin_dotacion" | "dotacion_insuficiente" | "dotacion_incompleta";
+                /**
+                 * @description Solo en el reporte `dotacion`. `total` es el promedio de los totales diarios (nulo
+                 *     si algún día tiene menos de 5 personas). `hombres`, `mujeres` y `otro` van TODOS
+                 *     o NINGUNO: solo si en cada día de la ventana cada categoría es 0 o al menos 5 y
+                 *     su promedio también; si no, los tres vienen `null` y queda solo el total. Ocultar
+                 *     únicamente lo chico se despeja por diferencia con el total o entre ventanas.
+                 */
+                dotacion?: {
+                    /** @example 22 */
+                    total: number | null;
+                    /** @example 18 */
+                    hombres: number | null;
+                    mujeres: number | null;
+                    otro: number | null;
+                    datos_insuficientes: boolean;
+                };
             }[];
         };
         Catalogos: {
