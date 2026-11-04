@@ -121,6 +121,11 @@ def test_los_cuatro_reportes_cumplen_el_contrato(
     for fila in r["filas"]:
         # Ninguna celda visible con menos de 5: la supresión es del servidor.
         assert fila["datos_insuficientes"] or fila["n"] >= 5
+        if not fila["datos_insuficientes"]:
+            # #140: todo `n` visible es múltiplo de 5 en TODO tipo y segmentación (si uno se saltara
+            # `celda`, saldría el conteo exacto); `valor` es el mismo número y cada semana también.
+            assert fila["n"] % 5 == 0 and fila["valor"] == float(fila["n"])
+            assert all(v % 5 == 0 for v in fila.get("serie", []))
 
 
 def test_la_supresion_corta_exactamente_en_cinco(api: Cliente, extra: None) -> None:
@@ -145,8 +150,8 @@ def test_el_reporte_de_zonas_trae_serie_de_ocho_semanas(api: Cliente, extra: Non
     filas = {f["etiqueta"]: f for f in r["filas"]}
     assert filas["Cámara 01 · acceso"]["datos_insuficientes"] is True  # n = 2
     visible = filas["Cámara 02 · obra gruesa"]
-    assert visible["n"] == 7
-    assert len(visible["serie"]) == 8 and sum(visible["serie"]) == 7
+    assert visible["n"] == 5  # 7 casos reales, redondeados al múltiplo de 5 más cercano (#140)
+    assert len(visible["serie"]) == 8 and sum(visible["serie"]) == 5  # la semana con los 7, también
 
 
 def test_el_csv_aplica_la_misma_supresion(api: Cliente, extra: None) -> None:

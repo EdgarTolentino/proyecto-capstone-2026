@@ -1609,8 +1609,14 @@ components:
             required: [etiqueta]
             properties:
               etiqueta: { type: string, example: Andamio Fachada Norte }
-              valor: { type: [number, 'null'], example: 23 }
-              n: { type: [integer, 'null'], description: Población de la celda., example: 18 }
+              valor: { type: [number, 'null'], example: 25 }
+              n:
+                type: [integer, 'null']
+                description: |
+                  Población de la celda, **redondeada al múltiplo de 5 más cercano** (5, 10, 15…;
+                  un empate sube). Con rangos `desde`/`hasta` libres, el valor exacto permitiría
+                  despejar una celda chica restando dos respuestas (#140). `valor` va igual.
+                example: 20
               datos_insuficientes:
                 type: boolean
                 description: |
@@ -1619,7 +1625,9 @@ components:
                 default: false
               serie:
                 type: array
-                description: Minigráfico de 8 semanas, en el ranking por zona.
+                description: |
+                  Minigráfico de 8 semanas, en el ranking por zona. Cada semana va redondeada al
+                  múltiplo de 5 más cercano (0 queda en 0), por la misma razón que `n`.
                 items: { type: number }
 
     Catalogos:

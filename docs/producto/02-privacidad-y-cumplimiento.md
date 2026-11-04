@@ -101,6 +101,14 @@ dato administrativo verificado del propio cliente:
 Con una regla de presentación **obligatoria en la interfaz**: ninguna celda con **n < 5** se
 muestra. Con esa dotación, una celda pequeña reidentifica a la trabajadora.
 
+Y los `n` visibles (también `valor` y la serie semanal) se **redondean al múltiplo de 5 más cercano**
+(#140): los reportes aceptan cualquier `desde`/`hasta`, y restando dos respuestas con `n` exacto se
+despejaba una celda chica (5 y 6 casos → la diferencia revela el 1). Con 5 y 6 ambos salen como 5.
+Las filas van ordenadas por el valor publicado, no por el exacto. **Límite que se declara:** con
+ventanas que se solapan todavía puede despejarse un caso (franjas A = 6, X = 1, B = 6: las consultas
+A+X, X+B, todo y X dan 5, 5, 15 y suprimido, lo que obliga a X = 1). El redondeo reduce los despejes,
+no los elimina; la protección completa son ventanas fijas (cambia el contrato) y queda para después de H4.
+
 Y hay un uso legítimo que además aporta valor real: la OIT y la normativa recomiendan adecuar el
 EPP a diferencias biológicas. Si el EPP mal ajustado o de talla incorrecta explica parte del
 incumplimiento, ese hallazgo **sí** es accionable.
