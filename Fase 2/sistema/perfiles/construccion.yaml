@@ -90,9 +90,11 @@ reglas:
 
 # Dotación SINTÉTICA de demostración (KPI 7, `GET /reportes/dotacion`): números inventados, NO es
 # la nómina de nadie. `origen: sintetica` es obligatorio; la dotación real del cliente (dato
-# administrativo, nunca inferido de la imagen) no entra por este perfil. Una fila por área y
-# turno, repetida los últimos `dias` días. A propósito hay conteos < 5 (mujeres, otro) para que
-# se vea la supresión, y un área sin dotación en el turno B para ver «sin dotación».
+# administrativo, nunca inferido de la imagen) no entra por este perfil: `construccion.yaml` es de
+# DEMOSTRACIÓN, y cargarlo sobre una faena real ya sembrada la rellenaría con sintéticos (la tabla
+# no guarda el origen). Una fila por área y turno, repetida los últimos `dias` días. A propósito
+# hay conteos < 5 (mujeres, otro) para que se vea la supresión, y un área sin dotación en el
+# turno B para ver «sin dotación».
 dotacion:
   origen: sintetica
   dias: 30

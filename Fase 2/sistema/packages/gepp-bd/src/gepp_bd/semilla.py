@@ -31,6 +31,7 @@ from gepp_bd.modelos import (
 )
 from gepp_bd.repositorios import reglas
 from gepp_bd.sesion import crear_motor, transaccion
+from gepp_bd.turnos import TURNOS
 
 
 class PerfilInvalido(ValueError):
@@ -82,10 +83,21 @@ def _cargar_usuarios(sesion: Session, perfil: dict[str, Any], areas: dict[str, A
     return nuevos
 
 
-def _cargar_dotacion(sesion: Session, perfil: dict[str, Any], areas: dict[str, Area]) -> int:
+def _entero(valor: Any, minimo: int, donde: str) -> int:
+    """Un entero de verdad (ni `bool` ni fracción) y no menor que `minimo`."""
+    if isinstance(valor, bool) or not isinstance(valor, int) or valor < minimo:
+        raise PerfilInvalido(f"{donde}: debe ser un entero >= {minimo}, no {valor!r}")
+    return valor
+
+
+def _cargar_dotacion(
+    sesion: Session, perfil: dict[str, Any], areas: dict[str, Area], zona_horaria: str
+) -> int:
     """Dotación SINTÉTICA de demostración: una fila por área, turno y día, hasta hoy.
 
-    Solo acepta `origen: sintetica`: los datos reales del cliente no entran por el perfil.
+    Solo acepta `origen: sintetica`. Este perfil es de DEMOSTRACIÓN: la dotación real del cliente
+    nunca entra por un perfil (cargarlo sobre una faena real la rellenaría con números
+    inventados, y la tabla no guarda el origen). «Hoy» es el de la faena, no el del servidor.
     Idempotente por (área, fecha, turno). Devuelve cuántas filas sumó.
     """
     bloque = perfil.get("dotacion")
@@ -93,14 +105,27 @@ def _cargar_dotacion(sesion: Session, perfil: dict[str, Any], areas: dict[str, A
         return 0
     if bloque.get("origen") != "sintetica":
         raise PerfilInvalido("dotacion.origen: este perfil solo carga dotación 'sintetica'")
-    hoy = sesion.scalar(select(func.current_date()))
-    assert hoy is not None
-    nuevas = 0
+    dias = _entero(bloque.get("dias", 30), 1, "dotacion.dias")
+    codigos = {t.codigo for t in TURNOS}
+    filas = []
     for f in bloque["filas"]:
         donde = f"dotacion {f['area']!r} turno {f['turno']!r}"
         if f["area"] not in areas:
             raise PerfilInvalido(f"{donde}: el área no está declarada en `areas`")
-        area = areas[f["area"]]
+        if f["turno"] not in codigos:
+            raise PerfilInvalido(f"{donde}: el turno debe ser uno de {sorted(codigos)}")
+        conteos = (
+            _entero(f["hombres"], 0, f"{donde}: hombres"),
+            _entero(f["mujeres"], 0, f"{donde}: mujeres"),
+            _entero(f.get("otro", 0), 0, f"{donde}: otro"),
+        )
+        filas.append((areas[f["area"]], f["turno"], conteos))
+    # Hora local de la faena (no la del servidor): a las 01:00Z el día de Santiago es el anterior.
+    ahora_local = sesion.scalar(select(func.timezone(zona_horaria, func.now())))
+    assert ahora_local is not None
+    hoy = ahora_local.date()
+    nuevas = 0
+    for area, turno, (hombres, mujeres, otro) in filas:
         existentes = set(
             sesion.execute(
                 select(Dotacion.fecha, Dotacion.turno).where(Dotacion.area_id == area.id)
@@ -108,18 +133,18 @@ def _cargar_dotacion(sesion: Session, perfil: dict[str, Any], areas: dict[str, A
             .tuples()
             .all()
         )
-        for atras in range(int(bloque.get("dias", 30))):
+        for atras in range(dias):
             fecha = hoy - timedelta(days=atras)
-            if (fecha, f["turno"]) in existentes:
+            if (fecha, turno) in existentes:
                 continue
             sesion.add(
                 Dotacion(
                     area_id=area.id,
                     fecha=fecha,
-                    turno=f["turno"],
-                    n_hombres=f["hombres"],
-                    n_mujeres=f["mujeres"],
-                    n_otro=f.get("otro", 0),
+                    turno=turno,
+                    n_hombres=hombres,
+                    n_mujeres=mujeres,
+                    n_otro=otro,
                 )
             )
             nuevas += 1
@@ -155,7 +180,7 @@ def cargar(sesion: Session, perfil: dict[str, Any]) -> Faena:
             for a in sesion.execute(select(Area).where(Area.faena_id == existente.id)).scalars()
         }
         _cargar_usuarios(sesion, perfil, areas_existentes)
-        _cargar_dotacion(sesion, perfil, areas_existentes)
+        _cargar_dotacion(sesion, perfil, areas_existentes, existente.zona_horaria)
         return existente
 
     faena = Faena(
@@ -214,7 +239,7 @@ def cargar(sesion: Session, perfil: dict[str, Any]) -> Faena:
     sesion.flush()
 
     _cargar_usuarios(sesion, perfil, areas)
-    _cargar_dotacion(sesion, perfil, areas)
+    _cargar_dotacion(sesion, perfil, areas, faena.zona_horaria)
 
     for r in perfil["reglas"]:
         donde = f"regla {r['nombre']!r}"
