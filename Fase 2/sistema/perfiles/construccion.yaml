@@ -88,6 +88,21 @@ reglas:
     finalidad_declarada: Verificar el uso del EPP obligatorio en el frente de trabajo
     retencion_dias: 30
 
+# Dotación SINTÉTICA de demostración (KPI 7, `GET /reportes/dotacion`): números inventados, NO es
+# la nómina de nadie. `origen: sintetica` es obligatorio; la dotación real del cliente (dato
+# administrativo, nunca inferido de la imagen) no entra por este perfil: `construccion.yaml` es de
+# DEMOSTRACIÓN, y cargarlo sobre una faena real ya sembrada la rellenaría con sintéticos (la tabla
+# no guarda el origen). Una fila por área y turno, repetida los últimos `dias` días. A propósito
+# hay conteos < 5 (mujeres, otro) para que se vea la supresión, y un área sin dotación en el
+# turno B para ver «sin dotación».
+dotacion:
+  origen: sintetica
+  dias: 30
+  filas:
+    - {area: Acceso y patio de materiales, turno: A, hombres: 18, mujeres: 4, otro: 0}
+    - {area: Acceso y patio de materiales, turno: B, hombres: 9, mujeres: 6, otro: 0}
+    - {area: Frente de obra gruesa, turno: A, hombres: 30, mujeres: 12, otro: 1}
+
 # Usuarios de DEMOSTRACIÓN: roles, no personas. Correos en el dominio reservado `.invalid`
 # (RFC 2606): no pueden pertenecer a nadie. `Authorization: Bearer demo` entra como el primero.
 #
