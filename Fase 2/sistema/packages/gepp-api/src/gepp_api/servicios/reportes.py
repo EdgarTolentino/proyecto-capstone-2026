@@ -26,15 +26,16 @@ import io
 import math
 from collections import Counter
 from collections.abc import Callable, Iterable
-from datetime import datetime, timedelta
+from datetime import date, datetime, timedelta
 from typing import Any
 from zoneinfo import ZoneInfo
 
-from gepp_bd.modelos import Fuente, Hallazgo, Zona
+from gepp_bd.modelos import Area, Dotacion, Fuente, Hallazgo, Zona
 from sqlalchemy import func, select
 from sqlalchemy.orm import Session
 
 from gepp_api.config import TURNOS
+from gepp_api.errores import ErrorApi
 
 #: Población mínima de una celda para mostrar su valor.
 N_MINIMO = 5
@@ -49,6 +50,7 @@ DIMENSION_POR_DEFECTO: dict[str, str | None] = {
     "zonas": "zona",
     "mapa-calor": "zona",
     "tendencia": None,
+    "dotacion": "turno",
 }
 
 
@@ -98,6 +100,112 @@ def celda(etiqueta: str, n: int, serie: list[float] | None = None) -> dict[str, 
     if serie is not None and all(v == 0 or v >= N_MINIMO for v in serie):
         fila["serie"] = [float(redondear_a_multiplo(v)) for v in serie]
     return fila
+
+
+def _turno_y_fecha(ts: datetime, tz: ZoneInfo) -> tuple[str, date]:
+    """Turno de un instante y la fecha en que empezó (el B de las 01:10 es del día anterior)."""
+    local = ts.astimezone(tz)
+    hora = local.time()
+    for t in TURNOS:
+        if t.contiene(hora):
+            dia = local.date()
+            if t.desde > t.hasta and hora < t.hasta:
+                dia -= timedelta(days=1)
+            return t.codigo, dia
+    return "?", local.date()
+
+
+def _turnos_que_tocan(inicio: datetime, fin: datetime, tz: ZoneInfo) -> set[tuple[date, str]]:
+    """(fecha de inicio, turno) de los turnos que intersectan [inicio, fin), como los eventos."""
+    tocan: set[tuple[date, str]] = set()
+    dia = inicio.astimezone(tz).date() - timedelta(days=1)
+    ultimo = (fin - timedelta(microseconds=1)).astimezone(tz).date()
+    while dia <= ultimo:
+        for t in TURNOS:
+            empieza = datetime.combine(dia, t.desde, tzinfo=tz)
+            termina = datetime.combine(dia, t.hasta, tzinfo=tz)
+            if t.desde >= t.hasta:  # cruza la medianoche
+                termina += timedelta(days=1)
+            if empieza < fin and termina > inicio:
+                tocan.add((dia, t.codigo))
+        dia += timedelta(days=1)
+    return tocan
+
+
+def _fila_dotacion(
+    etiqueta: str,
+    incumplimientos: int,
+    dias: list[tuple[int, int, int]],
+    fuera: int,
+) -> dict[str, Any]:
+    """Incumplimientos por cada 100 trabajadores de la dotación (dato administrativo).
+
+    `dias`: dotaciones diarias registradas; `fuera`: incumplimientos de días sin registro. La
+    dotación del período es el promedio de los totales diarios exactos y la tasa sale del `n` que
+    `celda` deja VISIBLE (con el exacto, multiplicar por el total lo devolvería). Sin tasa si algún
+    día tiene menos de N_MINIMO personas o si hay incumplimientos en días sin registro.
+    """
+    base = celda(etiqueta, incumplimientos)
+    fila: dict[str, Any] = {
+        "etiqueta": etiqueta,
+        "valor": None,
+        "n": base["n"],
+        "datos_insuficientes": True,
+    }
+    totales = [sum(d) for d in dias]
+    if base["n"] is None:
+        fila["razon"] = "n_insuficiente"
+    elif not dias:
+        fila["razon"] = "sin_dotacion"
+    elif min(totales) < N_MINIMO:
+        fila["razon"] = "dotacion_insuficiente"
+    elif fuera:
+        fila["razon"] = "dotacion_incompleta"
+    else:
+        fila["valor"] = base["n"] * 100 * len(totales) / sum(totales)
+        fila["datos_insuficientes"] = False
+    return fila
+
+
+def _reporte_dotacion(
+    bd: Session,
+    tz: ZoneInfo,
+    hallazgos: list[Hallazgo],
+    inicio: datetime,
+    fin: datetime,
+    area_id: int | None,
+) -> list[dict[str, Any]]:
+    """Una fila por área y turno, con la dotación de los turnos de la ventana que la tienen."""
+    tocan = _turnos_que_tocan(inicio, fin, tz)
+    consulta = select(Dotacion).where(
+        Dotacion.fecha >= min(f for f, _ in tocan), Dotacion.fecha <= max(f for f, _ in tocan)
+    )
+    if area_id is not None:
+        consulta = consulta.where(Dotacion.area_id == area_id)
+    registros: dict[tuple[int, str], dict[date, tuple[int, int, int]]] = {}
+    for d in bd.execute(consulta).scalars():
+        if (d.fecha, d.turno) not in tocan:
+            continue
+        registros.setdefault((d.area_id, d.turno), {})[d.fecha] = (
+            d.n_hombres,
+            d.n_mujeres,
+            d.n_otro,
+        )
+    eventos: Counter[tuple[int, str, date]] = Counter()
+    for h in hallazgos:
+        turno, fecha = _turno_y_fecha(h.ts_inicio, tz)
+        eventos[(h.area_id, turno, fecha)] += 1
+    areas = dict(bd.execute(select(Area.id, Area.nombre)).tuples().all())
+    filas = []
+    for clave in sorted(set(registros) | {(a, t) for a, t, _ in eventos}):
+        dias = registros.get(clave, {})
+        propios = {f: n for (a, t, f), n in eventos.items() if (a, t) == clave}
+        fuera = sum(n for f, n in propios.items() if f not in dias)
+        etiqueta = f"{areas.get(clave[0], f'Área {clave[0]}')} · Turno {clave[1]}"
+        filas.append(
+            _fila_dotacion(etiqueta, sum(propios.values()), [dias[f] for f in sorted(dias)], fuera)
+        )
+    return sorted(filas, key=lambda f: f["etiqueta"])
 
 
 def _turno(ts: datetime, tz: ZoneInfo) -> str:
@@ -160,7 +268,13 @@ def reporte(
     claves = _claves(dimension, tz, zonas, fuentes)
 
     filas: list[dict[str, Any]]
-    if tipo == "mapa-calor":
+    if tipo == "dotacion":
+        if segmentacion not in (None, "turno"):
+            raise ErrorApi(
+                422, "peticion_invalida", "La tasa por dotación se reporta por área y turno"
+            )
+        filas = _reporte_dotacion(bd, tz, hallazgos, inicio, fin, area_id)
+    elif tipo == "mapa-calor":
         conteo = Counter(
             _con(k, f"{h.ts_inicio.astimezone(tz).hour:02d}h") for h in hallazgos for k in claves(h)
         )

@@ -846,6 +846,12 @@ paths:
       description: |
         Las celdas cuya población es menor que 5 se devuelven con `datos_insuficientes: true` y
         **sin valor**. La supresión ocurre en el servidor: el frontend no puede saltársela.
+
+        `dotacion`: incumplimientos por cada 100 trabajadores de la dotación del período (promedio
+        de los totales diarios con registro), una fila por área × turno (`segmentacion` solo
+        admite `turno`). Dato administrativo: no se cruza con personas detectadas. Sin tasa
+        (`valor` nulo y `razon`) si algún día tiene menos de 5 personas o hay incumplimientos en
+        días sin dotación registrada. Con `formato=csv` no se incluye `razon`.
       operationId: obtenerReporte
       parameters:
         - name: tipo
@@ -853,7 +859,7 @@ paths:
           required: true
           schema:
             type: string
-            enum: [ranking-epp, zonas, mapa-calor, tendencia]
+            enum: [ranking-epp, zonas, mapa-calor, tendencia, dotacion]
         - name: segmentacion
           in: query
           schema:
@@ -1629,6 +1635,13 @@ components:
                   Minigráfico de 8 semanas, en el ranking por zona. Cada semana va redondeada al
                   múltiplo de 5 más cercano (0 queda en 0), por la misma razón que `n`.
                 items: { type: number }
+              razon:
+                type: string
+                enum: [n_insuficiente, sin_dotacion, dotacion_insuficiente, dotacion_incompleta]
+                description: |
+                  Solo en el reporte `dotacion`, con `valor` nulo: pocos incumplimientos, sin
+                  dotación, algún día con menos de 5 personas, o incumplimientos en días sin
+                  dotación registrada (`dotacion_incompleta`).
 
     Catalogos:
       type: object
