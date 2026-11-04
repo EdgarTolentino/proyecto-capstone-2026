@@ -132,6 +132,40 @@ def _turnos_que_tocan(inicio: datetime, fin: datetime, tz: ZoneInfo) -> set[tupl
     return tocan
 
 
+def _promedio(valores: list[int]) -> int:
+    """Promedio entero, a la mitad hacia arriba (sin coma flotante)."""
+    return (2 * sum(valores) + len(valores)) // (2 * len(valores))
+
+
+def _dotacion_visible(dias: list[tuple[int, int, int]]) -> dict[str, Any]:
+    """Total y composición de la dotación del período, TODO O NADA.
+
+    El total es el promedio de los totales diarios exactos y se publica si CADA día tiene al menos
+    N_MINIMO personas. La composición (hombres, mujeres, otro) se publica solo si en CADA día cada
+    categoría es 0 o >= N_MINIMO y además su promedio publicado también lo es; si no, las tres van
+    `null`. Ocultar solo lo chico con el total a la vista se despeja por diferencia (5, 4, 4 con
+    total 13), y entre ventanas distintas también (un día con 2 mujeres más otro con 10 dan un
+    promedio que obliga al 2): por eso no hay supresión parcial.
+    """
+    nulo: dict[str, Any] = {"hombres": None, "mujeres": None, "otro": None}
+    if min(sum(d) for d in dias) < N_MINIMO:
+        return {"total": None, **nulo, "datos_insuficientes": True}
+    total = _promedio([sum(d) for d in dias])
+    sumas = [sum(d[i] for d in dias) for i in range(3)]
+    promedios = [_promedio([d[i] for d in dias]) for i in range(3)]
+    por_dia = all(v == 0 or v >= N_MINIMO for d in dias for v in d)
+    publicado = all(s == 0 or p >= N_MINIMO for s, p in zip(sumas, promedios, strict=True))
+    if not (por_dia and publicado):
+        return {"total": total, **nulo, "datos_insuficientes": True}
+    return {
+        "total": total,
+        "hombres": promedios[0],
+        "mujeres": promedios[1],
+        "otro": promedios[2],
+        "datos_insuficientes": False,
+    }
+
+
 def _fila_dotacion(
     etiqueta: str,
     incumplimientos: int,
@@ -164,6 +198,8 @@ def _fila_dotacion(
     else:
         fila["valor"] = base["n"] * 100 * len(totales) / sum(totales)
         fila["datos_insuficientes"] = False
+    if dias:
+        fila["dotacion"] = _dotacion_visible(dias)
     return fila
 
 
