@@ -1097,11 +1097,13 @@ export interface components {
             filas: {
                 /** @example Andamio Fachada Norte */
                 etiqueta: string;
-                /** @example 23 */
+                /** @example 25 */
                 valor?: number | null;
                 /**
-                 * @description Población de la celda.
-                 * @example 18
+                 * @description Población de la celda, **redondeada al múltiplo de 5 más cercano** (5, 10, 15…;
+                 *     un empate sube). Con rangos `desde`/`hasta` libres, el valor exacto permitiría
+                 *     despejar una celda chica restando dos respuestas (#140). `valor` va igual.
+                 * @example 20
                  */
                 n?: number | null;
                 /**
@@ -1110,7 +1112,10 @@ export interface components {
                  * @default false
                  */
                 datos_insuficientes: boolean;
-                /** @description Minigráfico de 8 semanas, en el ranking por zona. */
+                /**
+                 * @description Minigráfico de 8 semanas, en el ranking por zona. Cada semana va redondeada al
+                 *     múltiplo de 5 más cercano (0 queda en 0), por la misma razón que `n`.
+                 */
                 serie?: number[];
             }[];
         };

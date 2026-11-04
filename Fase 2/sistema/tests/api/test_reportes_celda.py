@@ -20,11 +20,12 @@ def test_una_semana_bajo_el_umbral_quita_la_serie_entera() -> None:
     # Con el total visible, quitar solo esa semana la dejaría despejable por diferencia.
     fila = celda("Zona A", 9, _serie(N_MINIMO - 1, N_MINIMO))
     assert "serie" not in fila
-    assert fila["valor"] == 9 and fila["datos_insuficientes"] is False
+    assert fila["valor"] == 10 and fila["datos_insuficientes"] is False  # 9 → 10 (#140)
 
 
 def test_las_semanas_en_cero_no_delatan_a_nadie() -> None:
-    assert celda("Zona A", 12, _serie(6, 0, 6))["serie"] == _serie(6, 0, 6)
+    # 6 → 5 (#140); el 0 sigue siendo 0: «ninguna semana sin casos» no se confunde con «5»
+    assert celda("Zona A", 12, _serie(6, 0, 6))["serie"] == _serie(5, 0, 5)
 
 
 @pytest.mark.parametrize("semana", [1.0, 2.0, 3.0, 4.0])

@@ -101,6 +101,10 @@ dato administrativo verificado del propio cliente:
 Con una regla de presentación **obligatoria en la interfaz**: ninguna celda con **n < 5** se
 muestra. Con esa dotación, una celda pequeña reidentifica a la trabajadora.
 
+Y los `n` visibles (también `valor` y la serie semanal) se **redondean al múltiplo de 5 más cercano**
+(#140): los reportes aceptan cualquier `desde`/`hasta`, y restando dos respuestas con `n` exacto se
+despejaba una celda chica (5 y 6 casos → la diferencia revela el 1). Con 5 y 6 ambos salen como 5.
+
 Y hay un uso legítimo que además aporta valor real: la OIT y la normativa recomiendan adecuar el
 EPP a diferencias biológicas. Si el EPP mal ajustado o de talla incorrecta explica parte del
 incumplimiento, ese hallazgo **sí** es accionable.

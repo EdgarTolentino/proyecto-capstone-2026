@@ -5,12 +5,18 @@ Se oculta también `n`: publicar "n = 2" ya dice que hubo dos casos en ese cruce
 justo lo que la supresión protege (con una dotación femenina de ~15 %, una celda chica
 reidentifica a la trabajadora; `01-modelo-de-datos.md`, `dotacion`). El frontend no puede
 saltársela porque el dato nunca sale del servidor.
+
+Los `n` (y el `valor`, y la `serie` semanal) de una celda visible salen **redondeados al
+múltiplo de 5 más cercano** (#140): `GET /reportes/{tipo}` acepta cualquier `desde`/`hasta`, y
+restando las respuestas de dos ventanas se despejaba una celda chica (5 casos en una semana y 1 en
+la siguiente daban 5 y 6; la resta delataba el 1). Con el redondeo, 5 y 6 salen ambos como 5.
 """
 
 from __future__ import annotations
 
 import csv
 import io
+import math
 from collections import Counter
 from collections.abc import Callable, Iterable
 from datetime import datetime, timedelta
@@ -25,6 +31,9 @@ from gepp_api.config import TURNOS
 
 #: Población mínima de una celda para mostrar su valor.
 N_MINIMO = 5
+#: Los `n` visibles se redondean a múltiplos de este valor (#140). Igual a `N_MINIMO` a propósito:
+#: una celda visible (n >= 5) nunca se redondea a 0.
+MULTIPLO = 5
 VENTANA_POR_DEFECTO = timedelta(days=30)
 SEMANAS_SERIE = 8
 
@@ -36,21 +45,38 @@ DIMENSION_POR_DEFECTO: dict[str, str | None] = {
 }
 
 
+def redondear_a_multiplo(x: float) -> int:
+    """El múltiplo de `MULTIPLO` más cercano a `x`; un empate (x = 7,5) sube: 10, no 5.
+
+    Con enteros no hay empate (7 → 5, 8 → 10). No se usa `round`: Python redondea el empate al par
+    (`round(2.5)` = 2, `round(3.5)` = 4): 7,5 y 12,5 darían 10 y 10, no 10 y 15.
+    Un `x` negativo, NaN o infinito es un error de quien llama: no se corrige en silencio.
+    """
+    if not math.isfinite(x) or x < 0:
+        raise ValueError(f"no se puede redondear un conteo de {x!r}")
+    return math.floor(x / MULTIPLO + 0.5) * MULTIPLO
+
+
 def celda(etiqueta: str, n: int, serie: list[float] | None = None) -> dict[str, Any]:
-    """Una fila del reporte, ya suprimida si n < N_MINIMO."""
+    """Una fila del reporte: suprimida si n < N_MINIMO; si no, `n`, `valor` y `serie` redondeados.
+
+    La supresión y la regla de la serie miran el `n` y las semanas EXACTOS; solo lo que sale
+    se redondea (#140).
+    """
     if n < N_MINIMO:
         return {"etiqueta": etiqueta, "valor": None, "n": None, "datos_insuficientes": True}
+    visible = redondear_a_multiplo(n)
     fila: dict[str, Any] = {
         "etiqueta": etiqueta,
-        "valor": float(n),
-        "n": n,
+        "valor": float(visible),
+        "n": visible,
         "datos_insuficientes": False,
     }
     # Cada semana es una celda: una de 1 a 4 casos no se muestra, y como el total va visible
     # tampoco basta con ocultar solo esa semana (se despeja por diferencia). Va la serie entera
     # o no va. El contrato la declara opcional.
     if serie is not None and all(v == 0 or v >= N_MINIMO for v in serie):
-        fila["serie"] = serie
+        fila["serie"] = [float(redondear_a_multiplo(v)) for v in serie]
     return fila
 
 

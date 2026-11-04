@@ -145,8 +145,8 @@ def test_el_reporte_de_zonas_trae_serie_de_ocho_semanas(api: Cliente, extra: Non
     filas = {f["etiqueta"]: f for f in r["filas"]}
     assert filas["Cámara 01 · acceso"]["datos_insuficientes"] is True  # n = 2
     visible = filas["Cámara 02 · obra gruesa"]
-    assert visible["n"] == 7
-    assert len(visible["serie"]) == 8 and sum(visible["serie"]) == 7
+    assert visible["n"] == 5  # 7 casos reales, redondeados al múltiplo de 5 más cercano (#140)
+    assert len(visible["serie"]) == 8 and sum(visible["serie"]) == 5  # la semana con los 7, también
 
 
 def test_el_csv_aplica_la_misma_supresion(api: Cliente, extra: None) -> None:
