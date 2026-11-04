@@ -16,7 +16,7 @@ router = APIRouter(tags=["Reportes"])
 
 @router.get("/reportes/{tipo}", operation_id="obtenerReporte")
 def obtener_reporte(
-    tipo: Literal["ranking-epp", "zonas", "mapa-calor", "tendencia"],
+    tipo: Literal["ranking-epp", "zonas", "mapa-calor", "tendencia", "dotacion"],
     request: Request,
     bd: Bd,
     sesion: Sesion,

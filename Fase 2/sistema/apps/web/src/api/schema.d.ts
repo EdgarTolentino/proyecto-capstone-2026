@@ -381,6 +381,12 @@ export interface paths {
          * Reporte agregado
          * @description Las celdas cuya población es menor que 5 se devuelven con `datos_insuficientes: true` y
          *     **sin valor**. La supresión ocurre en el servidor: el frontend no puede saltársela.
+         *
+         *     `dotacion`: incumplimientos por cada 100 trabajadores de la dotación del período (promedio
+         *     de los totales diarios con registro), una fila por área × turno (`segmentacion` solo
+         *     admite `turno`). Dato administrativo: no se cruza con personas detectadas. Sin tasa
+         *     (`valor` nulo y `razon`) si algún día tiene menos de 5 personas o hay incumplimientos en
+         *     días sin dotación registrada. Con `formato=csv` no se incluye `razon`.
          */
         get: operations["obtenerReporte"];
         put?: never;
@@ -1117,6 +1123,13 @@ export interface components {
                  *     múltiplo de 5 más cercano (0 queda en 0), por la misma razón que `n`.
                  */
                 serie?: number[];
+                /**
+                 * @description Solo en el reporte `dotacion`, con `valor` nulo: pocos incumplimientos, sin
+                 *     dotación, algún día con menos de 5 personas, o incumplimientos en días sin
+                 *     dotación registrada (`dotacion_incompleta`).
+                 * @enum {string}
+                 */
+                razon?: "n_insuficiente" | "sin_dotacion" | "dotacion_insuficiente" | "dotacion_incompleta";
             }[];
         };
         Catalogos: {
@@ -2300,7 +2313,7 @@ export interface operations {
             };
             header?: never;
             path: {
-                tipo: "ranking-epp" | "zonas" | "mapa-calor" | "tendencia";
+                tipo: "ranking-epp" | "zonas" | "mapa-calor" | "tendencia" | "dotacion";
             };
             cookie?: never;
         };
