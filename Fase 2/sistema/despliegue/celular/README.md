@@ -73,7 +73,8 @@ docker run --rm -e CAMARA_CLAVE --network container:gepp-demo-mediamtx-1 \
 1. En la consola de Tailscale, activar **HTTPS Certificates** del tailnet.
 2. Publicar la página por HTTPS dentro del tailnet (el celular exige contexto seguro para la cámara):
    `! tailscale serve --bg --https=443 http://127.0.0.1:18889` (se deshace con `! tailscale serve reset`).
-3. Levantar con `TS_IP=$(tailscale ip -4)` como arriba: los puertos 18189 UDP/TCP se abren SOLO en esa IP.
+3. Levantar con `TS_IP=$(tailscale ip -4)` como arriba: los puertos 18189 UDP/TCP se abren en esa IP (el teléfono
+   y la tailnet) y en `127.0.0.1` (el navegador del propio portátil, el del proyector). Nunca en la red local.
 4. En el teléfono (con la app de Tailscale en el mismo tailnet) abrir
    `https://<portátil>.<tailnet>.ts.net/camara/publish`. El navegador pide **usuario `publicador` y la clave**
    (`CAMARA_CLAVE`). Dejar el códec en **H264**, poner **«audio device: none»** (la página de MediaMTX v1.21.3 elige el primer

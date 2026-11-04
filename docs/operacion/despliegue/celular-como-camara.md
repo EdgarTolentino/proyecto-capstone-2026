@@ -169,7 +169,7 @@ Probado: publicar por RTSP sin credenciales, con clave mala y en otra ruta (`/ot
 con la clave y en `camara` → entra; leer `camara` por RTSP sin credenciales y con la del publicador → `401`;
 página `/camara/publish` sin credenciales o con clave mala → `401`, con la correcta → `200`; WHEP con la clave
 del publicador → `401`. En el celular, el navegador pide usuario y clave al abrir la página (`publicador` y la
-clave). Los medios WebRTC (`${TS_IP}:18189`) los alcanza quien esté en la tailnet, pero solo se establecen tras
+clave). Los medios WebRTC (`${TS_IP}:18189`, y `127.0.0.1:18189` para el navegador del propio portátil) los alcanza quien esté en la tailnet, pero solo se establecen tras
 una señalización autenticada. La ACL de la tailnet sobre ese puerto no se probó.
 
 ## 6. Hallazgos que cambian cómo se opera
