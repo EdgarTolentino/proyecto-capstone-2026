@@ -10,15 +10,25 @@ Uso: `python -m gepp_bd.semilla perfiles/construccion.yaml`
 from __future__ import annotations
 
 import sys
+from datetime import timedelta
 from pathlib import Path
 from typing import Any
 
 import yaml
 from gepp_core import Severidad, TipoEPP
-from sqlalchemy import select
+from sqlalchemy import func, select
 from sqlalchemy.orm import Session
 
-from gepp_bd.modelos import MODOS_INCUMPLIMIENTO, ROLES, Area, Faena, Fuente, Usuario, Zona
+from gepp_bd.modelos import (
+    MODOS_INCUMPLIMIENTO,
+    ROLES,
+    Area,
+    Dotacion,
+    Faena,
+    Fuente,
+    Usuario,
+    Zona,
+)
 from gepp_bd.repositorios import reglas
 from gepp_bd.sesion import crear_motor, transaccion
 
@@ -72,6 +82,51 @@ def _cargar_usuarios(sesion: Session, perfil: dict[str, Any], areas: dict[str, A
     return nuevos
 
 
+def _cargar_dotacion(sesion: Session, perfil: dict[str, Any], areas: dict[str, Area]) -> int:
+    """Dotación SINTÉTICA de demostración: una fila por área, turno y día, hasta hoy.
+
+    Solo acepta `origen: sintetica`: los datos reales del cliente no entran por el perfil.
+    Idempotente por (área, fecha, turno). Devuelve cuántas filas sumó.
+    """
+    bloque = perfil.get("dotacion")
+    if not bloque:
+        return 0
+    if bloque.get("origen") != "sintetica":
+        raise PerfilInvalido("dotacion.origen: este perfil solo carga dotación 'sintetica'")
+    hoy = sesion.scalar(select(func.current_date()))
+    assert hoy is not None
+    nuevas = 0
+    for f in bloque["filas"]:
+        donde = f"dotacion {f['area']!r} turno {f['turno']!r}"
+        if f["area"] not in areas:
+            raise PerfilInvalido(f"{donde}: el área no está declarada en `areas`")
+        area = areas[f["area"]]
+        existentes = set(
+            sesion.execute(
+                select(Dotacion.fecha, Dotacion.turno).where(Dotacion.area_id == area.id)
+            )
+            .tuples()
+            .all()
+        )
+        for atras in range(int(bloque.get("dias", 30))):
+            fecha = hoy - timedelta(days=atras)
+            if (fecha, f["turno"]) in existentes:
+                continue
+            sesion.add(
+                Dotacion(
+                    area_id=area.id,
+                    fecha=fecha,
+                    turno=f["turno"],
+                    n_hombres=f["hombres"],
+                    n_mujeres=f["mujeres"],
+                    n_otro=f.get("otro", 0),
+                )
+            )
+            nuevas += 1
+    sesion.flush()
+    return nuevas
+
+
 def cargar(sesion: Session, perfil: dict[str, Any]) -> Faena:
     """Inserta faena, áreas, fuentes, zonas, usuarios de demostración y reglas. Devuelve la faena.
 
@@ -100,6 +155,7 @@ def cargar(sesion: Session, perfil: dict[str, Any]) -> Faena:
             for a in sesion.execute(select(Area).where(Area.faena_id == existente.id)).scalars()
         }
         _cargar_usuarios(sesion, perfil, areas_existentes)
+        _cargar_dotacion(sesion, perfil, areas_existentes)
         return existente
 
     faena = Faena(
@@ -158,6 +214,7 @@ def cargar(sesion: Session, perfil: dict[str, Any]) -> Faena:
     sesion.flush()
 
     _cargar_usuarios(sesion, perfil, areas)
+    _cargar_dotacion(sesion, perfil, areas)
 
     for r in perfil["reglas"]:
         donde = f"regla {r['nombre']!r}"
