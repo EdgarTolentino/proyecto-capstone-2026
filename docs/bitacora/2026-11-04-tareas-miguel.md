@@ -7,6 +7,7 @@ está **qué** hacer, y ahí **cómo** se trabaja en el repo.
 | # | Qué | Cuándo | Bloquea a |
 |---|---|---|---|
 | 1 | Ensayo de la demo con tu celular | **Hoy, 14:00**, con Edgar | La presentación |
+| 1b | Probar la alerta de Telegram **en vivo**, con la cámara del celular | Próximo ensayo con Edgar, antes de presentar | La presentación |
 | 2 | La tasa por dotación en pantalla (KPI 7) | Desde hoy, antes del 13-nov | H4 (16-20 nov) |
 | 3 | Revisar los PR que tocan `contracts/` o `apps/web/` | Cuando GitHub te pida revisión | Que Edgar pueda fusionar sin `--admin` |
 | 4 | Corregir tus tareas del lote 5 en CVAT (jobs 11 y 13) | Esta semana | Entrenar `epp-v4` |
@@ -62,6 +63,38 @@ Edgar levanta todo y te pasa por privado dos direcciones y una clave.
    video.
 
 ---
+
+## 1b. La alerta de Telegram en vivo (próximo ensayo)
+
+**Agregado el 2026-11-04, después del ensayo.** El bot ya lo probaste el 26-oct con el detector
+simulado (#224, [evidencia](<../../Fase 2/Evidencias Proyecto/Evidencias de sistema/Aplicación/2026-10-26-validacion-telegram-issue-36.md>)).
+Lo que falta es probarlo **dentro de la demo en vivo**: tu celular como cámara, el modelo de verdad
+y el aviso llegando al grupo. Guion completo: [`alerta-en-vivo.md`](../operacion/despliegue/alerta-en-vivo.md).
+
+**Antes del ensayo**
+
+1. Crea un **grupo de Telegram nuevo** para el ensayo, con el bot adentro. Usa uno distinto del
+   de la presentación: un ensayo gasta el presupuesto y las esperas del destinatario
+   (`alerta-en-vivo.md`, «Antes»).
+2. Pásale a Edgar, **por mensaje privado**, el token del bot y el `chat_id` del grupo (negativo).
+   Edgar los exporta como `GEPP_TELEGRAM_TOKEN` y `GEPP_AVISO_DESTINATARIO` antes de levantar. Nunca
+   van al repo ni a un issue.
+3. **Apaga cualquier otro despachador** que use ese bot (el de tu máquina): con dos a la vez,
+   Telegram responde 409 y los acuses no llegan.
+
+**Durante el ensayo**
+
+1. Con la cámara publicando, párate **sin casco** frente al celular. La cámara de la demo es la
+   fuente 2 (frente de obra gruesa, severidad 4), y eso basta para el aviso inmediato.
+2. Anota:
+   - los segundos desde que te paras sin casco hasta que suena el aviso;
+   - si el texto dice área, turno, cuántos incumplimientos y qué EPP, **sin nombres ni imagen**.
+3. Toca **Acuso recibo**. El botón tiene que desaparecer para todo el grupo, y Edgar comprueba en la
+   base que quedó `acusada`.
+4. Al terminar, borra el grupo del ensayo.
+
+**Terminado cuando:** el aviso llegó, el acuse quedó en la base y los tiempos medidos están anotados
+en la bitácora del ensayo. No subas capturas con el nombre del bot ni con caras sin difuminar.
 
 ## 2. KPI 7: la tasa por dotación en pantalla
 
