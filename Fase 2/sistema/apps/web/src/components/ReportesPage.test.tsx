@@ -42,6 +42,32 @@ it("muestra el ranking sin exponer conteos suprimidos ni n", () => {
   expect(screen.getByRole("tab", { name: "Por EPP" })).toHaveAttribute("aria-selected", "true");
 });
 
+it("muestra el mapa de calor y la tendencia diaria sin revelar celdas suprimidas", () => {
+  const { rerender } = render(<ReportesPage {...props} tipo="mapa-calor" reporte={{
+    tipo: "mapa-calor",
+    filas: [
+      { etiqueta: "Zona norte · 08h", valor: 10, n: 10, datos_insuficientes: false },
+      { etiqueta: "Zona norte · 09h", valor: 999, n: 999, datos_insuficientes: true },
+    ],
+  }} />);
+  expect(screen.getByRole("cell", { name: "Zona norte, 08h: 10" })).toBeVisible();
+  expect(screen.getByRole("cell", { name: "Zona norte, 09h: Datos insuficientes" })).toBeVisible();
+
+  rerender(<ReportesPage {...props} tipo="mapa-calor" reporte={{
+    tipo: "mapa-calor",
+    filas: [{ etiqueta: "Andamio Fachada Norte", valor: 25, n: 25, datos_insuficientes: false }],
+  }} />);
+  expect(screen.getByRole("status")).toHaveTextContent("etiquetas compatibles");
+  expect(screen.queryByRole("table", { name: /celdas ocultas/ })).not.toBeInTheDocument();
+  expect(screen.queryByRole("table", { name: /Detalle del reporte/ })).not.toBeInTheDocument();
+
+  rerender(<ReportesPage {...props} tipo="tendencia" filtros={{ ...props.filtros, segmentacion: "turno" }} reporte={{
+    tipo: "tendencia",
+    filas: [{ etiqueta: "Turno A · 2026-09-01", valor: 10, n: 10, datos_insuficientes: false }],
+  }} />);
+  expect(screen.getByRole("region", { name: "Gráfico de tendencia diaria por turno" })).toBeVisible();
+});
+
 it("propaga filtros y permite restablecerlos", () => {
   render(<ReportesPage {...props} />);
   const filtros = screen.getByRole("group", { name: "Filtros de reportes" });

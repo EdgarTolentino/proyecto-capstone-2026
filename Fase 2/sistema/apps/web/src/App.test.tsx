@@ -126,11 +126,11 @@ it("abre Reportes desde el menú y consulta los KPI 3 a 6 con filtros compartido
   }));
   expect(new URL(window.location.href).searchParams.get("area_id")).toBe("3");
 
-  fireEvent.click(screen.getByRole("tab", { name: "Por zona" }));
-  expect(await screen.findByRole("heading", { name: "Incumplimientos por zona" })).toBeVisible();
-  await waitFor(() => expect(api.obtenerReporte).toHaveBeenLastCalledWith("zonas", expect.objectContaining({
+  fireEvent.click(screen.getByRole("tab", { name: "Tendencia" }));
+  expect(await screen.findByRole("heading", { name: "Tendencia diaria" })).toBeVisible();
+  await waitFor(() => expect(api.obtenerReporte).toHaveBeenLastCalledWith("tendencia", expect.objectContaining({
     areaId: 3,
-    segmentacion: "zona",
+    segmentacion: "turno",
   })));
 });
 
