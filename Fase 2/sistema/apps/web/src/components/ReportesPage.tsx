@@ -9,6 +9,7 @@ interface Props {
   filtros: FiltrosReporte;
   catalogos?: Catalogos;
   isLoading: boolean;
+  isRefreshing: boolean;
   isError: boolean;
   sinPermiso: boolean;
   onRetry: () => void;
@@ -40,7 +41,7 @@ function valorPublicado(fila: Reporte["filas"][number]): number | null {
 
 function textoValor(fila: Reporte["filas"][number]): string {
   const valor = valorPublicado(fila);
-  return valor === null ? "Datos insuficientes" : valor.toLocaleString("es-CL", { maximumFractionDigits: 2 });
+  return valor === null ? "Datos insuficientes" : `≈ ${valor.toLocaleString("es-CL", { maximumFractionDigits: 2 })}`;
 }
 
 function Minigrafico({ valores, etiqueta }: { valores: number[]; etiqueta: string }) {
@@ -93,7 +94,7 @@ function Tabla({ filas, tipo, titulo }: { filas: Reporte["filas"]; tipo: TipoRep
 }
 
 export function ReportesPage({
-  reporte, tipo, filtros, catalogos, isLoading, isError, sinPermiso,
+  reporte, tipo, filtros, catalogos, isLoading, isRefreshing, isError, sinPermiso,
   onRetry, onChangeTipo, onChangeFilters, onDownloadCsv,
 }: Props) {
   const [descargando, setDescargando] = useState(false);
@@ -123,7 +124,7 @@ export function ReportesPage({
   }
 
   return (
-    <main className="reportes-page" aria-labelledby="reportes-page-title" aria-busy={isLoading}>
+    <main className="reportes-page" aria-labelledby="reportes-page-title" aria-busy={isLoading || isRefreshing}>
       <div className="review-heading panel-heading"><div><p className="eyebrow">INDICADORES AGREGADOS</p><h2 id="reportes-page-title">Reportes</h2></div></div>
       <div className="reportes-tabs" role="tablist" aria-label="Tipo de reporte">
         {reportes.map((item, index) => (
@@ -145,7 +146,7 @@ export function ReportesPage({
       <section id="reporte-panel" role="tabpanel" aria-labelledby={`tab-${tipo}`} className="reportes-kpi">
         <div className="reportes-kpi__heading">
           <div><p className="eyebrow">REPORTE AGREGADO</p><h3>{titulo}</h3><p>{actual.descripcion}</p></div>
-          <button className="reportes-csv" type="button" onClick={() => void descargarCsv()} disabled={descargando || isLoading || !reporte}>
+          <button className="reportes-csv" type="button" onClick={() => void descargarCsv()} disabled={descargando || isLoading || isRefreshing || !reporte}>
             {descargando ? <LoaderCircle className="spin" size={15} aria-hidden="true" /> : <Download size={15} aria-hidden="true" />}
             {descargando ? "Descargando…" : "Exportar CSV"}
           </button>
@@ -168,13 +169,14 @@ export function ReportesPage({
           <button className="icon-button" type="button" aria-label="Restablecer filtros de reportes" onClick={() => onChangeFilters({ desde: undefined, hasta: undefined, areaId: undefined, segmentacion: undefined })}><RotateCcw size={14} aria-hidden="true" /></button>
         </div>
         {errorCsv && <div className="state-message state-message--error" role="alert">{errorCsv}</div>}
+        {isRefreshing && <div className="state-message" role="status"><LoaderCircle className="spin" aria-hidden="true" /> Cargando reporte actualizado…</div>}
         {isLoading && <div className="state-message" role="status"><LoaderCircle className="spin" aria-hidden="true" /> Cargando reporte…</div>}
         {!isLoading && isError && <div className="state-message state-message--error" role="alert"><AlertTriangle aria-hidden="true" /> No fue posible cargar el reporte. <button type="button" onClick={onRetry}>Reintentar</button></div>}
         {!isLoading && !isError && sinPermiso && <div className="state-message" role="alert">No tienes permiso para ver reportes.</div>}
         {!isLoading && !isError && !sinPermiso && reporte && filas.length === 0 && <div className="state-message" role="status">No hay información para los filtros seleccionados.</div>}
         {!isLoading && !isError && !sinPermiso && filas.length > 0 && (
           <>
-            <p className="reportes-notice"><AlertTriangle size={14} aria-hidden="true" />Las celdas con población menor que 5 se muestran como «Datos insuficientes»; la supresión se aplica en el servidor.</p>
+            <p className="reportes-notice"><AlertTriangle size={14} aria-hidden="true" />Las cifras se redondean a múltiplos de 5; las celdas con población menor que 5 se muestran como «Datos insuficientes».</p>
             <Grafico filas={filas} tipo={tipo} segmentacion={segmentacion} />
             <Tabla filas={filas} tipo={tipo} titulo={titulo} />
           </>

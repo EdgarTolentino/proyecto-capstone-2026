@@ -18,6 +18,7 @@ const props = {
   filtros: { desde: "2026-09-01", hasta: "2026-09-30" },
   catalogos: { areas: [{ id: 3, nombre: "Excavación" }] },
   isLoading: false,
+  isRefreshing: false,
   isError: false,
   sinPermiso: false,
   onRetry: vi.fn(),
@@ -34,12 +35,38 @@ afterEach(() => {
 it("muestra el ranking sin exponer conteos suprimidos ni n", () => {
   render(<ReportesPage {...props} />);
   const grafico = screen.getByRole("region", { name: "Gráfico de incumplimientos por EPP" });
-  expect(within(grafico).getByText("10")).toBeVisible();
+  expect(within(grafico).getByText("≈ 10")).toBeVisible();
   expect(within(grafico).getByText("Datos insuficientes")).toBeVisible();
   expect(within(grafico).queryByText("999")).not.toBeInTheDocument();
   const tabla = screen.getByRole("table", { name: "Detalle del reporte: Incumplimientos por EPP" });
+  expect(within(tabla).getByText("≈ 10")).toBeVisible();
   expect(within(tabla).queryByText("999")).not.toBeInTheDocument();
+  expect(within(tabla).queryByRole("columnheader", { name: /^n$/i })).not.toBeInTheDocument();
+  expect(screen.getByText(/cifras se redondean a múltiplos de 5/)).toBeVisible();
   expect(screen.getByRole("tab", { name: "Por EPP" })).toHaveAttribute("aria-selected", "true");
+});
+
+it("trata un valor nulo como datos insuficientes aunque la fila no esté marcada", () => {
+  const reporteNulo: Reporte = {
+    tipo: "ranking-epp",
+    filas: [{ etiqueta: "casco", valor: null, n: 5, datos_insuficientes: false }],
+  };
+  render(<ReportesPage {...props} reporte={reporteNulo} />);
+
+  const grafico = screen.getByRole("region", { name: "Gráfico de incumplimientos por EPP" });
+  expect(within(grafico).getByText("Datos insuficientes")).toBeVisible();
+  expect(grafico.querySelector(".reportes-ranking__bar")).toBeNull();
+  expect(screen.getByRole("table").querySelector("tbody")).toHaveTextContent("Datos insuficientes");
+  expect(screen.queryByText(/^0$/)).not.toBeInTheDocument();
+});
+
+it("muestra la carga del filtro nuevo mientras conserva el reporte anterior", () => {
+  render(<ReportesPage {...props} isRefreshing />);
+
+  expect(screen.getByRole("status")).toHaveTextContent("Cargando reporte actualizado");
+  expect(screen.getByRole("main", { name: "Reportes" })).toHaveAttribute("aria-busy", "true");
+  expect(screen.getByRole("table")).toBeVisible();
+  expect(screen.getByRole("button", { name: "Exportar CSV" })).toBeDisabled();
 });
 
 it("propaga filtros y permite restablecerlos", () => {
