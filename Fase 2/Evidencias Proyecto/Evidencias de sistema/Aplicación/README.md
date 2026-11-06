@@ -89,6 +89,7 @@ la revisión independiente del diff ni una prueba en la aplicación Safari del u
 | `2026-10-06-reprocesar-video.png` | Cola de videos (#118) con el permiso `editar_reglas`: columna «Acciones» y botón «Reprocesar» solo en el video en `error`; el `en_cola` muestra «—». Para la captura, un proxy local delante de Prism agregó `editar_reglas` a `/yo` (el ejemplo del contrato no lo trae) y una copia del video de ejemplo en estado `error`; el resto es Prism |
 | `2026-10-12-pedido-procesando-con-avance.png` | Cola de videos contra la **API real** y el modelo entrenado: un video pedido desde la web (#154-#162) en estado «Procesando», con barra de avance, velocidad, conteo del cuadro actual y la vista en vivo del modelo (en esta captura se ve pixelada) |
 | `2026-10-12-vista-en-vivo-modelo.png` | La vista en vivo del modelo: cajas de persona (amarillo) y casco (verde) sobre el video de prueba. Los rostros están tapados y el nombre de la empresa en el chaleco se pixeló para esta captura |
+| [2026-11-06-reportes-kpi7-api-real.png](2026-11-06-reportes-kpi7-api-real.png) | KPI 7 contra la **API real** levantada con PostgreSQL: tasa por dotación agrupada por área y turno, filtros contractuales de fecha y área, filas suprimidas como «Datos insuficientes», total y composición administrativa protegida. No se usó el mock de Prism |
 
 ### Nota sobre los datos del mock de Prism
 

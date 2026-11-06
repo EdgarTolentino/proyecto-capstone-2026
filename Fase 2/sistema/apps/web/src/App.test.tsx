@@ -132,6 +132,33 @@ it("abre Reportes desde el menú y consulta los KPI 3 a 6 con filtros compartido
     areaId: 3,
     segmentacion: "turno",
   })));
+
+  fireEvent.change(screen.getByRole("combobox", { name: "Segmentar por" }), { target: { value: "camara" } });
+  await waitFor(() => expect(new URL(window.location.href).searchParams.get("segmentacion")).toBe("camara"));
+  vi.mocked(api.obtenerReporte).mockRejectedValueOnce(new Error("fallo temporal"));
+  fireEvent.click(screen.getByRole("tab", { name: "Por dotación" }));
+  expect(await screen.findByRole("heading", { name: "Incumplimientos por dotación" })).toBeVisible();
+  expect(screen.queryByRole("combobox", { name: "Segmentar por" })).not.toBeInTheDocument();
+  await waitFor(() => expect(new URL(window.location.href).searchParams.has("segmentacion")).toBe(false));
+  expect(await screen.findByRole("alert")).toHaveTextContent("No fue posible cargar el reporte de dotación");
+  fireEvent.click(screen.getByRole("button", { name: "Reintentar" }));
+  await waitFor(() => expect(api.obtenerReporte).toHaveBeenLastCalledWith("dotacion", {
+    desde: "2026-09-01",
+    hasta: "2026-09-30",
+    areaId: 3,
+    segmentacion: "turno",
+  }));
+  window.history.pushState({}, "", `${window.location.pathname}${window.location.search}&segmentacion=camara`);
+  fireEvent.popState(window);
+  await waitFor(() => expect(new URL(window.location.href).searchParams.has("segmentacion")).toBe(false));
+  expect(screen.getByRole("tab", { name: "Por dotación" })).toHaveAttribute("aria-selected", "true");
+  fireEvent.click(screen.getByRole("button", { name: "Exportar CSV" }));
+  await waitFor(() => expect(api.descargarReporteCsv).toHaveBeenLastCalledWith("dotacion", {
+    desde: "2026-09-01",
+    hasta: "2026-09-30",
+    areaId: 3,
+    segmentacion: "turno",
+  }));
 });
 
 it("lleva fecha y turno a Hallazgos al navegar desde la barra", async () => {

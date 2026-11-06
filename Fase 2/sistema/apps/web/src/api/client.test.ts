@@ -198,7 +198,7 @@ describe("cliente API", () => {
     expect(reporte.filas).toEqual([]);
   });
 
-  it("no envía fechas imposibles ni áreas inválidas al reporte", async () => {
+  it.each([-1, 0])("no envía fechas imposibles ni el área inválida %i al reporte", async (areaId) => {
     const fetchMock = vi.spyOn(globalThis, "fetch").mockResolvedValue(
       new Response(JSON.stringify({ tipo: "zonas", filas: [] }), {
         status: 200,
@@ -207,7 +207,7 @@ describe("cliente API", () => {
     );
     const { obtenerReporte } = await import("./client");
 
-    await obtenerReporte("zonas", { desde: "2026-13-01", hasta: "2026-02-30", areaId: -1 });
+    await obtenerReporte("zonas", { desde: "2026-13-01", hasta: "2026-02-30", areaId });
 
     expect(String(fetchMock.mock.calls[0][0])).toBe("http://127.0.0.1:4010/reportes/zonas");
   });

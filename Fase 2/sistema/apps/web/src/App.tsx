@@ -1,6 +1,6 @@
 import { keepPreviousData, useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { AlertTriangle, LoaderCircle } from "lucide-react";
-import { useMemo, useState } from "react";
+import { useEffect, useMemo, useState } from "react";
 
 import {
   descargarReporteCsv,
@@ -39,7 +39,7 @@ export default function App() {
   const { seccion, navegar, navegarHallazgos } = useAppNavigation();
   const { filtros, actualizar } = useHallazgoFilters();
   const { filtros: filtrosPanel, actualizar: actualizarFiltrosPanel } = usePanelFilters();
-  const { filtros: filtrosReporte, actualizar: actualizarFiltrosReporte } = useReporteFilters();
+  const { filtros: filtrosReporte, actualizar: actualizarFiltrosReporte, reemplazar: reemplazarFiltrosReporte } = useReporteFilters();
   const [activoId, setActivoId] = useState<number>();
   const [seleccionados, setSeleccionados] = useState<Set<number>>(new Set());
   // A quién se aplicará el falso positivo, congelado al abrir el diálogo: si la bandeja se refresca
@@ -48,6 +48,12 @@ export default function App() {
   const mostrarMotivo = motivoPara !== null;
   const [mensaje, setMensaje] = useState("");
   const [tipoReporte, setTipoReporte] = useState<TipoReporte>("ranking-epp");
+
+  useEffect(() => {
+    if (tipoReporte === "dotacion" && filtrosReporte.segmentacion !== undefined) {
+      reemplazarFiltrosReporte({ segmentacion: undefined });
+    }
+  }, [filtrosReporte.segmentacion, reemplazarFiltrosReporte, tipoReporte]);
 
   const sesion = useQuery({ queryKey: ["sesion"], queryFn: obtenerSesion });
   const catalogos = useQuery({ queryKey: ["catalogos"], queryFn: obtenerCatalogos, staleTime: Infinity });
@@ -68,7 +74,8 @@ export default function App() {
         tipoReporte === "ranking-epp" ? "epp" : tipoReporte === "tendencia" ? "turno" : "zona"
       ),
     }),
-    enabled: seccion === "reportes" && (sesion.data?.permisos?.includes("ver_reportes") ?? false),
+    enabled: seccion === "reportes" && tipoReporte !== "dotacion"
+      && (sesion.data?.permisos?.includes("ver_reportes") ?? false),
     placeholderData: (anterior, consultaAnterior) =>
       consultaAnterior?.queryKey[1] === tipoReporte ? anterior : undefined,
   });
@@ -238,12 +245,19 @@ export default function App() {
           sinPermiso={Boolean((sesion.data && !permisos.has("ver_reportes")) || reporteSinPermiso)}
           onRetry={() => { if (sesion.isError) void sesion.refetch(); else void reporteConsulta.refetch(); }}
           onChangeFilters={actualizarFiltrosReporte}
-          onDownloadCsv={() => descargarReporteCsv(tipoReporte, {
-            ...filtrosReporte,
-            segmentacion: filtrosReporte.segmentacion ?? (
-              tipoReporte === "ranking-epp" ? "epp" : tipoReporte === "tendencia" ? "turno" : "zona"
-            ),
-          })}
+          onDownloadCsv={() => descargarReporteCsv(tipoReporte, tipoReporte === "dotacion"
+            ? {
+                desde: filtrosReporte.desde,
+                hasta: filtrosReporte.hasta,
+                areaId: filtrosReporte.areaId,
+                segmentacion: "turno",
+              }
+            : {
+                ...filtrosReporte,
+                segmentacion: filtrosReporte.segmentacion ?? (
+                  tipoReporte === "ranking-epp" ? "epp" : tipoReporte === "tendencia" ? "turno" : "zona"
+                ),
+              })}
         />
       )}
       {seccion === "videos" && <VideosPage puedeProcesar={permisos.has("procesar_videos")} puedeVerEvidencia={permiteEvidencia} catalogos={catalogos.data} catalogosError={catalogos.isError} />}

@@ -3,6 +3,7 @@ import { useState } from "react";
 import type { CSSProperties } from "react";
 
 import type { Catalogos, FiltrosReporte, Reporte, SegmentacionReporte, TipoReporte } from "../api/types";
+import { ReporteDotacion } from "./ReporteDotacion";
 
 interface Props {
   reporte?: Reporte;
@@ -23,6 +24,7 @@ const reportes = [
   { tipo: "zonas", etiqueta: "Por zona", titulo: "Incumplimientos por zona", descripcion: "Ranking de zonas y tendencia de las últimas ocho semanas." },
   { tipo: "mapa-calor", etiqueta: "Mapa de calor", titulo: "Incumplimientos por hora", descripcion: "Distribución por hora y dimensión seleccionada." },
   { tipo: "tendencia", etiqueta: "Tendencia", titulo: "Tendencia diaria", descripcion: "Evolución diaria según la dimensión seleccionada." },
+  { tipo: "dotacion", etiqueta: "Por dotación", titulo: "Incumplimientos por dotación", descripcion: "Tasa de incumplimientos según la dotación registrada por área y turno." },
 ] as const;
 const segmentaciones: { valor: SegmentacionReporte; etiqueta: string }[] = [
   { valor: "zona", etiqueta: "Zona" },
@@ -150,6 +152,7 @@ export function ReportesPage({
   const [descargando, setDescargando] = useState(false);
   const [errorCsv, setErrorCsv] = useState("");
   const actual = reportes.find((item) => item.tipo === tipo) ?? reportes[0];
+  const esDotacion = tipo === "dotacion";
   const segmentacion = filtros.segmentacion ?? (tipo === "ranking-epp" ? "epp" : tipo === "tendencia" ? "turno" : "zona");
   const esRanking = tipo === "ranking-epp" || tipo === "zonas";
   const titulo = esRanking && segmentacion !== (tipo === "ranking-epp" ? "epp" : "zona")
@@ -174,6 +177,10 @@ export function ReportesPage({
     }
   }
 
+  function cambiarTipo(nuevoTipo: TipoReporte) {
+    onChangeTipo(nuevoTipo);
+  }
+
   return (
     <main className="reportes-page" aria-labelledby="reportes-page-title" aria-busy={isLoading}>
       <div className="review-heading panel-heading"><div><p className="eyebrow">INDICADORES AGREGADOS</p><h2 id="reportes-page-title">Reportes</h2></div></div>
@@ -183,12 +190,12 @@ export function ReportesPage({
             type="button" role="tab" id={`tab-${item.tipo}`} aria-selected={tipo === item.tipo}
             aria-controls="reporte-panel" tabIndex={tipo === item.tipo ? 0 : -1}
             className={tipo === item.tipo ? "reportes-tabs__tab is-active" : "reportes-tabs__tab"}
-            key={item.tipo} onClick={() => onChangeTipo(item.tipo)}
+            key={item.tipo} onClick={() => cambiarTipo(item.tipo)}
             onKeyDown={(event) => {
               if (!["ArrowRight", "ArrowLeft"].includes(event.key)) return;
               event.preventDefault();
               const next = reportes[(index + (event.key === "ArrowRight" ? 1 : reportes.length - 1)) % reportes.length];
-              onChangeTipo(next.tipo);
+              cambiarTipo(next.tipo);
               document.getElementById(`tab-${next.tipo}`)?.focus();
             }}
           >{item.etiqueta}</button>
@@ -197,10 +204,10 @@ export function ReportesPage({
       <section id="reporte-panel" role="tabpanel" aria-labelledby={`tab-${tipo}`} className="reportes-kpi">
         <div className="reportes-kpi__heading">
           <div><p className="eyebrow">REPORTE AGREGADO</p><h3>{titulo}</h3><p>{actual.descripcion}</p></div>
-          <button className="reportes-csv" type="button" onClick={() => void descargarCsv()} disabled={descargando || isLoading || !reporte}>
+          {!esDotacion && <button className="reportes-csv" type="button" onClick={() => void descargarCsv()} disabled={descargando || isLoading || !reporte}>
             {descargando ? <LoaderCircle className="spin" size={15} aria-hidden="true" /> : <Download size={15} aria-hidden="true" />}
             {descargando ? "Descargando…" : "Exportar CSV"}
-          </button>
+          </button>}
         </div>
         <div className="filters reportes-filtros" role="group" aria-label="Filtros de reportes">
           <label className="date-filter"><span>Desde</span><input type="date" value={filtros.desde ?? ""} max={filtros.hasta} onChange={(event) => {
@@ -214,17 +221,18 @@ export function ReportesPage({
           <label className="select-filter"><span>Área</span><select value={filtros.areaId ?? ""} onChange={(event) => onChangeFilters({ areaId: event.target.value ? Number(event.target.value) : undefined })}>
             <option value="">Todas las áreas</option>{catalogos?.areas?.map((area) => area && <option key={area.id} value={area.id}>{area.nombre}</option>)}
           </select></label>
-          <label className="select-filter"><span>Segmentar por</span><select value={segmentacion} onChange={(event) => onChangeFilters({ segmentacion: event.target.value as SegmentacionReporte })}>
+          {!esDotacion && <label className="select-filter"><span>Segmentar por</span><select value={segmentacion} onChange={(event) => onChangeFilters({ segmentacion: event.target.value as SegmentacionReporte })}>
             {segmentaciones.map((item) => <option value={item.valor} key={item.valor}>{item.etiqueta}</option>)}
-          </select></label>
+          </select></label>}
           <button className="icon-button" type="button" aria-label="Restablecer filtros de reportes" onClick={() => onChangeFilters({ desde: undefined, hasta: undefined, areaId: undefined, segmentacion: undefined })}><RotateCcw size={14} aria-hidden="true" /></button>
         </div>
         {errorCsv && <div className="state-message state-message--error" role="alert">{errorCsv}</div>}
         {isLoading && <div className="state-message" role="status"><LoaderCircle className="spin" aria-hidden="true" /> Cargando reporte…</div>}
         {!isLoading && isError && <div className="state-message state-message--error" role="alert"><AlertTriangle aria-hidden="true" /> No fue posible cargar el reporte. <button type="button" onClick={onRetry}>Reintentar</button></div>}
         {!isLoading && !isError && sinPermiso && <div className="state-message" role="alert">No tienes permiso para ver reportes.</div>}
-        {!isLoading && !isError && !sinPermiso && reporte && filas.length === 0 && <div className="state-message" role="status">No hay información para los filtros seleccionados.</div>}
-        {!isLoading && !isError && !sinPermiso && filas.length > 0 && (
+        {!isLoading && !isError && !sinPermiso && esDotacion && <ReporteDotacion desde={filtros.desde} hasta={filtros.hasta} areaId={filtros.areaId} />}
+        {!esDotacion && !isLoading && !isError && !sinPermiso && reporte && filas.length === 0 && <div className="state-message" role="status">No hay información para los filtros seleccionados.</div>}
+        {!esDotacion && !isLoading && !isError && !sinPermiso && filas.length > 0 && (
           <>
             <p className="reportes-notice"><AlertTriangle size={14} aria-hidden="true" />Las celdas con población menor que 5 se muestran como «Datos insuficientes»; la supresión se aplica en el servidor.</p>
             {tipo === "mapa-calor"
