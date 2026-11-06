@@ -142,7 +142,7 @@ it("monta el reporte de dotación con fecha y área, sin selector de segmentaci�
   expect(screen.queryByRole("combobox", { name: /obra|turno/i })).not.toBeInTheDocument();
 });
 
-it("delega la limpieza de segmentación al dueño de la URL al entrar a dotación", () => {
+it("conserva la segmentación de la URL al entrar a dotación", () => {
   render(<ReportesPage {...props} filtros={{ ...props.filtros, segmentacion: "camara" }} />);
 
   fireEvent.click(screen.getByRole("tab", { name: "Por dotación" }));

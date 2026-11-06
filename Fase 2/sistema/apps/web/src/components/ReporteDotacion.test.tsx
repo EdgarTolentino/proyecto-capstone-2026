@@ -73,16 +73,29 @@ describe("ReporteDotacion", () => {
     expect(within(fila).queryByText(/0 por cada 100/)).not.toBeInTheDocument();
   });
 
-  it("oculta la composición completa si falta uno de sus grupos", async () => {
+  it("suprime por la bandera o por valor nulo y tolera razón ausente", async () => {
     vi.mocked(obtenerReporte).mockResolvedValue(respuesta([{
-      etiqueta: "Turno B", valor: null, n: null, datos_insuficientes: true,
-      razon: "n_insuficiente", dotacion: { total: 15, hombres: 9, mujeres: null, otro: 0, datos_insuficientes: true },
-    }]));
+      etiqueta: "Bandera", valor: 8, n: 5, datos_insuficientes: true,
+    }, { etiqueta: "Valor nulo", valor: null, n: null, datos_insuficientes: false }]));
 
     montar();
 
+    expect(await screen.findAllByText("Datos insuficientes — Sin tasa disponible")).toHaveLength(2);
+    expect(within(screen.getByRole("row", { name: /Valor nulo/ })).getAllByRole("cell")[1]).toHaveTextContent("—");
+  });
+
+  it.each([
+    { hombres: null, mujeres: 6, otro: 0 },
+    { hombres: 6, mujeres: null, otro: 0 },
+    { hombres: 6, mujeres: 0, otro: null },
+  ])("oculta la composición si un grupo es nulo: %o", async (dotacion) => {
+    vi.mocked(obtenerReporte).mockResolvedValue(respuesta([{
+      etiqueta: "Turno B", valor: null, n: null, datos_insuficientes: true,
+      dotacion: { total: 15, datos_insuficientes: true, ...dotacion },
+    }]));
+    montar();
     expect(await screen.findByText("No se muestra para proteger a grupos de menos de 5 personas")).toBeVisible();
-    expect(screen.queryByText(/Hombres: 9/)).not.toBeInTheDocument();
+    expect(screen.queryByText(/Hombres:/)).not.toBeInTheDocument();
   });
 
   it("mantiene las filas anteriores y avisa mientras cambia un filtro", async () => {
@@ -114,6 +127,7 @@ describe("ReporteDotacion", () => {
     vi.mocked(obtenerReporte).mockImplementationOnce(() => new Promise(() => undefined));
     const carga = montar({ areaId: 1 });
     expect(screen.getByRole("status")).toHaveTextContent("Cargando reporte de dotación");
+    expect(screen.getByRole("region", { name: "Tasa por dotación" })).toHaveAttribute("aria-busy", "true");
     expect(screen.getByRole("button", { name: "Exportar CSV" })).toBeDisabled();
     carga.unmount();
 
@@ -132,5 +146,19 @@ describe("ReporteDotacion", () => {
     vi.mocked(obtenerReporte).mockResolvedValueOnce(respuesta([]));
     montar({ areaId: 4 });
     expect(await screen.findByText("No hay información de dotación para los filtros seleccionados.")).toBeVisible();
+    expect(screen.getByRole("region", { name: "Tasa por dotación" })).toHaveAttribute("aria-busy", "false");
+  });
+
+  it("oculta filas anteriores cuando la actualización termina con error", async () => {
+    vi.mocked(obtenerReporte).mockResolvedValue(respuesta([{
+      etiqueta: "Turno anterior", valor: 8, n: 5, datos_insuficientes: false,
+    }]));
+    const client = new QueryClient({ defaultOptions: { queries: { retry: false } } });
+    render(<QueryClientProvider client={client}><ReporteDotacion areaId={1} /></QueryClientProvider>);
+    expect(await screen.findByText("Turno anterior")).toBeVisible();
+    vi.mocked(obtenerReporte).mockRejectedValueOnce(new Error("Servidor no disponible"));
+    await client.invalidateQueries({ queryKey: ["reporte-dotacion"] });
+    expect(await screen.findByRole("alert")).toHaveTextContent("No fue posible cargar");
+    expect(screen.queryByText("Turno anterior")).not.toBeInTheDocument();
   });
 });

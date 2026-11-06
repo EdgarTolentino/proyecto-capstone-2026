@@ -73,7 +73,7 @@ export function useReporteFilters() {
     return () => window.removeEventListener("popstate", sincronizar);
   }, []);
 
-  const escribir = useCallback((cambios: Partial<FiltrosReporte>, reemplazar = false) => {
+  const actualizar = useCallback((cambios: Partial<FiltrosReporte>) => {
     const url = new URL(window.location.href);
     const nombres: Record<keyof FiltrosReporte, string> = {
       desde: "desde",
@@ -89,12 +89,9 @@ export function useReporteFilters() {
     }
 
     const normalizada = normalizarUrlReporte(url);
-    window.history[reemplazar ? "replaceState" : "pushState"]({}, "", normalizada);
+    window.history.pushState({}, "", normalizada);
     setFiltros(leerFiltrosReporte());
   }, []);
 
-  const actualizar = useCallback((cambios: Partial<FiltrosReporte>) => escribir(cambios), [escribir]);
-  const reemplazar = useCallback((cambios: Partial<FiltrosReporte>) => escribir(cambios, true), [escribir]);
-
-  return { filtros, actualizar, reemplazar };
+  return { filtros, actualizar };
 }
