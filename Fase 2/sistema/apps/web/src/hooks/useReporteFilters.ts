@@ -19,23 +19,26 @@ function normalizarUrlReporte(url = new URL(window.location.href)): URL {
   }
 
   const areaId = url.searchParams.get("area_id");
-  if (areaId && (!Number.isSafeInteger(Number(areaId)) || Number(areaId) < 1)) {
+  if (
+    areaId !== null &&
+    (!/^[1-9]\d*$/.test(areaId) || !Number.isSafeInteger(Number(areaId)))
+  ) {
     url.searchParams.delete("area_id");
   }
   const segmentacion = url.searchParams.get("segmentacion");
   if (segmentacion && !esSegmentacionReporte(segmentacion)) url.searchParams.delete("segmentacion");
-
-  if (!url.searchParams.has("desde") && !url.searchParams.has("hasta")) {
-    const rango = rangoDefectoPanel();
-    url.searchParams.set("desde", rango.desde);
-    url.searchParams.set("hasta", rango.hasta);
-  }
 
   const desde = url.searchParams.get("desde");
   const hasta = url.searchParams.get("hasta");
   if (desde && hasta && desde > hasta) {
     url.searchParams.delete("desde");
     url.searchParams.delete("hasta");
+  }
+
+  if (!url.searchParams.has("desde") && !url.searchParams.has("hasta")) {
+    const rango = rangoDefectoPanel();
+    url.searchParams.set("desde", rango.desde);
+    url.searchParams.set("hasta", rango.hasta);
   }
 
   return url;

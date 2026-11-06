@@ -40,8 +40,31 @@ describe("useReporteFilters", () => {
   it("normaliza un rango invertido", () => {
     window.history.replaceState({}, "", "/reportes?desde=2026-09-30&hasta=2026-09-01");
     const { result } = renderHook(() => useReporteFilters());
+    const parametros = new URL(window.location.href).searchParams;
+    const rango = rangoDefectoPanel();
 
-    expect(result.current.filtros).toEqual(rangoDefectoPanel());
+    expect(result.current.filtros).toEqual(rango);
+    expect(parametros.get("desde")).toBe(rango.desde);
+    expect(parametros.get("hasta")).toBe(rango.hasta);
+  });
+
+  it.each(["0", "0x10", "1e2", "01", "9007199254740992", ""])(
+    "descarta el area_id no canónico %s de la URL y del estado",
+    (areaId) => {
+      window.history.replaceState({}, "", `/reportes?area_id=${areaId}`);
+      const { result } = renderHook(() => useReporteFilters());
+
+      expect(result.current.filtros.areaId).toBeUndefined();
+      expect(new URL(window.location.href).searchParams.has("area_id")).toBe(false);
+    },
+  );
+
+  it("mantiene un area_id entero positivo y seguro", () => {
+    window.history.replaceState({}, "", "/reportes?area_id=16");
+    const { result } = renderHook(() => useReporteFilters());
+
+    expect(result.current.filtros.areaId).toBe(16);
+    expect(new URL(window.location.href).searchParams.get("area_id")).toBe("16");
   });
 
   it("no modifica los filtros de otras secciones", () => {

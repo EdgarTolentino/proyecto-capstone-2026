@@ -199,7 +199,7 @@ describe("cliente API", () => {
   });
 
   it("no envía fechas imposibles ni áreas inválidas al reporte", async () => {
-    const fetchMock = vi.spyOn(globalThis, "fetch").mockResolvedValue(
+    const fetchMock = vi.spyOn(globalThis, "fetch").mockImplementation(async () =>
       new Response(JSON.stringify({ tipo: "zonas", filas: [] }), {
         status: 200,
         headers: { "Content-Type": "application/json" },
@@ -208,8 +208,11 @@ describe("cliente API", () => {
     const { obtenerReporte } = await import("./client");
 
     await obtenerReporte("zonas", { desde: "2026-13-01", hasta: "2026-02-30", areaId: -1 });
+    await obtenerReporte("zonas", { areaId: 0 });
 
-    expect(String(fetchMock.mock.calls[0][0])).toBe("http://127.0.0.1:4010/reportes/zonas");
+    for (const [url] of fetchMock.mock.calls) {
+      expect(String(url)).toBe("http://127.0.0.1:4010/reportes/zonas");
+    }
   });
 
   it("descarga CSV usando el formato y la autenticación del endpoint de reportes", async () => {
