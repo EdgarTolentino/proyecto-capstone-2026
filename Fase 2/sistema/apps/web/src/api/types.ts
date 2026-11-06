@@ -44,7 +44,7 @@ export interface FiltrosPanel {
   obraId?: number;
 }
 
-export type TipoReporte = "ranking-epp" | "zonas" | "mapa-calor" | "tendencia";
+export type TipoReporte = "ranking-epp" | "zonas" | "mapa-calor" | "tendencia" | "dotacion";
 export type SegmentacionReporte = "zona" | "turno" | "camara" | "epp";
 
 export interface FiltrosReporte {

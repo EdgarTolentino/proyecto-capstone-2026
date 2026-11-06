@@ -79,6 +79,10 @@ input[type="checkbox"] { accent-color: var(--gepp-acento); width: 16px; height: 
 .reportes-notice { display: flex; align-items: flex-start; gap: 8px; margin: 0 0 16px; color: var(--gepp-texto-3); font-size: 11px; line-height: 1.5; }
 .reportes-notice svg { flex: 0 0 auto; margin-top: 1px; color: var(--gepp-acento); }
 .reportes-kpi > .state-message { min-height: 160px; }
+.reporte-dotacion h4 { margin: 0 0 6px; font-size: 14px; }
+.reporte-dotacion__heading { display: flex; align-items: flex-start; justify-content: space-between; gap: 16px; }
+.reporte-dotacion__loading { display: flex; align-items: center; gap: 8px; margin: 0 0 12px; color: var(--gepp-texto-3); font-size: 11px; }
+.reporte-dotacion .reportes-page__note, .reporte-dotacion .reportes-page__demo { margin: 0 0 8px; color: var(--gepp-texto-3); font-size: 11px; }
 .reportes-ranking { display: grid; gap: 12px; padding: 4px 0 20px; }
 .reportes-ranking__row { display: grid; grid-template-columns: minmax(150px, 1fr) minmax(100px, 2fr) minmax(120px, .7fr) 64px; align-items: center; gap: 16px; min-height: 28px; }
 .reportes-ranking__label { overflow-wrap: anywhere; color: var(--gepp-texto-2); font-size: 12px; }

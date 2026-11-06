@@ -132,6 +132,26 @@ it("abre Reportes desde el menú y consulta los KPI 3 a 6 con filtros compartido
     areaId: 3,
     segmentacion: "turno",
   })));
+
+  fireEvent.change(screen.getByRole("combobox", { name: "Segmentar por" }), { target: { value: "camara" } });
+  await waitFor(() => expect(new URL(window.location.href).searchParams.get("segmentacion")).toBe("camara"));
+  fireEvent.click(screen.getByRole("tab", { name: "Por dotación" }));
+  expect(await screen.findByRole("heading", { name: "Incumplimientos por dotación" })).toBeVisible();
+  expect(screen.queryByRole("combobox", { name: "Segmentar por" })).not.toBeInTheDocument();
+  await waitFor(() => expect(new URL(window.location.href).searchParams.has("segmentacion")).toBe(false));
+  await waitFor(() => expect(api.obtenerReporte).toHaveBeenLastCalledWith("dotacion", {
+    desde: "2026-09-01",
+    hasta: "2026-09-30",
+    areaId: 3,
+    segmentacion: "turno",
+  }));
+  fireEvent.click(screen.getByRole("button", { name: "Exportar CSV" }));
+  await waitFor(() => expect(api.descargarReporteCsv).toHaveBeenLastCalledWith("dotacion", {
+    desde: "2026-09-01",
+    hasta: "2026-09-30",
+    areaId: 3,
+    segmentacion: "turno",
+  }));
 });
 
 it("lleva fecha y turno a Hallazgos al navegar desde la barra", async () => {
