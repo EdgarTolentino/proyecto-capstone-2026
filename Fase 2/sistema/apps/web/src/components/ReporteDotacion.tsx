@@ -46,14 +46,14 @@ export function ReporteDotacion({ desde, hasta, areaId }: Props) {
   const [descargando, setDescargando] = useState(false);
   const [errorCsv, setErrorCsv] = useState("");
   const consulta = useQuery({
-    queryKey: ["reporte", "dotacion", { desde, hasta, areaId }],
+    queryKey: ["reporte-dotacion", { desde, hasta, areaId }],
     queryFn: () => obtenerReporte("dotacion", { desde, hasta, areaId, segmentacion: "turno" }),
     placeholderData: keepPreviousData,
   });
   const filas = consulta.data?.filas ?? [];
   const sinPermiso = consulta.error instanceof ApiError && [401, 403].includes(consulta.error.status);
   const cargaInicial = consulta.isLoading;
-  const actualizando = consulta.isFetching && filas.length > 0;
+  const actualizando = consulta.isFetching && !cargaInicial;
 
   async function descargarCsv() {
     setDescargando(true);

@@ -104,6 +104,10 @@ describe("ReporteDotacion", () => {
     expect(screen.getByRole("status")).toHaveTextContent("Actualizando datos");
     resolver?.(respuesta([]));
     await waitFor(() => expect(screen.queryByText("Turno anterior")).not.toBeInTheDocument());
+    expect(await screen.findByText("No hay información de dotación para los filtros seleccionados.")).toBeVisible();
+    vi.mocked(obtenerReporte).mockReturnValueOnce(new Promise(() => undefined));
+    vista.rerender(<QueryClientProvider client={client}><ReporteDotacion areaId={3} /></QueryClientProvider>);
+    expect(screen.getByRole("status")).toHaveTextContent("Actualizando datos");
   });
 
   it("distingue carga, falta de permiso, error y resultado vacío", async () => {
