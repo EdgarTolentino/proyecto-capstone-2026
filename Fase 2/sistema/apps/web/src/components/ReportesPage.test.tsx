@@ -4,6 +4,12 @@ import { afterEach, expect, it, vi } from "vitest";
 import type { Reporte, TipoReporte } from "../api/types";
 import { ReportesPage } from "./ReportesPage";
 
+vi.mock("./ReporteDotacion", () => ({
+  ReporteDotacion: (props: { desde?: string; hasta?: string; areaId?: number }) => (
+    <div data-testid="reporte-dotacion">{JSON.stringify(props)}</div>
+  ),
+}));
+
 const reporte: Reporte = {
   tipo: "ranking-epp",
   segmentacion: "epp",
@@ -121,6 +127,28 @@ it("propaga filtros y permite restablecerlos", () => {
   expect(props.onChangeFilters).toHaveBeenNthCalledWith(3, { segmentacion: "zona" });
   expect(props.onChangeTipo).toHaveBeenCalledWith("zonas");
   expect(props.onChangeFilters).toHaveBeenNthCalledWith(4, { desde: undefined, hasta: undefined, areaId: undefined, segmentacion: undefined });
+});
+
+it("monta el reporte de dotación con fecha y área, sin selector de segmentación", () => {
+  render(<ReportesPage {...props} tipo="dotacion" reporte={undefined} filtros={{
+    desde: "2026-10-01", hasta: "2026-10-07", areaId: 3, segmentacion: "epp",
+  }} />);
+
+  expect(screen.getByRole("tab", { name: "Por dotación" })).toHaveAttribute("aria-selected", "true");
+  expect(screen.queryByRole("combobox", { name: "Segmentar por" })).not.toBeInTheDocument();
+  expect(screen.getByTestId("reporte-dotacion")).toHaveTextContent(
+    JSON.stringify({ desde: "2026-10-01", hasta: "2026-10-07", areaId: 3 }),
+  );
+  expect(screen.queryByRole("combobox", { name: /obra|turno/i })).not.toBeInTheDocument();
+});
+
+it("limpia la segmentación incompatible al entrar al reporte de dotación", () => {
+  render(<ReportesPage {...props} filtros={{ ...props.filtros, segmentacion: "camara" }} />);
+
+  fireEvent.click(screen.getByRole("tab", { name: "Por dotación" }));
+
+  expect(props.onChangeFilters).toHaveBeenCalledWith({ segmentacion: undefined });
+  expect(props.onChangeTipo).toHaveBeenCalledWith("dotacion");
 });
 
 it("muestra error, permiso, vacío y error de exportación", async () => {

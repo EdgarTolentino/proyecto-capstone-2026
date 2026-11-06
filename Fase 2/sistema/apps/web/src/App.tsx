@@ -68,7 +68,8 @@ export default function App() {
         tipoReporte === "ranking-epp" ? "epp" : tipoReporte === "tendencia" ? "turno" : "zona"
       ),
     }),
-    enabled: seccion === "reportes" && (sesion.data?.permisos?.includes("ver_reportes") ?? false),
+    enabled: seccion === "reportes" && tipoReporte !== "dotacion"
+      && (sesion.data?.permisos?.includes("ver_reportes") ?? false),
     placeholderData: (anterior, consultaAnterior) =>
       consultaAnterior?.queryKey[1] === tipoReporte ? anterior : undefined,
   });
@@ -239,12 +240,19 @@ export default function App() {
           sinPermiso={Boolean((sesion.data && !permisos.has("ver_reportes")) || reporteSinPermiso)}
           onRetry={() => { if (sesion.isError) void sesion.refetch(); else void reporteConsulta.refetch(); }}
           onChangeFilters={actualizarFiltrosReporte}
-          onDownloadCsv={() => descargarReporteCsv(tipoReporte, {
-            ...filtrosReporte,
-            segmentacion: filtrosReporte.segmentacion ?? (
-              tipoReporte === "ranking-epp" ? "epp" : tipoReporte === "tendencia" ? "turno" : "zona"
-            ),
-          })}
+          onDownloadCsv={() => descargarReporteCsv(tipoReporte, tipoReporte === "dotacion"
+            ? {
+                desde: filtrosReporte.desde,
+                hasta: filtrosReporte.hasta,
+                areaId: filtrosReporte.areaId,
+                segmentacion: "turno",
+              }
+            : {
+                ...filtrosReporte,
+                segmentacion: filtrosReporte.segmentacion ?? (
+                  tipoReporte === "ranking-epp" ? "epp" : tipoReporte === "tendencia" ? "turno" : "zona"
+                ),
+              })}
         />
       )}
       {seccion === "videos" && <VideosPage puedeProcesar={permisos.has("procesar_videos")} puedeVerEvidencia={permiteEvidencia} catalogos={catalogos.data} catalogosError={catalogos.isError} />}
