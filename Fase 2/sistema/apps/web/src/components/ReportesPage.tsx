@@ -178,9 +178,6 @@ export function ReportesPage({
   }
 
   function cambiarTipo(nuevoTipo: TipoReporte) {
-    if (nuevoTipo === "dotacion" && filtros.segmentacion !== undefined) {
-      onChangeFilters({ segmentacion: undefined });
-    }
     onChangeTipo(nuevoTipo);
   }
 
