@@ -56,6 +56,7 @@ it("muestra el mapa de calor y la tendencia diaria sin revelar celdas suprimidas
   }} />);
   expect(screen.getByRole("cell", { name: "Zona norte, 08h: ≈ 10" })).toBeVisible();
   expect(screen.getByRole("cell", { name: "Zona norte, 09h: Datos insuficientes" })).toBeVisible();
+  expect(screen.queryByText(/999/)).not.toBeInTheDocument();
   expect(screen.getByRole("cell", { name: "Zona norte, 10h: 0" })).toBeVisible();
 
   rerender(<ReportesPage {...props} tipo="mapa-calor" reporte={{
@@ -80,7 +81,7 @@ it("muestra el mapa de calor y la tendencia diaria sin revelar celdas suprimidas
   const tendencia = screen.getByRole("region", { name: "Gráfico de tendencia diaria por turno" });
   expect(within(tendencia).getByText("≈ 10")).toBeVisible();
   expect(within(tendencia).getAllByText("Datos insuficientes")).toHaveLength(2);
-  expect(within(tendencia).queryByText("999")).not.toBeInTheDocument();
+  expect(within(tendencia).queryByText(/999/)).not.toBeInTheDocument();
   expect(tendencia.querySelectorAll(".reportes-ranking__bar")).toHaveLength(1);
 });
 
