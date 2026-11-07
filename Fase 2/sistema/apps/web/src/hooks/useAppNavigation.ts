@@ -3,7 +3,7 @@ import { useCallback, useEffect, useRef, useState } from "react";
 import type { Severidad, TipoEpp, VistaTriage } from "../api/types";
 import { rangoDefectoPanel } from "../api/fechas";
 
-export type SeccionApp = "panel" | "hallazgos" | "reglas" | "videos" | "sala";
+export type SeccionApp = "panel" | "hallazgos" | "reglas" | "videos" | "sala" | "reportes";
 
 export interface DestinoHallazgos {
   vista?: VistaTriage;
@@ -39,6 +39,7 @@ export function construirRutaHallazgos(destino: DestinoHallazgos): string {
 }
 
 export function leerSeccion(): SeccionApp {
+  if (window.location.pathname.startsWith("/reportes")) return "reportes";
   if (window.location.pathname.startsWith("/reglas")) return "reglas";
   if (window.location.pathname.startsWith("/hallazgos")) return "hallazgos";
   if (window.location.pathname.startsWith("/videos")) return "videos";
@@ -64,12 +65,38 @@ function ubicacionPanelActual(): string {
   return `/${consulta ? `?${consulta}` : ""}`;
 }
 
+function ubicacionReporteActual(): string {
+  const actuales = new URL(window.location.href).searchParams;
+  const parametros = new URLSearchParams();
+  for (const nombre of ["desde", "hasta", "area_id", "segmentacion"]) {
+    const valor = actuales.get(nombre);
+    if (valor) parametros.set(nombre, valor);
+  }
+  const consulta = parametros.toString();
+  return `/reportes${consulta ? `?${consulta}` : ""}`;
+}
+
+function construirRutaReportes(ubicacionPrevia: string): string {
+  const actuales = new URL(window.location.href).searchParams;
+  const anteriores = new URL(ubicacionPrevia, window.location.origin).searchParams;
+  const parametros = new URLSearchParams();
+  for (const nombre of ["desde", "hasta", "area_id", "segmentacion"]) {
+    const valor = actuales.get(nombre) ?? (nombre === "area_id" ? anteriores.get(nombre) : null);
+    if (valor) parametros.set(nombre, valor);
+  }
+  const consulta = parametros.toString();
+  return `/reportes${consulta ? `?${consulta}` : ""}`;
+}
+
 export function useAppNavigation() {
   const [seccion, setSeccion] = useState(leerSeccion);
   const ultimaUbicacionHallazgos = useRef(
     leerSeccion() === "hallazgos" ? ubicacionHallazgosActual() : "/hallazgos",
   );
   const ultimaUbicacionPanel = useRef(ubicacionPanelActual());
+  const ultimaUbicacionReporte = useRef(
+    leerSeccion() === "reportes" ? ubicacionReporteActual() : "/reportes",
+  );
 
   const cambiarRuta = (ruta: string) => {
     window.history.pushState({}, "", ruta);
@@ -81,6 +108,7 @@ export function useAppNavigation() {
       const siguiente = leerSeccion();
       if (siguiente === "hallazgos") ultimaUbicacionHallazgos.current = ubicacionHallazgosActual();
       if (siguiente === "panel") ultimaUbicacionPanel.current = ubicacionPanelActual();
+      if (siguiente === "reportes") ultimaUbicacionReporte.current = ubicacionReporteActual();
       setSeccion(siguiente);
     };
     window.addEventListener("popstate", volver);
@@ -92,9 +120,14 @@ export function useAppNavigation() {
     if (actual === destino) return;
     if (actual === "hallazgos") ultimaUbicacionHallazgos.current = ubicacionHallazgosActual();
     if (actual === "panel") ultimaUbicacionPanel.current = ubicacionPanelActual();
+    if (actual === "reportes") ultimaUbicacionReporte.current = ubicacionReporteActual();
 
     const ruta = destino === "panel"
       ? ultimaUbicacionPanel.current
+      : destino === "reportes"
+        ? actual === "panel" || actual === "hallazgos"
+          ? construirRutaReportes(ultimaUbicacionReporte.current)
+          : ultimaUbicacionReporte.current
       : destino === "reglas"
         ? "/reglas"
         : destino === "videos"
@@ -105,6 +138,7 @@ export function useAppNavigation() {
             ? construirRutaHallazgos({})
             : ultimaUbicacionHallazgos.current;
     if (destino === "hallazgos") ultimaUbicacionHallazgos.current = ruta;
+    if (destino === "reportes") ultimaUbicacionReporte.current = ruta;
     cambiarRuta(ruta);
   }, []);
 
