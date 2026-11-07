@@ -68,7 +68,8 @@ export default function App() {
         tipoReporte === "ranking-epp" ? "epp" : tipoReporte === "tendencia" ? "turno" : "zona"
       ),
     }),
-    enabled: seccion === "reportes" && (sesion.data?.permisos?.includes("ver_reportes") ?? false),
+    enabled: seccion === "reportes" && tipoReporte !== "dotacion"
+      && (sesion.data?.permisos?.includes("ver_reportes") ?? false),
     placeholderData: (anterior, consultaAnterior) =>
       consultaAnterior?.queryKey[1] === tipoReporte ? anterior : undefined,
   });
