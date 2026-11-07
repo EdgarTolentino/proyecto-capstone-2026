@@ -3,16 +3,18 @@ import { AlertTriangle, LoaderCircle } from "lucide-react";
 import { useMemo, useState } from "react";
 
 import {
+  descargarReporteCsv,
   ApiError,
   listarHallazgos,
   obtenerCatalogos,
   obtenerPanel,
+  obtenerReporte,
   obtenerEstado,
   obtenerSesion,
   triarHallazgo,
   triarLote,
 } from "./api/client";
-import type { DecisionTriage } from "./api/types";
+import type { DecisionTriage, TipoReporte } from "./api/types";
 import { INTERVALO_BANDEJA_MS } from "./api/videos";
 import { AppShell } from "./components/AppShell";
 import { BulkActionsBar } from "./components/BulkActionsBar";
@@ -23,18 +25,21 @@ import { HallazgosGrid } from "./components/HallazgosGrid";
 import { ReglasPage } from "./components/ReglasPage";
 import { SalaEnVivoPage } from "./components/SalaEnVivoPage";
 import { PanelPage } from "./components/PanelPage";
+import { ReportesPage } from "./components/ReportesPage";
 import { TriageTabs } from "./components/TriageTabs";
 import { VideosPage } from "./components/VideosPage";
 import { useAppNavigation } from "./hooks/useAppNavigation";
 import { useHallazgoFilters } from "./hooks/useHallazgoFilters";
 import { useHallazgoShortcuts } from "./hooks/useHallazgoShortcuts";
 import { usePanelFilters } from "./hooks/usePanelFilters";
+import { useReporteFilters } from "./hooks/useReporteFilters";
 
 export default function App() {
   const queryClient = useQueryClient();
   const { seccion, navegar, navegarHallazgos } = useAppNavigation();
   const { filtros, actualizar } = useHallazgoFilters();
   const { filtros: filtrosPanel, actualizar: actualizarFiltrosPanel } = usePanelFilters();
+  const { filtros: filtrosReporte, actualizar: actualizarFiltrosReporte } = useReporteFilters();
   const [activoId, setActivoId] = useState<number>();
   const [seleccionados, setSeleccionados] = useState<Set<number>>(new Set());
   // A quién se aplicará el falso positivo, congelado al abrir el diálogo: si la bandeja se refresca
@@ -42,6 +47,7 @@ export default function App() {
   const [motivoPara, setMotivoPara] = useState<{ ids: number[]; lote: boolean } | null>(null);
   const mostrarMotivo = motivoPara !== null;
   const [mensaje, setMensaje] = useState("");
+  const [tipoReporte, setTipoReporte] = useState<TipoReporte>("ranking-epp");
 
   const sesion = useQuery({ queryKey: ["sesion"], queryFn: obtenerSesion });
   const catalogos = useQuery({ queryKey: ["catalogos"], queryFn: obtenerCatalogos, staleTime: Infinity });
@@ -54,6 +60,19 @@ export default function App() {
     refetchInterval: INTERVALO_BANDEJA_MS,
   });
   const panelSinPermiso = panel.error instanceof ApiError && [401, 403].includes(panel.error.status);
+  const reporteConsulta = useQuery({
+    queryKey: ["reporte", tipoReporte, filtrosReporte],
+    queryFn: () => obtenerReporte(tipoReporte, {
+      ...filtrosReporte,
+      segmentacion: filtrosReporte.segmentacion ?? (
+        tipoReporte === "ranking-epp" ? "epp" : tipoReporte === "tendencia" ? "turno" : "zona"
+      ),
+    }),
+    enabled: seccion === "reportes" && (sesion.data?.permisos?.includes("ver_reportes") ?? false),
+    placeholderData: (anterior, consultaAnterior) =>
+      consultaAnterior?.queryKey[1] === tipoReporte ? anterior : undefined,
+  });
+  const reporteSinPermiso = reporteConsulta.error instanceof ApiError && [401, 403].includes(reporteConsulta.error.status);
   const mostrarAvisoObraSinFiltro = seccion === "hallazgos"
     && new URL(window.location.href).searchParams.has("obra_no_filtrada");
   // El visor no cambia la consulta ni desmonta la tabla: así conserva el desplazamiento.
@@ -205,6 +224,27 @@ export default function App() {
           onRetry={() => { if (sesion.isError) void sesion.refetch(); else void panel.refetch(); }}
           onChangeFilters={actualizarFiltrosPanel}
           onNavigateHallazgos={navegarHallazgos}
+        />
+      )}
+      {seccion === "reportes" && (
+        <ReportesPage
+          reporte={reporteConsulta.data}
+          tipo={tipoReporte}
+          onChangeTipo={setTipoReporte}
+          filtros={filtrosReporte}
+          catalogos={catalogos.data}
+          isLoading={sesion.isLoading || reporteConsulta.isLoading}
+          isRefreshing={reporteConsulta.isFetching && reporteConsulta.isPlaceholderData}
+          isError={sesion.isError || (reporteConsulta.isError && !reporteSinPermiso)}
+          sinPermiso={Boolean((sesion.data && !permisos.has("ver_reportes")) || reporteSinPermiso)}
+          onRetry={() => { if (sesion.isError) void sesion.refetch(); else void reporteConsulta.refetch(); }}
+          onChangeFilters={actualizarFiltrosReporte}
+          onDownloadCsv={() => descargarReporteCsv(tipoReporte, {
+            ...filtrosReporte,
+            segmentacion: filtrosReporte.segmentacion ?? (
+              tipoReporte === "ranking-epp" ? "epp" : tipoReporte === "tendencia" ? "turno" : "zona"
+            ),
+          })}
         />
       )}
       {seccion === "videos" && <VideosPage puedeProcesar={permisos.has("procesar_videos")} puedeVerEvidencia={permiteEvidencia} catalogos={catalogos.data} catalogosError={catalogos.isError} />}

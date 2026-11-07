@@ -21,6 +21,7 @@ vi.mock("./api/client", () => ({
   obtenerSesion: vi.fn(async () => ({ permisos: ["ver_hallazgos", "ver_evidencia", "triar_hallazgos"] })),
   obtenerCatalogos: vi.fn(async () => ({
     obras: [{ id: 7, nombre: "Edificio Norte" }, { id: 8, nombre: "Edificio Sur" }],
+    areas: [{ id: 3, nombre: "Excavación" }],
     turnos: [{ codigo: "A", etiqueta: "Turno A" }, { codigo: "B", etiqueta: "Turno B" }],
   })),
   obtenerPanel: vi.fn(async () => ({
@@ -36,6 +37,11 @@ vi.mock("./api/client", () => ({
     criticos_recientes: [],
     cobertura: {},
   })),
+  obtenerReporte: vi.fn(async (tipo: string) => ({
+    tipo,
+    filas: [{ etiqueta: "casco", valor: 10, n: 10, datos_insuficientes: false }],
+  })),
+  descargarReporteCsv: vi.fn(async () => "etiqueta,valor,n,datos_insuficientes"),
   obtenerEstado: vi.fn(async () => ({})),
   triarHallazgo: vi.fn(async () => ({})),
   triarLote: vi.fn(async () => ({})),
@@ -90,6 +96,78 @@ it("usa la raíz como panel general y permite volver a la bandeja", async () => 
   expect(window.location.pathname).toBe("/");
   await waitFor(() => expect(screen.getByRole("combobox", { name: "Obra" })).toHaveValue("7"));
   await waitFor(() => expect(api.obtenerPanel).toHaveBeenLastCalledWith({ obraId: 7, desde: "2026-09-01", hasta: "2026-09-30", turno: "A" }));
+});
+
+it("abre Reportes desde el menú y consulta los KPI 3 a 6 con filtros compartidos", async () => {
+  window.history.replaceState({}, "", "/?desde=2026-09-01&hasta=2026-09-30");
+  vi.mocked(api.obtenerSesion).mockResolvedValueOnce({
+    permisos: ["ver_reportes", "ver_hallazgos"],
+  } as Awaited<ReturnType<typeof api.obtenerSesion>>);
+  const client = new QueryClient({ defaultOptions: { queries: { retry: false, staleTime: Infinity } } });
+  render(<QueryClientProvider client={client}><App /></QueryClientProvider>);
+
+  fireEvent.click(await screen.findByRole("button", { name: "Reportes" }));
+
+  expect(await screen.findByRole("heading", { name: "Reportes" })).toBeVisible();
+  expect(screen.getByRole("button", { name: "Reportes" })).toHaveAttribute("aria-current", "page");
+  expect(screen.getByRole("heading", { name: "Incumplimientos por EPP" })).toBeVisible();
+  const grafico = await screen.findByRole("region", { name: "Gráfico de incumplimientos por EPP" });
+  expect(within(grafico).getByText("≈ 10")).toBeVisible();
+  expect(new URL(window.location.href).pathname).toBe("/reportes");
+  expect(await screen.findByLabelText("Desde")).toHaveValue("2026-09-01");
+  expect(await screen.findByLabelText("Hasta")).toHaveValue("2026-09-30");
+
+  fireEvent.change(screen.getByRole("combobox", { name: "Área" }), { target: { value: "3" } });
+  await waitFor(() => expect(api.obtenerReporte).toHaveBeenLastCalledWith("ranking-epp", {
+    desde: "2026-09-01",
+    hasta: "2026-09-30",
+    areaId: 3,
+    segmentacion: "epp",
+  }));
+  expect(new URL(window.location.href).searchParams.get("area_id")).toBe("3");
+
+  fireEvent.click(screen.getByRole("tab", { name: "Por zona" }));
+  expect(await screen.findByRole("heading", { name: "Incumplimientos por zona" })).toBeVisible();
+  await waitFor(() => expect(api.obtenerReporte).toHaveBeenLastCalledWith("zonas", expect.objectContaining({
+    areaId: 3,
+    segmentacion: "zona",
+  })));
+});
+
+it("muestra sin permiso para reportes cuando la sesión no tiene ver_reportes", async () => {
+  window.history.replaceState({}, "", "/reportes");
+  vi.mocked(api.obtenerSesion).mockResolvedValueOnce({
+    permisos: ["ver_hallazgos"],
+  } as Awaited<ReturnType<typeof api.obtenerSesion>>);
+  const client = new QueryClient({ defaultOptions: { queries: { retry: false } } });
+  render(<QueryClientProvider client={client}><App /></QueryClientProvider>);
+
+  expect(await screen.findByRole("alert")).toHaveTextContent("No tienes permiso para ver reportes.");
+  expect(api.obtenerReporte).not.toHaveBeenCalled();
+});
+
+it("avisa que el reporte anterior es provisional mientras carga el nuevo filtro", async () => {
+  window.history.replaceState({}, "", "/reportes");
+  vi.mocked(api.obtenerSesion).mockResolvedValueOnce({
+    permisos: ["ver_reportes"],
+  } as Awaited<ReturnType<typeof api.obtenerSesion>>);
+  const client = new QueryClient({ defaultOptions: { queries: { retry: false, staleTime: Infinity } } });
+  render(<QueryClientProvider client={client}><App /></QueryClientProvider>);
+
+  expect(await screen.findByRole("table", { name: "Detalle del reporte: Incumplimientos por EPP" })).toBeVisible();
+  let resolver!: (reporte: Awaited<ReturnType<typeof api.obtenerReporte>>) => void;
+  vi.mocked(api.obtenerReporte).mockImplementationOnce(() => new Promise((resolve) => { resolver = resolve; }));
+  fireEvent.change(screen.getByRole("combobox", { name: "Área" }), { target: { value: "3" } });
+
+  expect(await screen.findByText("Cargando reporte actualizado…")).toBeVisible();
+  expect(screen.getByRole("main", { name: "Reportes" })).toHaveAttribute("aria-busy", "true");
+  expect(screen.getByRole("table")).toBeVisible();
+
+  resolver({
+    tipo: "ranking-epp",
+    filas: [{ etiqueta: "chaleco", valor: 15, n: 15, datos_insuficientes: false }],
+  });
+  expect(await screen.findByRole("row", { name: /chaleco/ })).toBeVisible();
 });
 
 it("lleva fecha y turno a Hallazgos al navegar desde la barra", async () => {
