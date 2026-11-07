@@ -1,5 +1,6 @@
 import { AlertTriangle, Download, LoaderCircle, RotateCcw } from "lucide-react";
 import { useState } from "react";
+import type { CSSProperties } from "react";
 
 import type { Catalogos, FiltrosReporte, Reporte, SegmentacionReporte, TipoReporte } from "../api/types";
 
@@ -21,6 +22,8 @@ interface Props {
 const reportes = [
   { tipo: "ranking-epp", etiqueta: "Por EPP", titulo: "Incumplimientos por EPP", descripcion: "Elementos de protección personal con más incumplimientos." },
   { tipo: "zonas", etiqueta: "Por zona", titulo: "Incumplimientos por zona", descripcion: "Ranking de zonas y tendencia de las últimas ocho semanas." },
+  { tipo: "mapa-calor", etiqueta: "Mapa de calor", titulo: "Incumplimientos por hora", descripcion: "Distribución por hora y dimensión seleccionada." },
+  { tipo: "tendencia", etiqueta: "Tendencia", titulo: "Tendencia diaria", descripcion: "Evolución diaria según la dimensión seleccionada." },
 ] as const;
 const segmentaciones: { valor: SegmentacionReporte; etiqueta: string }[] = [
   { valor: "zona", etiqueta: "Zona" },
@@ -44,6 +47,11 @@ function textoValor(fila: Reporte["filas"][number]): string {
   return valor === null ? "Datos insuficientes" : `≈ ${valor.toLocaleString("es-CL", { maximumFractionDigits: 2 })}`;
 }
 
+function partesEtiqueta(etiqueta: string): [string, string] {
+  const separador = etiqueta.lastIndexOf(" · ");
+  return separador < 0 ? ["", etiqueta] : [etiqueta.slice(0, separador), etiqueta.slice(separador + 3)];
+}
+
 function Minigrafico({ valores, etiqueta }: { valores: number[]; etiqueta: string }) {
   const maximo = Math.max(...valores, 1);
   const puntos = valores.map((valor, indice) => {
@@ -55,8 +63,11 @@ function Minigrafico({ valores, etiqueta }: { valores: number[]; etiqueta: strin
 
 function Grafico({ filas, tipo, segmentacion }: { filas: Reporte["filas"]; tipo: TipoReporte; segmentacion: SegmentacionReporte }) {
   const maximo = Math.max(...filas.map((fila) => valorPublicado(fila) ?? 0), 0);
+  const etiqueta = tipo === "tendencia"
+    ? `Gráfico de tendencia diaria por ${etiquetaSegmentacion[segmentacion]}`
+    : `Gráfico de incumplimientos por ${etiquetaSegmentacion[segmentacion]}`;
   return (
-    <section className="reportes-ranking" aria-label={`Gráfico de incumplimientos por ${etiquetaSegmentacion[segmentacion]}`}>
+    <section className="reportes-ranking" aria-label={etiqueta}>
       {filas.map((fila) => {
         const valor = valorPublicado(fila);
         return (
@@ -74,13 +85,55 @@ function Grafico({ filas, tipo, segmentacion }: { filas: Reporte["filas"]; tipo:
   );
 }
 
+function MapaCalor({ filas }: { filas: Reporte["filas"] }) {
+  const horas = Array.from({ length: 24 }, (_, hora) => `${String(hora).padStart(2, "0")}h`);
+  const grupos = [...new Set(filas.map((fila) => partesEtiqueta(fila.etiqueta)[0]))].sort();
+  if (filas.some((fila) => !/^(?:[01]\d|2[0-3])h$/.test(partesEtiqueta(fila.etiqueta)[1]))) {
+    return <p className="state-message" role="status">La respuesta no incluye etiquetas compatibles con el mapa por hora.</p>;
+  }
+  const porCelda = new Map(filas.map((fila) => {
+    const [grupo, hora] = partesEtiqueta(fila.etiqueta);
+    return [`${grupo}\0${hora}`, fila] as const;
+  }));
+  const maximo = Math.max(...filas.map((fila) => valorPublicado(fila) ?? 0), 0);
+
+  return (
+    <div className="reportes-heatmap-wrap">
+      <table className="reportes-heatmap">
+        <caption>Incumplimientos por hora; las celdas ocultas tienen población insuficiente.</caption>
+        <thead><tr><th scope="col">Dimensión</th>{horas.map((hora) => <th scope="col" key={hora}>{hora}</th>)}</tr></thead>
+        <tbody>{grupos.map((grupo) => (
+          <tr key={grupo}>
+            <th scope="row">{grupo || "Sin dimensión"}</th>
+            {horas.map((hora) => {
+              const fila = porCelda.get(`${grupo}\0${hora}`);
+              // La API omite cruces sin casos; las celdas suprimidas llegan como filas marcadas.
+              const valor = fila ? valorPublicado(fila) : 0;
+              const suprimida = valor === null;
+              const texto = suprimida ? "Datos insuficientes" : fila ? textoValor(fila) : "0";
+              return (
+                <td
+                  key={hora}
+                  className={suprimida ? "reportes-heatmap__suppressed" : !fila ? "reportes-heatmap__empty" : ""}
+                  style={!fila || suprimida ? undefined : { "--heat-intensity": maximo ? valor / maximo : 0 } as CSSProperties}
+                  aria-label={`${grupo}, ${hora}: ${texto}`}
+                >{suprimida ? "—" : texto}</td>
+              );
+            })}
+          </tr>
+        ))}</tbody>
+      </table>
+    </div>
+  );
+}
+
 function Tabla({ filas, tipo, titulo }: { filas: Reporte["filas"]; tipo: TipoReporte; titulo: string }) {
   const incluyeSerie = tipo === "zonas" && filas.some((fila) => fila.serie);
   return (
     <div className="reportes-table-wrap">
       <table className="reportes-table">
         <caption>Detalle del reporte: {titulo}</caption>
-        <thead><tr><th scope="col">Dimensión</th><th scope="col">Incumplimientos</th>{incluyeSerie && <th scope="col">Últimas ocho semanas</th>}</tr></thead>
+        <thead><tr><th scope="col">{tipo === "tendencia" || tipo === "mapa-calor" ? "Dimensión y período" : "Dimensión"}</th><th scope="col">Incumplimientos</th>{incluyeSerie && <th scope="col">Últimas ocho semanas</th>}</tr></thead>
         <tbody>{filas.map((fila) => (
           <tr key={fila.etiqueta}>
             <th scope="row">{fila.etiqueta}</th>
@@ -100,10 +153,11 @@ export function ReportesPage({
   const [descargando, setDescargando] = useState(false);
   const [errorCsv, setErrorCsv] = useState("");
   const actual = reportes.find((item) => item.tipo === tipo) ?? reportes[0];
-  const segmentacion = filtros.segmentacion ?? (tipo === "ranking-epp" ? "epp" : "zona");
-  const titulo = segmentacion === (tipo === "ranking-epp" ? "epp" : "zona")
-    ? actual.titulo
-    : `Ranking por ${etiquetaSegmentacion[segmentacion]}`;
+  const segmentacion = filtros.segmentacion ?? (tipo === "ranking-epp" ? "epp" : tipo === "tendencia" ? "turno" : "zona");
+  const esRanking = tipo === "ranking-epp" || tipo === "zonas";
+  const titulo = esRanking && segmentacion !== (tipo === "ranking-epp" ? "epp" : "zona")
+    ? `Ranking por ${etiquetaSegmentacion[segmentacion]}`
+    : actual.titulo;
   const filas = reporte?.filas ?? [];
 
   async function descargarCsv() {
@@ -177,8 +231,9 @@ export function ReportesPage({
         {!isLoading && !isError && !sinPermiso && filas.length > 0 && (
           <>
             <p className="reportes-notice"><AlertTriangle size={14} aria-hidden="true" />Las cifras se redondean a múltiplos de 5; las celdas con población menor que 5 se muestran como «Datos insuficientes».</p>
-            <Grafico filas={filas} tipo={tipo} segmentacion={segmentacion} />
-            <Tabla filas={filas} tipo={tipo} titulo={titulo} />
+            {tipo === "mapa-calor"
+              ? <MapaCalor filas={filas} />
+              : <><Grafico filas={filas} tipo={tipo} segmentacion={segmentacion} /><Tabla filas={filas} tipo={tipo} titulo={titulo} /></>}
           </>
         )}
       </section>
