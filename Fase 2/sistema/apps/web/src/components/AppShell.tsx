@@ -33,7 +33,7 @@ const navegacion = [
   { texto: "Hallazgos", icono: SearchCheck, seccion: "hallazgos" },
   { texto: "Videos", icono: FileVideo, seccion: "videos" },
   { texto: "Reglas", icono: Settings2, seccion: "reglas" },
-  { texto: "Reportes", icono: CircleDot },
+  { texto: "Reportes", icono: CircleDot, seccion: "reportes" },
   { texto: "Zonas y cámaras", icono: Map },
 ] satisfies { texto: string; icono: typeof BarChart3; seccion?: SeccionApp }[];
 
