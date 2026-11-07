@@ -46,6 +46,45 @@ it("muestra el ranking sin exponer conteos suprimidos ni n", () => {
   expect(screen.getByRole("tab", { name: "Por EPP" })).toHaveAttribute("aria-selected", "true");
 });
 
+it("muestra el mapa de calor y la tendencia diaria sin revelar celdas suprimidas", () => {
+  const { rerender } = render(<ReportesPage {...props} tipo="mapa-calor" reporte={{
+    tipo: "mapa-calor",
+    filas: [
+      { etiqueta: "Zona norte · 08h", valor: 10, n: 10, datos_insuficientes: false },
+      { etiqueta: "Zona norte · 09h", valor: 999, n: 999, datos_insuficientes: true },
+    ],
+  }} />);
+  expect(screen.getByRole("cell", { name: "Zona norte, 08h: ≈ 10" })).toBeVisible();
+  expect(screen.getByRole("cell", { name: "Zona norte, 09h: Datos insuficientes" })).toBeVisible();
+  expect(screen.queryByText(/999/)).not.toBeInTheDocument();
+  expect(screen.getByRole("cell", { name: "Zona norte, 10h: 0" })).toBeVisible();
+
+  rerender(<ReportesPage {...props} tipo="mapa-calor" reporte={{
+    tipo: "mapa-calor",
+    filas: [
+      { etiqueta: "Zona norte · 08h", valor: 10, n: 10, datos_insuficientes: false },
+      { etiqueta: "Andamio Fachada Norte", valor: 25, n: 25, datos_insuficientes: false },
+    ],
+  }} />);
+  expect(screen.getByRole("status")).toHaveTextContent("etiquetas compatibles");
+  expect(screen.queryByRole("table", { name: /celdas ocultas/ })).not.toBeInTheDocument();
+  expect(screen.queryByRole("table", { name: /Detalle del reporte/ })).not.toBeInTheDocument();
+
+  rerender(<ReportesPage {...props} tipo="tendencia" filtros={{ ...props.filtros, segmentacion: "turno" }} reporte={{
+    tipo: "tendencia",
+    filas: [
+      { etiqueta: "Turno A · 2026-09-01", valor: 10, n: 10, datos_insuficientes: false },
+      { etiqueta: "Turno B · 2026-09-01", valor: 999, n: 999, datos_insuficientes: true },
+      { etiqueta: "Turno C · 2026-09-01", valor: null, n: 5, datos_insuficientes: false },
+    ],
+  }} />);
+  const tendencia = screen.getByRole("region", { name: "Gráfico de tendencia diaria por turno" });
+  expect(within(tendencia).getByText("≈ 10")).toBeVisible();
+  expect(within(tendencia).getAllByText("Datos insuficientes")).toHaveLength(2);
+  expect(within(tendencia).queryByText(/999/)).not.toBeInTheDocument();
+  expect(tendencia.querySelectorAll(".reportes-ranking__bar")).toHaveLength(1);
+});
+
 it("trata un valor nulo como datos insuficientes aunque la fila no esté marcada", () => {
   const reporteNulo: Reporte = {
     tipo: "ranking-epp",
