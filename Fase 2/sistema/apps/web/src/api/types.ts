@@ -14,6 +14,7 @@ export type Regla = components["schemas"]["Regla"];
 export type ReglaEntrada = components["schemas"]["ReglaEntrada"];
 export type ResultadoSimulacion = components["schemas"]["ResultadoSimulacion"];
 export type Panel = components["schemas"]["Panel"];
+export type Reporte = components["schemas"]["Reporte"];
 export type Video = components["schemas"]["Video"];
 export type AvanceVideo = NonNullable<Video["avance"]>;
 
@@ -41,6 +42,16 @@ export interface FiltrosPanel {
   hasta?: string;
   turno?: string;
   obraId?: number;
+}
+
+export type TipoReporte = "ranking-epp" | "zonas" | "mapa-calor" | "tendencia";
+export type SegmentacionReporte = "zona" | "turno" | "camara" | "epp";
+
+export interface FiltrosReporte {
+  desde?: string;
+  hasta?: string;
+  areaId?: number;
+  segmentacion?: SegmentacionReporte;
 }
 
 // El contrato define este objeto dentro de GET /estado y no le da un nombre propio.

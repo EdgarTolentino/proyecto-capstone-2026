@@ -15,9 +15,12 @@ import type {
   PedidoNuevo,
   Regla,
   ReglaEntrada,
+  Reporte,
+  FiltrosReporte,
   ResultadoSimulacion,
   Sesion,
   Video,
+  TipoReporte,
 } from "./types";
 import type { operations } from "./schema";
 import { esFechaValida, inicioDelDiaEnFaena, sumarDias } from "./fechas";
@@ -77,16 +80,16 @@ async function api<T>(ruta: string, opciones?: RequestInit): Promise<T> {
   return respuesta.json() as Promise<T>;
 }
 
+function fechaComoInstante(valor: string, fin = false): string | undefined {
+  if (/^\d{4}-\d{2}-\d{2}$/.test(valor)) {
+    if (!esFechaValida(valor)) return undefined;
+    return inicioDelDiaEnFaena(fin ? sumarDias(valor, 1) : valor);
+  }
+  return Number.isFinite(Date.parse(valor)) ? valor : undefined;
+}
+
 function parametrosDeApi(filtros: FiltrosHallazgos): URLSearchParams {
   const parametros = new URLSearchParams({ limite: "200" });
-
-  const instanteFecha = (valor: string, fin = false) => {
-    if (/^\d{4}-\d{2}-\d{2}$/.test(valor)) {
-      if (!esFechaValida(valor)) return undefined;
-      return inicioDelDiaEnFaena(fin ? sumarDias(valor, 1) : valor);
-    }
-    return Number.isFinite(Date.parse(valor)) ? valor : undefined;
-  };
 
   // Las pestañas se traducen a filtros del contrato.
   if (filtros.vista === "por_revisar") parametros.set("estado", "por_revisar");
@@ -99,11 +102,11 @@ function parametrosDeApi(filtros: FiltrosHallazgos): URLSearchParams {
   if (filtros.fuenteId) parametros.set("fuente_id", filtros.fuenteId);
   if (filtros.epp) parametros.set("epp", filtros.epp);
   if (filtros.desde) {
-    const desde = instanteFecha(filtros.desde);
+    const desde = fechaComoInstante(filtros.desde);
     if (desde) parametros.set("desde", desde);
   }
   if (filtros.hasta) {
-    const hasta = instanteFecha(filtros.hasta, true);
+    const hasta = fechaComoInstante(filtros.hasta, true);
     if (hasta) parametros.set("hasta", hasta);
   }
   if (filtros.turno) parametros.set("turno", filtros.turno);
@@ -150,20 +153,12 @@ export const pedirIngesta = (peticion: PedidoNuevo) =>
 function parametrosDelPanel(filtros: FiltrosPanel = {}): URLSearchParams {
   const parametros = new URLSearchParams();
 
-  const instante = (valor: string, fin = false) => {
-    if (/^\d{4}-\d{2}-\d{2}$/.test(valor)) {
-      if (!esFechaValida(valor)) return undefined;
-      return inicioDelDiaEnFaena(fin ? sumarDias(valor, 1) : valor);
-    }
-    return Number.isFinite(Date.parse(valor)) ? valor : undefined;
-  };
-
   if (filtros.desde) {
-    const desde = instante(filtros.desde);
+    const desde = fechaComoInstante(filtros.desde);
     if (desde) parametros.set("desde", desde);
   }
   if (filtros.hasta) {
-    const hasta = instante(filtros.hasta, true);
+    const hasta = fechaComoInstante(filtros.hasta, true);
     if (hasta) parametros.set("hasta", hasta);
   }
   if (filtros.turno) parametros.set("turno", filtros.turno);
@@ -175,6 +170,50 @@ function parametrosDelPanel(filtros: FiltrosPanel = {}): URLSearchParams {
 export function obtenerPanel(filtros: FiltrosPanel = {}): Promise<Panel> {
   const consulta = parametrosDelPanel(filtros).toString();
   return api<Panel>(`/panel${consulta ? `?${consulta}` : ""}`);
+}
+
+function parametrosReporte(filtros: FiltrosReporte, formato: "json" | "csv" = "json"): URLSearchParams {
+  const parametros = new URLSearchParams();
+
+  if (filtros.desde) {
+    const desde = fechaComoInstante(filtros.desde);
+    if (desde) parametros.set("desde", desde);
+  }
+  if (filtros.hasta) {
+    const hasta = fechaComoInstante(filtros.hasta, true);
+    if (hasta) parametros.set("hasta", hasta);
+  }
+  const areaId = filtros.areaId;
+  if (areaId !== undefined && Number.isSafeInteger(areaId) && areaId > 0) {
+    parametros.set("area_id", String(areaId));
+  }
+  if (filtros.segmentacion) parametros.set("segmentacion", filtros.segmentacion);
+  if (formato !== "json") parametros.set("formato", formato);
+
+  return parametros;
+}
+
+export function obtenerReporte(tipo: TipoReporte, filtros: FiltrosReporte = {}): Promise<Reporte> {
+  const consulta = parametrosReporte(filtros).toString();
+  return api<Reporte>(`/reportes/${tipo}${consulta ? `?${consulta}` : ""}`);
+}
+
+export async function descargarReporteCsv(tipo: TipoReporte, filtros: FiltrosReporte = {}): Promise<string> {
+  const consulta = parametrosReporte(filtros, "csv").toString();
+  const respuesta = await fetch(urlApi(`/reportes/${tipo}?${consulta}`), {
+    headers: cabecerasApi({ Accept: "text/csv" }),
+  });
+
+  if (!respuesta.ok) {
+    const error = (await respuesta.json().catch(() => null)) as { mensaje?: string; codigo?: string } | null;
+    throw new ApiError(
+      error?.mensaje ?? "No pudimos descargar el reporte.",
+      respuesta.status,
+      typeof error?.codigo === "string" ? error.codigo : undefined,
+    );
+  }
+
+  return respuesta.text();
 }
 
 export function listarReglas(areaId?: string): Promise<Regla[]> {

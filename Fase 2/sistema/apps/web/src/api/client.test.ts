@@ -173,6 +173,67 @@ describe("cliente API", () => {
     expect(url.searchParams.get("hasta")).toBe("2026-10-03T03:00:00.000Z");
   });
 
+  it("consulta reportes agregados con fechas semiabiertas, área y segmentación", async () => {
+    const fetchMock = vi.spyOn(globalThis, "fetch").mockResolvedValue(
+      new Response(JSON.stringify({ tipo: "tendencia", filas: [] }), {
+        status: 200,
+        headers: { "Content-Type": "application/json" },
+      }),
+    );
+    const { obtenerReporte } = await import("./client");
+
+    const reporte = await obtenerReporte("tendencia", {
+      desde: "2026-10-01",
+      hasta: "2026-10-02",
+      areaId: 7,
+      segmentacion: "turno",
+    });
+
+    const url = new URL(String(fetchMock.mock.calls[0][0]));
+    expect(url.pathname).toBe("/reportes/tendencia");
+    expect(url.searchParams.get("desde")).toBe("2026-10-01T03:00:00.000Z");
+    expect(url.searchParams.get("hasta")).toBe("2026-10-03T03:00:00.000Z");
+    expect(url.searchParams.get("area_id")).toBe("7");
+    expect(url.searchParams.get("segmentacion")).toBe("turno");
+    expect(reporte.filas).toEqual([]);
+  });
+
+  it("no envía fechas imposibles ni áreas inválidas al reporte", async () => {
+    const fetchMock = vi.spyOn(globalThis, "fetch").mockImplementation(async () =>
+      new Response(JSON.stringify({ tipo: "zonas", filas: [] }), {
+        status: 200,
+        headers: { "Content-Type": "application/json" },
+      }),
+    );
+    const { obtenerReporte } = await import("./client");
+
+    await obtenerReporte("zonas", { desde: "2026-13-01", hasta: "2026-02-30", areaId: -1 });
+    await obtenerReporte("zonas", { areaId: 0 });
+
+    for (const [url] of fetchMock.mock.calls) {
+      expect(String(url)).toBe("http://127.0.0.1:4010/reportes/zonas");
+    }
+  });
+
+  it("descarga CSV usando el formato y la autenticación del endpoint de reportes", async () => {
+    const fetchMock = vi.spyOn(globalThis, "fetch").mockResolvedValue(
+      new Response("etiqueta,valor,n,datos_insuficientes\ncasco,10,10,false", {
+        status: 200,
+        headers: { "Content-Type": "text/csv" },
+      }),
+    );
+    const { descargarReporteCsv } = await import("./client");
+
+    const csv = await descargarReporteCsv("ranking-epp", { desde: "2026-10-01", segmentacion: "epp" });
+
+    const [url, options] = fetchMock.mock.calls[0];
+    expect(String(url)).toContain("/reportes/ranking-epp?");
+    expect(new URL(String(url)).searchParams.get("formato")).toBe("csv");
+    expect(new URL(String(url)).searchParams.get("segmentacion")).toBe("epp");
+    expect(new Headers(options?.headers).has("Authorization")).toBe(true);
+    expect(csv).toContain("casco,10,10,false");
+  });
+
   it("usa el inicio del día siguiente como límite exclusivo del rango de Hallazgos", async () => {
     const fetchMock = vi.spyOn(globalThis, "fetch").mockResolvedValue(
       new Response(JSON.stringify({ items: [], contadores: {} }), {
