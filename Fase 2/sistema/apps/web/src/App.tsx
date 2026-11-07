@@ -234,6 +234,7 @@ export default function App() {
           filtros={filtrosReporte}
           catalogos={catalogos.data}
           isLoading={sesion.isLoading || reporteConsulta.isLoading}
+          isRefreshing={reporteConsulta.isFetching && reporteConsulta.isPlaceholderData}
           isError={sesion.isError || (reporteConsulta.isError && !reporteSinPermiso)}
           sinPermiso={Boolean((sesion.data && !permisos.has("ver_reportes")) || reporteSinPermiso)}
           onRetry={() => { if (sesion.isError) void sesion.refetch(); else void reporteConsulta.refetch(); }}

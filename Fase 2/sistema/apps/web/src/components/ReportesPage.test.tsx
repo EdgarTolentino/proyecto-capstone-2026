@@ -18,6 +18,7 @@ const props = {
   filtros: { desde: "2026-09-01", hasta: "2026-09-30" },
   catalogos: { areas: [{ id: 3, nombre: "Excavación" }] },
   isLoading: false,
+  isRefreshing: false,
   isError: false,
   sinPermiso: false,
   onRetry: vi.fn(),
@@ -34,11 +35,14 @@ afterEach(() => {
 it("muestra el ranking sin exponer conteos suprimidos ni n", () => {
   render(<ReportesPage {...props} />);
   const grafico = screen.getByRole("region", { name: "Gráfico de incumplimientos por EPP" });
-  expect(within(grafico).getByText("10")).toBeVisible();
+  expect(within(grafico).getByText("≈ 10")).toBeVisible();
   expect(within(grafico).getByText("Datos insuficientes")).toBeVisible();
   expect(within(grafico).queryByText("999")).not.toBeInTheDocument();
   const tabla = screen.getByRole("table", { name: "Detalle del reporte: Incumplimientos por EPP" });
+  expect(within(tabla).getByText("≈ 10")).toBeVisible();
   expect(within(tabla).queryByText("999")).not.toBeInTheDocument();
+  expect(within(tabla).queryByRole("columnheader", { name: /^n$/i })).not.toBeInTheDocument();
+  expect(screen.getByText(/cifras se redondean a múltiplos de 5/)).toBeVisible();
   expect(screen.getByRole("tab", { name: "Por EPP" })).toHaveAttribute("aria-selected", "true");
 });
 
@@ -50,12 +54,16 @@ it("muestra el mapa de calor y la tendencia diaria sin revelar celdas suprimidas
       { etiqueta: "Zona norte · 09h", valor: 999, n: 999, datos_insuficientes: true },
     ],
   }} />);
-  expect(screen.getByRole("cell", { name: "Zona norte, 08h: 10" })).toBeVisible();
+  expect(screen.getByRole("cell", { name: "Zona norte, 08h: ≈ 10" })).toBeVisible();
   expect(screen.getByRole("cell", { name: "Zona norte, 09h: Datos insuficientes" })).toBeVisible();
+  expect(screen.getByRole("cell", { name: "Zona norte, 10h: 0" })).toBeVisible();
 
   rerender(<ReportesPage {...props} tipo="mapa-calor" reporte={{
     tipo: "mapa-calor",
-    filas: [{ etiqueta: "Andamio Fachada Norte", valor: 25, n: 25, datos_insuficientes: false }],
+    filas: [
+      { etiqueta: "Zona norte · 08h", valor: 10, n: 10, datos_insuficientes: false },
+      { etiqueta: "Andamio Fachada Norte", valor: 25, n: 25, datos_insuficientes: false },
+    ],
   }} />);
   expect(screen.getByRole("status")).toHaveTextContent("etiquetas compatibles");
   expect(screen.queryByRole("table", { name: /celdas ocultas/ })).not.toBeInTheDocument();
@@ -63,9 +71,40 @@ it("muestra el mapa de calor y la tendencia diaria sin revelar celdas suprimidas
 
   rerender(<ReportesPage {...props} tipo="tendencia" filtros={{ ...props.filtros, segmentacion: "turno" }} reporte={{
     tipo: "tendencia",
-    filas: [{ etiqueta: "Turno A · 2026-09-01", valor: 10, n: 10, datos_insuficientes: false }],
+    filas: [
+      { etiqueta: "Turno A · 2026-09-01", valor: 10, n: 10, datos_insuficientes: false },
+      { etiqueta: "Turno B · 2026-09-01", valor: 999, n: 999, datos_insuficientes: true },
+      { etiqueta: "Turno C · 2026-09-01", valor: null, n: 5, datos_insuficientes: false },
+    ],
   }} />);
-  expect(screen.getByRole("region", { name: "Gráfico de tendencia diaria por turno" })).toBeVisible();
+  const tendencia = screen.getByRole("region", { name: "Gráfico de tendencia diaria por turno" });
+  expect(within(tendencia).getByText("≈ 10")).toBeVisible();
+  expect(within(tendencia).getAllByText("Datos insuficientes")).toHaveLength(2);
+  expect(within(tendencia).queryByText("999")).not.toBeInTheDocument();
+  expect(tendencia.querySelectorAll(".reportes-ranking__bar")).toHaveLength(1);
+});
+
+it("trata un valor nulo como datos insuficientes aunque la fila no esté marcada", () => {
+  const reporteNulo: Reporte = {
+    tipo: "ranking-epp",
+    filas: [{ etiqueta: "casco", valor: null, n: 5, datos_insuficientes: false }],
+  };
+  render(<ReportesPage {...props} reporte={reporteNulo} />);
+
+  const grafico = screen.getByRole("region", { name: "Gráfico de incumplimientos por EPP" });
+  expect(within(grafico).getByText("Datos insuficientes")).toBeVisible();
+  expect(grafico.querySelector(".reportes-ranking__bar")).toBeNull();
+  expect(screen.getByRole("table").querySelector("tbody")).toHaveTextContent("Datos insuficientes");
+  expect(screen.queryByText(/^0$/)).not.toBeInTheDocument();
+});
+
+it("muestra la carga del filtro nuevo mientras conserva el reporte anterior", () => {
+  render(<ReportesPage {...props} isRefreshing />);
+
+  expect(screen.getByRole("status")).toHaveTextContent("Cargando reporte actualizado");
+  expect(screen.getByRole("main", { name: "Reportes" })).toHaveAttribute("aria-busy", "true");
+  expect(screen.getByRole("table")).toBeVisible();
+  expect(screen.getByRole("button", { name: "Exportar CSV" })).toBeDisabled();
 });
 
 it("propaga filtros y permite restablecerlos", () => {
