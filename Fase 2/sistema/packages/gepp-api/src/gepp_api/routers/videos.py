@@ -23,7 +23,7 @@ from gepp_api.servicios.recalculo import recalcular_video
 router = APIRouter(tags=["Videos"])
 
 
-def videos_de_su_area(consulta: Select[Any], sesion: SesionActual) -> Select[Any]:
+def videos_de_su_area[*Ts](consulta: Select[*Ts], sesion: SesionActual) -> Select[*Ts]:
     """El supervisor solo ve los videos de las cámaras de su área; los demás roles, todos.
     Igual que `hallazgos`: el área del video es la de su fuente."""
     if sesion.rol != "supervisor":

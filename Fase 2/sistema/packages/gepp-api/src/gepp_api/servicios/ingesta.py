@@ -61,7 +61,7 @@ def listar_entrada(bd: Session, carpeta: Path, tz: ZoneInfo) -> list[dict[str, A
         (Path(ruta).name, tamano)
         for ruta, tamano in bd.execute(
             select(Video.ruta, Video.bytes).where(Video.bytes.in_({h[1] for h in hallados}))
-        ).tuples()
+        )
     }
     hallados.sort(key=lambda h: (-h[2], h[0]))
     return [

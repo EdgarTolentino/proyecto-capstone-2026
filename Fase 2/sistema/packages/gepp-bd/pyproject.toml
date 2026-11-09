@@ -5,7 +5,7 @@ description = "Persistencia compartida: modelos, migraciones y repositorios. Due
 requires-python = ">=3.12,<3.14"
 dependencies = [
   "gepp-core",
-  "sqlalchemy>=2.0",
+  "sqlalchemy>=2.1,<2.2",
   "alembic>=1.13",
   "psycopg[binary]>=3.2",
   "pyyaml>=6.0",

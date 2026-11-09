@@ -40,7 +40,7 @@ def obtener_catalogos(bd: Bd, sesion: Sesion) -> dict[str, Any]:
 def obtener_estado(request: Request, bd: Bd, sesion: Sesion) -> dict[str, Any]:
     """Barata: la cabecera la consulta cada pocos segundos."""
     conteo = videos_de_su_area(select(Video.estado, func.count()), sesion)
-    por_estado = dict(bd.execute(conteo.group_by(Video.estado)).tuples().all())
+    por_estado = dict(bd.execute(conteo.group_by(Video.estado)).all())
     pendientes = select(func.count()).where(Hallazgo.estado == "por_revisar")
     if sesion.rol == "supervisor":
         pendientes = pendientes.where(Hallazgo.area_id == sesion.area_id)

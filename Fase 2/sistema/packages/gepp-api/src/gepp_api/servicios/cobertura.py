@@ -12,6 +12,7 @@ from zoneinfo import ZoneInfo
 
 from gepp_bd.modelos import Fuente, Video
 from sqlalchemy import func, select
+from sqlalchemy.dialects.postgresql import distinct_on
 from sqlalchemy.orm import Session
 
 from gepp_api.servicios.hallazgos import iso
@@ -24,7 +25,7 @@ def cobertura(bd: Session, tz: ZoneInfo) -> dict[str, Any]:
     fuentes = list(bd.execute(select(Fuente).order_by(Fuente.id)).scalars())
     ultimo = (
         select(Video.fuente_id, Video.estado, Video.creado_en)
-        .distinct(Video.fuente_id)
+        .ext(distinct_on(Video.fuente_id))
         .order_by(Video.fuente_id, Video.creado_en.desc(), Video.id.desc())
         .subquery()
     )
@@ -34,9 +35,7 @@ def cobertura(bd: Session, tz: ZoneInfo) -> dict[str, Any]:
             select(Video.fuente_id, func.max(Video.creado_en))
             .where(Video.estado == "listo")
             .group_by(Video.fuente_id)
-        )
-        .tuples()
-        .all()
+        ).all()
     )
     ahora = bd.scalar(select(func.now()))  # reloj de la BASE: esto es estado del servicio,
     # no instante de captura, y así la API no lee el reloj del proceso (ADR-005).

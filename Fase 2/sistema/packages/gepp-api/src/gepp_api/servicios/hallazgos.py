@@ -96,7 +96,7 @@ def _condicion_turno(codigo: str, tz: ZoneInfo) -> Any:
     return or_(hora >= desde, hora < hasta)  # cruza la medianoche
 
 
-def _base(filtros: Filtros, sesion: SesionActual, tz: ZoneInfo) -> Select[Any]:
+def _base(filtros: Filtros, sesion: SesionActual, tz: ZoneInfo) -> Select[int, str, int]:
     """Hallazgos con todos los filtros SALVO estado y reincidente, más la cuenta por zona."""
     clave_zona = func.coalesce(Hallazgo.zona_id, -Hallazgo.fuente_id)
     consulta = select(
@@ -200,9 +200,7 @@ def serializar(
             select(Evidencia.hallazgo_id, func.min(Evidencia.id))
             .where(Evidencia.hallazgo_id.in_(ids))
             .group_by(Evidencia.hallazgo_id)
-        )
-        .tuples()
-        .all()
+        ).all()
     )
     salida = []
     for h in hallazgos:

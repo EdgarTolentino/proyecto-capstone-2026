@@ -58,6 +58,7 @@ ignore_missing_imports = true
 minversion = "8.0"
 addopts = "-ra --strict-markers --strict-config"
 testpaths = ["tests", "packages"]
+filterwarnings = ["error::sqlalchemy.exc.SADeprecationWarning"]
 markers = [
   "gpu: requiere GPU CUDA (no corre en CI)",
   "slow: tarda mas de 5 s",

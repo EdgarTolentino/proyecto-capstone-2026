@@ -45,7 +45,7 @@ class ColectorFuentes(Collector):
             labels=["fuente"],
         )
         with self._fabrica() as s:
-            nombres = dict(s.execute(select(Fuente.id, Fuente.nombre)).tuples().all())
+            nombres = dict(s.execute(select(Fuente.id, Fuente.nombre)).all())
 
             def nombre(fid: int) -> str:
                 return nombres.get(fid, str(fid))
@@ -69,8 +69,8 @@ class ColectorFuentes(Collector):
                 .where(Video.estado == "listo")
                 .group_by(Video.fuente_id)
             ):
-                cuadros.add_metric([nombre(fid)], float(c))
-                proceso.add_metric([nombre(fid)], float(ms) / 1000)
+                cuadros.add_metric([nombre(fid)], float(c or 0))
+                proceso.add_metric([nombre(fid)], float(ms or 0) / 1000)
                 if fin is not None:
                     ultima.add_metric([nombre(fid)], fin.timestamp())
             for fid, sev, n in s.execute(
@@ -126,7 +126,9 @@ class ColectorAlertas(Collector):
                 Notificacion.estado.in_(("enviada", "acusada")),
                 Notificacion.hallazgo_id.isnot(None),
             )
-            emitidos = s.scalar(select(func.count(func.distinct(avisados.c.hallazgo_id))))
+            emitidos = s.scalar(
+                select(func.count(func.distinct(avisados.subquery().c.hallazgo_id)))
+            )
             if emitidos:
                 con_accion = s.scalar(
                     select(func.count(func.distinct(AccionCorrectiva.hallazgo_id))).where(

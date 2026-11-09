@@ -31,7 +31,7 @@ def test_cada_fila_trae_sus_conteos_y_los_dias_consecutivos_hasta_hoy_en_la_faen
     dias = perfil["dotacion"]["dias"]
     with transaccion(bd) as s:
         cargar(s, perfil)
-        areas = dict(s.execute(select(Area.nombre, Area.id)).tuples().all())
+        areas = dict(s.execute(select(Area.nombre, Area.id)).all())
         todas = s.scalars(select(Dotacion)).all()
         assert len(todas) == len(perfil["dotacion"]["filas"]) * dias
         for f in perfil["dotacion"]["filas"]:
