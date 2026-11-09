@@ -129,6 +129,7 @@ class Despachador:
         }
         pendientes = []
         for n in filas:
+            assert n.hallazgo_id is not None  # filtrado al recoger pendientes
             h, area = datos[n.hallazgo_id]
             pendientes.append(
                 Pendiente(
@@ -164,6 +165,7 @@ class Despachador:
         )
         h = Historial()
         for destinatario, _, en in s.execute(enviados).all():
+            assert en is not None  # el WHERE excluye enviada_en nula
             h.enviados_en_turno[destinatario] = h.enviados_en_turno.get(destinatario, 0) + 1
             if destinatario not in h.ultimo_envio or en > h.ultimo_envio[destinatario]:
                 h.ultimo_envio[destinatario] = en
@@ -178,6 +180,7 @@ class Despachador:
             .group_by(Notificacion.destinatario, Hallazgo.fuente_id)
         )
         for destinatario, fuente_id, en in s.execute(por_camara).all():
+            assert en is not None  # el WHERE excluye enviada_en nula
             h.ultimo_por_camara[(destinatario, fuente_id)] = en
         return h
 

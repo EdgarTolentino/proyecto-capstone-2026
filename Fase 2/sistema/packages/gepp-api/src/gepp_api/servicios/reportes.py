@@ -231,7 +231,7 @@ def _reporte_dotacion(
     for h in hallazgos:
         turno, fecha = _turno_y_fecha(h.ts_inicio, tz)
         eventos[(h.area_id, turno, fecha)] += 1
-    areas = dict(bd.execute(select(Area.id, Area.nombre)).tuples().all())
+    areas = dict(bd.execute(select(Area.id, Area.nombre)).all())
     filas = []
     for clave in sorted(set(registros) | {(a, t) for a, t, _ in eventos}):
         dias = registros.get(clave, {})
@@ -298,8 +298,8 @@ def reporte(
         consulta = consulta.where(Hallazgo.area_id == area_id)
     todos = list(bd.execute(consulta).scalars())
     hallazgos = [h for h in todos if h.ts_inicio >= inicio]
-    zonas = dict(bd.execute(select(Zona.id, Zona.nombre)).tuples().all())
-    fuentes = dict(bd.execute(select(Fuente.id, Fuente.nombre)).tuples().all())
+    zonas = dict(bd.execute(select(Zona.id, Zona.nombre)).all())
+    fuentes = dict(bd.execute(select(Fuente.id, Fuente.nombre)).all())
     dimension = segmentacion or DIMENSION_POR_DEFECTO[tipo]
     claves = _claves(dimension, tz, zonas, fuentes)
 

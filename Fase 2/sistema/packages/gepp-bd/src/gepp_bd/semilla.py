@@ -129,9 +129,7 @@ def _cargar_dotacion(
         existentes = set(
             sesion.execute(
                 select(Dotacion.fecha, Dotacion.turno).where(Dotacion.area_id == area.id)
-            )
-            .tuples()
-            .all()
+            ).all()
         )
         for atras in range(dias):
             fecha = hoy - timedelta(days=atras)
