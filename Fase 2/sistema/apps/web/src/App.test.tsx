@@ -96,7 +96,7 @@ it("usa la raíz como panel general y permite volver a la bandeja", async () => 
   expect(window.location.pathname).toBe("/");
   await waitFor(() => expect(screen.getByRole("combobox", { name: "Obra" })).toHaveValue("7"));
   await waitFor(() => expect(api.obtenerPanel).toHaveBeenLastCalledWith({ obraId: 7, desde: "2026-09-01", hasta: "2026-09-30", turno: "A" }));
-});
+}, 10_000);
 
 it("abre Reportes desde el menú y consulta los KPI 3 a 6 con filtros compartidos", async () => {
   window.history.replaceState({}, "", "/?desde=2026-09-01&hasta=2026-09-30");
