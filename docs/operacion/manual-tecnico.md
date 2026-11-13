@@ -230,7 +230,9 @@ npm run lint && npm run typecheck && npm test && npm run build
 `make test GEPP_API_TOKENS=demo=prevencionista@obra.invalid`.
 
 `make contrato` compara método, ruta y `operationId` de cada operación. Que las respuestas cumplan
-los esquemas lo comprueban las pruebas de la API, que validan cada respuesta contra el contrato.
+los esquemas lo comprueban las pruebas de la API que pasan por `Cliente.llamar`
+(`tests/api/conftest.py`): validan su respuesta JSON contra el contrato. Las que llaman a la API
+directamente solo miran el código de estado.
 
 El CI (`.github/workflows/ci.yml`) corre **por rutas**: un cambio que no toca código Python ni web
 se salta esas pruebas, y «Todo en verde» acepta los trabajos omitidos. Tampoco corre
@@ -251,7 +253,10 @@ documentación. El CI sí bloquea dependencias con licencias prohibidas (ADR-002
   - la **vista en vivo** del procesamiento muestra rostros sin tapar; está apagada por defecto y su
     carpeta tiene que ser tmpfs (§4.1). Aun así, `/dev/shm` puede ir a swap;
   - la **cámara de demostración** (§7.4) graba trozos de video sin tapar, en memoria, con
-    autorización escrita de las personas grabadas, y se borran en minutos. Sus condiciones están en
+    autorización escrita de las personas grabadas. El borrador los elimina en minutos **solo
+    mientras funciona**: si se cuelga, MediaMTX sigue grabando hasta que baja el compose, y un
+    trabajador colgado retiene el trozo que lee. Antes de cada uso, `docker compose ps` tiene que
+    mostrar el `borrador` sano; si no, se baja todo. Condiciones y límites en
     `docs/producto/02-privacidad-y-cumplimiento.md`.
 - **Los reportes suprimen en el servidor** toda celda con menos de cinco casos.
 
