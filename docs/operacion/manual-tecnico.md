@@ -32,7 +32,7 @@ levantan solas. Las fronteras entre paquetes están en el ADR-007.
 | Docker con Compose | reciente | PostgreSQL y Redis |
 | Node.js | 22 | La versión del CI. Solo para la web |
 | GPU NVIDIA con CUDA | opcional | Solo para el modelo en PyTorch y para el procesamiento en vivo |
-| ffmpeg | opcional | Solo para el celular como cámara y para `scripts/inventario_video.py` |
+| ffmpeg (`ffprobe`) | recomendado | El trabajador lee con `ffprobe` la fecha de grabación del video. Sin él, el reloj del video sale de la fecha de modificación del archivo, que cambia al copiarlo (ADR-005). También lo usan el celular como cámara y `scripts/inventario_video.py` |
 
 Sin GPU, el sistema funciona completo con el modelo ONNX en CPU o con el detector simulado.
 
@@ -86,7 +86,7 @@ las que hay que decidir:
 |---|---|---|---|
 | Servicios | `GEPP_BD_URL` | Base PostgreSQL | la de `docker/compose.yml` |
 | | `GEPP_REDIS_URL` | Cola del trabajador | `redis://localhost:6379/0` |
-| Acceso | `GEPP_API_TOKENS` | Quién entra a la API: `token=correo,...` | Sin definir: las cuentas de demostración (ver §9) |
+| Acceso | `GEPP_API_TOKENS` | Quién entra a la API: `token=correo,...`. **Cada correo tiene que existir como usuario activo en la base**, con su rol: lo crea `make semilla` desde la sección `usuarios:` del perfil | Sin definir: las cuentas de demostración (ver §9) |
 | | `GEPP_API_HOST`, `GEPP_API_PUERTO` | Dónde escucha la API | `127.0.0.1`, `8000` |
 | Carpetas | `GEPP_CARPETA_VIGILADA` | Videos que se procesan solos, de una cámara | **obligatoria** para el trabajador |
 | | `GEPP_FUENTE_ID` | Cámara a la que pertenece la carpeta vigilada | `1` |
@@ -104,7 +104,7 @@ las que hay que decidir:
 | | `GEPP_TELEGRAM_TOKEN` | Token del bot. **Es un secreto** | — |
 | | `GEPP_DESPACHO_INTERVALO_S` | Cada cuánto revisa el despachador | `5` |
 | Vista en vivo | `GEPP_VISTA_EN_VIVO` | `1` la enciende. Muestra rostros sin tapar (ADR-006) | `0` |
-| | `GEPP_CARPETA_VIVO`, `GEPP_VIVO_FPS` | Dónde y a qué ritmo se escribe | `/dev/shm/gepp-vivo`, `25` |
+| | `GEPP_CARPETA_VIVO`, `GEPP_VIVO_FPS` | Dónde y a qué ritmo se escribe. **La carpeta tiene que estar en memoria (tmpfs)**: el trabajador no lo comprueba y escribe ahí cuadros con rostros sin tapar | `/dev/shm/gepp-vivo`, `25` |
 
 Las tres carpetas de video y evidencia **deben estar en el sistema de archivos de Linux**: en WSL2,
 inotify no funciona sobre `/mnt/c` y el sistema rechaza esas rutas (ADR-005).
@@ -125,8 +125,8 @@ Ese archivo solo lo lee `npm run dev`: las pruebas y `vite build` no lo cargan.
 |---|---|
 | Levantar o detener PostgreSQL y Redis | `make up` · `make down` |
 | Aplicar las migraciones | `make migrar` (equivale a `python -m gepp_bd.migrar subir`) |
-| Volver a una revisión | `uv run python -m gepp_bd.migrar bajar <revisión>` (sin revisión, a `base`) |
-| Cargar un perfil de faena | `make semilla` (construcción) · `make semilla PERFIL=perfiles/otro.yaml`. Si la faena ya existe, solo suma las cuentas que falten |
+| Volver a una revisión | `uv run --env-file .env python -m gepp_bd.migrar bajar <revisión>` (sin revisión, a `base`) |
+| Cargar un perfil de faena | `make semilla` (construcción) · `make semilla PERFIL=perfiles/otro.yaml`. Si la faena ya existe, suma las cuentas que falten, completa la dotación sintética de demostración y **aplica el `modo_incumplimiento` del perfil** (el de construcción es `ausencia`): una faena pasada a `evidencia` vuelve a `ausencia` |
 | Regenerar `esquema.sql` y `diagrama-er.md` de la entrega | `uv run python scripts/exportar_esquema.py` (sale de las migraciones; no necesita PostgreSQL) |
 
 Las migraciones están en `packages/gepp-bd/src/gepp_bd/migraciones/versions/`. El esquema, el
@@ -156,8 +156,9 @@ El modelo de la entrega es **epp-v3** (RF-DETR Small, 5 clases). El `.clases.jso
 en [`modelo-onnx.md`](modelo-onnx.md).
 
 **El mosaico.** En una cámara alta, los cascos del fondo miden pocos píxeles y el modelo no los ve
-en el cuadro entero (#203). Si la cámara tiene una zona `mosaico`, el trabajador analiza solo esa
-región, ampliada por partes. En CPU tarda segundos por cuadro: para tiempo real hace falta GPU.
+en el cuadro entero (#203). Si la cámara tiene una zona `mosaico`, el trabajador analiza la caja
+rectangular que encierra esa zona, ampliada por partes: un polígono no rectangular se analiza
+completo hasta su rectángulo. En CPU tarda segundos por cuadro: para tiempo real hace falta GPU.
 
 ## 7. Levantar el sistema
 
@@ -169,7 +170,18 @@ make demo-apagar
 ```
 
 Recrea una base de demostración, procesa el video, levanta la API y la web y, si el `.env` tiene el
-bot, también el despachador. Los registros quedan en `$TMPDIR/gepp-demo`. El paso a paso, con lo
+bot, también el despachador.
+
+> **Advertencia: vacía Redis.** La demo hace `FLUSHDB` sobre la base de Redis de
+> `GEPP_REDIS_URL`. Con el `.env.example` es la `/0`, la misma del trabajador habitual: se pierden
+> sus trabajos en cola. Dale a la demo su propia base, **como argumento de `make`** (el `.env` que
+> carga `make` pisa una variable de entorno, no un argumento):
+>
+> ```bash
+> make demo-todo VIDEO=ruta/al/video.mp4 GEPP_REDIS_URL=redis://localhost:6379/15
+> ```
+
+ Los registros quedan en `$TMPDIR/gepp-demo`. El paso a paso, con lo
 que se ve en cada pantalla, está en [`recorrido-h2.md`](recorrido-h2.md).
 
 ### 7.2 Por partes
@@ -190,6 +202,9 @@ El trabajador no arranca si faltan `GEPP_BD_URL`, `GEPP_REDIS_URL` o `GEPP_CARPE
 `make mock` sirve el contrato `contracts/openapi.yaml` en el puerto 4010. Con él, la web funciona
 sin base, sin API y sin modelo. Cabecera: `Authorization: Bearer demo`.
 
+La web usa el simulado solo si `VITE_API_URL` no está definida. Si copiaste `.env.example` en el
+§3.1, comenta esa línea en `apps/web/.env.development.local` antes de `npm run dev`.
+
 ### 7.4 Demostración en vivo
 
 El sistema completo en contenedores, con el trabajador en GPU, la sala en vivo y un teléfono como
@@ -204,14 +219,23 @@ Antes de entregar o de abrir un pull request:
 ```bash
 make up                                    # sin la base, se omiten sus pruebas
 make lint && make tipos && make test       # ruff, mypy y pytest sin GPU
-make contrato                              # la API sirve exactamente openapi.yaml
+make contrato                              # la API expone las mismas operaciones que openapi.yaml
 
 cd apps/web
 npm run lint && npm run typecheck && npm test && npm run build
 ```
 
-El CI (`.github/workflows/ci.yml`) corre lo mismo en cada cambio y además bloquea dependencias con
-licencias prohibidas (ADR-002). El job «Todo en verde» decide si un cambio puede entrar.
+**Las pruebas de la API entran con el token `demo`.** Si tu `.env` define `GEPP_API_TOKENS` sin él,
+`make test` falla con 401, porque `make` exporta el `.env`. Pásalo como argumento:
+`make test GEPP_API_TOKENS=demo=prevencionista@obra.invalid`.
+
+`make contrato` compara método, ruta y `operationId` de cada operación. Que las respuestas cumplan
+los esquemas lo comprueban las pruebas de la API, que validan cada respuesta contra el contrato.
+
+El CI (`.github/workflows/ci.yml`) corre **por rutas**: un cambio que no toca código Python ni web
+se salta esas pruebas, y «Todo en verde» acepta los trabajos omitidos. Tampoco corre
+`make contrato`. Por eso la verificación local de arriba va siempre, también en cambios de solo
+documentación. El CI sí bloquea dependencias con licencias prohibidas (ADR-002).
 
 ## 9. Seguridad y privacidad
 
@@ -220,8 +244,15 @@ licencias prohibidas (ADR-002). El job «Todo en verde» decide si un cambio pue
   pero vacía, no entra nadie (401).
 - **Nunca al repositorio:** el `.env`, videos de obra, pesos, datasets, rostros sin difuminar,
   credenciales ni RUT.
-- **La evidencia se guarda difuminada.** La vista en vivo es la única excepción: muestra rostros sin
-  tapar, está apagada por defecto, vive en memoria y no se guarda (ADR-006).
+- **La evidencia se guarda difuminada, por estimación.** La zona del rostro se calcula desde la caja
+  de la persona, sin detector facial: con una persona agachada, de espaldas o parcialmente fuera del
+  cuadro puede quedar corta (`gepp_vision/evidencia.py`). Revisa la evidencia antes de compartirla.
+- **Hay dos excepciones, ambas en memoria y sin guardarse** (ADR-006):
+  - la **vista en vivo** del procesamiento muestra rostros sin tapar; está apagada por defecto y su
+    carpeta tiene que ser tmpfs (§4.1). Aun así, `/dev/shm` puede ir a swap;
+  - la **cámara de demostración** (§7.4) graba trozos de video sin tapar, en memoria, con
+    autorización escrita de las personas grabadas, y se borran en minutos. Sus condiciones están en
+    `docs/producto/02-privacidad-y-cumplimiento.md`.
 - **Los reportes suprimen en el servidor** toda celda con menos de cinco casos.
 
 Lo que el sistema nunca hace con personas está en `docs/producto/02-privacidad-y-cumplimiento.md`.
@@ -233,7 +264,8 @@ Lo que el sistema nunca hace con personas está en `docs/producto/02-privacidad-
 | El sistema rechaza la carpeta de videos | Está bajo `/mnt/`: en WSL2, inotify no funciona ahí | Usa una carpeta del sistema de archivos de Linux (§4.1) |
 | Después de un `make`, no se puede importar `rfdetr` | `uv run` sincronizó sin el extra `gpu` | `make setup-gpu` y `export UV_NO_SYNC=1` (§3.2) |
 | Redis no arranca: «Can't handle RDB format version 12» | Un volumen viejo de Redis 7.4 | `docker compose -f docker/compose.yml up -d -V redis` |
-| La web responde 401 | `VITE_API_TOKEN` no coincide con `GEPP_API_TOKENS` | Revisa las dos (§4) |
+| La web responde 401 | El token no está en `GEPP_API_TOKENS`, o su correo no existe como usuario activo en la base | Revisa las dos variables (§4) y que el correo esté en `usuarios:` del perfil sembrado (`make semilla`) |
+| `make test` falla con 401 en las pruebas de la API | El `.env` define `GEPP_API_TOKENS` sin el token `demo` | `make test GEPP_API_TOKENS=demo=prevencionista@obra.invalid` (§8) |
 | «Procesar video» devuelve `409 entrada_no_configurada` | Falta `GEPP_CARPETA_ENTRADA` | Defínela en la API y en el trabajador, con la misma ruta |
 | El trabajador se detiene al arrancar por `GEPP_MOSAICO_LADO` | El lado no coincide con la entrada del modelo | Déjalo vacío |
 | La demo en Windows termina con `sin registrar` | `multiprocessing` en Windows (#225) | Córrela en WSL2 |
