@@ -236,6 +236,15 @@ video: `https://www.youtube.com/watch?v=<id>`.
 
 ## Licencia
 
-Pendiente de decisión del equipo. La elección está condicionada por las licencias de los modelos
-—ver [ADR-002](docs/arquitectura/adr/002-detector-y-licencias.md)— y hay que cerrarla **antes** de
-la S15, no después.
+Copyright 2026 los autores de Guardián EPP (ver [Equipo](#equipo)).
+
+El código y la documentación técnica se publican bajo la **[Apache License 2.0](LICENSE)**. Es la
+misma licencia de RF-DETR y del seguidor ([ADR-002](docs/arquitectura/adr/002-detector-y-licencias.md)).
+
+**Quedan fuera de la licencia:**
+
+| Qué | Por qué |
+|---|---|
+| Las guías y pautas de Duoc UC (`Fase */Evidencias Grupales/*GuiaEstudiante*`) | Son plantillas de la institución |
+| Los diarios, autoevaluaciones y reflexiones (`Fase */Evidencias Individuales/`) | Son trabajo personal de cada integrante |
+| Los datasets, videos y pesos de terceros | Cada uno conserva su licencia (tabla de datasets, más arriba). Tampoco están en el repositorio |
