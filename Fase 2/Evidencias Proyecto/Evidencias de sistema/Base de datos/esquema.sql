@@ -347,5 +347,25 @@ ALTER TABLE video ADD CONSTRAINT ck_video_avance_fase CHECK (avance_fase IN ('an
 
 UPDATE alembic_version SET version_num='0006' WHERE alembic_version.version_num = '0005';
 
+-- Running upgrade 0006 -> 0007
+
+ALTER TABLE zona DROP CONSTRAINT ck_zona_tipo;
+
+ALTER TABLE zona ADD CONSTRAINT ck_zona_tipo CHECK (tipo IN ('interes','privacidad','mosaico'));
+
+UPDATE alembic_version SET version_num='0007' WHERE alembic_version.version_num = '0006';
+
+-- Running upgrade 0007 -> 0008
+
+ALTER TABLE faena ADD COLUMN modo_incumplimiento TEXT DEFAULT 'ausencia' NOT NULL;
+
+ALTER TABLE faena ADD CONSTRAINT ck_faena_modo_incumplimiento CHECK (modo_incumplimiento IN ('ausencia','evidencia'));
+
+ALTER TABLE video ADD COLUMN modo_incumplimiento TEXT;
+
+ALTER TABLE video ADD CONSTRAINT ck_video_modo_incumplimiento CHECK (modo_incumplimiento IN ('ausencia','evidencia'));
+
+UPDATE alembic_version SET version_num='0008' WHERE alembic_version.version_num = '0007';
+
 COMMIT;
 
