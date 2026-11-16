@@ -8,6 +8,7 @@ erDiagram
         BIGINT id PK
         TEXT nombre
         TEXT zona_horaria
+        TEXT modo_incumplimiento
         DATETIME creado_en
     }
     area {
@@ -71,6 +72,7 @@ erDiagram
         INTEGER intentos
         INTEGER cuadros_analizados
         BIGINT proceso_ms
+        TEXT modo_incumplimiento
         DATETIME creado_en
         TEXT avance_fase
         REAL avance_s

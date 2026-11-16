@@ -138,8 +138,16 @@ Los datos de PostgreSQL quedan en el volumen `pgdata` de Docker: `make down` no 
 
 ### Respaldo y restauración
 
-> **Pendiente (#40, Miguel).** Procedimiento con `pg_dump` y `pg_restore` probado de punta a punta,
-> y `respaldo.dump` sintético en la carpeta Base de datos (#41).
+El respaldo sintético de la entrega está en [`Fase 2/Evidencias Proyecto/Evidencias de
+sistema/Base de datos/`](../../Fase%202/Evidencias%20Proyecto/Evidencias%20de%20sistema/Base%20de%20datos/).
+Incluye `respaldo.dump`, `esquema.sql`, `datos-ejemplo.sql` y el diagrama ER. No contiene
+videos, imágenes, RUT ni cuentas reales.
+
+La restauración se comprobó de punta a punta el 2026-11-16 en PostgreSQL 17.11, sobre un
+contenedor temporal y una base vacía, con `pg_restore --exit-on-error --single-transaction`.
+La base restaurada quedó en la migración `0008`, con cuatro cuentas sintéticas y cuatro correos
+del dominio reservado `.invalid`. La receta reproducible y el SHA-256 del archivo están en el
+[README de evidencias de la base de datos](../../Fase%202/Evidencias%20Proyecto/Evidencias%20de%20sistema/Base%20de%20datos/README.md).
 
 ## 6. El modelo
 
